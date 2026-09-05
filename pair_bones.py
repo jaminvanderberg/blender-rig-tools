@@ -15,17 +15,27 @@ class RIG_UL_def_results(bpy.types.UIList):
             #ow.label(text=item.message)
             
 def is_bone_visible(bone):
-    if bone.hide:
+    data_bone = getattr(bone, "bone", bone)
+    
+    if data_bone.hide:
         return False
-    if not bone.collections:
-        return True
-    return any(coll.is_visible for coll in bone.collections)
+    
+    if hasattr(data_bone, "collections"):
+        if not data_bone.collections:
+            return True
+        return any(coll.is_visible for coll in data_bone.collections)
+    
+    armature = data_bone.id_date if hasattr(data_bone, "id_data") else None
+    if armature and hasattr(armature, "layers"):
+        return any(b_layer and a_layer for b_layer, a_layer in zip(data_bone.layers, armature.layers))
+    
+    return True
 
-class RIG_OT_setup_def_constraints(bpy.types.Operator):
+
+class RIG_OT_pair_bones(bpy.types.Operator):
     """Setup relationships between bones based on prefix"""
-    bl_idname = "rig.setup_def_constraints"
-    bl_label = "Pair Bones"
-    bl_icon = "CON_TRANSLIKE"
+    bl_idname = "rig.pair_bones"
+    bl_label = "Pair Bones (e.g. DEF- > ORG-)"
     bl_options = {'REGISTER', 'UNDO'}
 
     # Properties for the popup
@@ -63,14 +73,14 @@ class RIG_OT_setup_def_constraints(bpy.types.Operator):
     )
     
     remove_control_constraints: BoolProperty(
-        name="Remove Control Bone Constraints",
-        description="Remove all constraints from control bones",
+        name="Remove To Bone Constraints",
+        description="Remove all constraints on to-bones",
         default=True
     )
     
     disable_control_deform: BoolProperty(
-        name="Disable Control Bone Deform",
-        description="Disable deformation on control bones",
+        name="Disable To Bone Deform",
+        description="Disable deformation on to-bones",
         default=True
     )
     
@@ -314,7 +324,7 @@ class RIG_OT_setup_def_constraints(bpy.types.Operator):
 classes = (
     RIG_PG_def_result,
     RIG_UL_def_results,
-    RIG_OT_setup_def_constraints,
+    RIG_OT_pair_bones,
 )
 
 def register():
@@ -330,4 +340,4 @@ if __name__ == "__main__":
         pass
     register()
     
-    bpy.ops.rig.setup_def_constraints('INVOKE_DEFAULT')
+    bpy.ops.rig.pair_bones('INVOKE_DEFAULT')

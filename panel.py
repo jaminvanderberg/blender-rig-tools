@@ -5,7 +5,7 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 	bl_idname = "RIG_PT_tools_npanel"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
-	bl_category = "Rig Tools"
+	bl_category = "Tool"
 
 	@classmethod
 	def poll(cls, context):
@@ -16,20 +16,12 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 		obj = context.object
 		mode = context.mode
 
-		if mode == 'POSE':
-			layout.label(text="Pose Tools:")
-			layout.operator("rig.add_eye_targets", icon='CON_TRACKTO')
-			
-			layout.label(text="Weight Paint:")
-			layout.operator("rig.switch_to_weight_paint", icon='WPAINT_HLT')
-		
 		if mode in {'OBJECT', 'EDIT_ARMATURE', 'POSE'}:
 			layout.label(text="Rig Setup:")
-			layout.operator("rig.setup_def_constraints", icon='CON_TRANSLIKE')
+			layout.operator("rig.pair_bones", icon='CON_TRANSLIKE')
+			layout.operator("rig.batch_rename_bones", icon='SYNTAX_OFF')
 
-		if mode == 'PAINT_WEIGHT':
-			layout.label(text="Weight Paint:")
-			layout.operator("rig.switch_back_to_pose", icon='OUTLINER_DATA_ARMATURE')
-			
-		else:
-			layout.label(text="Switch to Pose or Object Mode")
+		if mode in {'POSE', 'EDIT_ARMATURE'}:
+			layout.label(text="Chain Tools:")
+			layout.operator("rig.create_fk_tweak_chain", icon='CON_STRETCHTO')
+

@@ -5,7 +5,7 @@ import re
 import math
 
 class ChainBranchingError(Exception):
-    """Custom exception raised on branching bone chain"""
+    """Creates FK/Tweak chain from an existing bone chain."""
     pass
 
 @dataclass
@@ -297,9 +297,9 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
     fk_scale_factor: bpy.props.FloatProperty(
         name="FK Scale Factor",
         description="Percentage of average chain length for tweak bones",
-        default=0.60,
+        default=0.90,
         min=0.05,
-        max=1.0
+        max=2.0
     ) 
         
     tweak_scale_factor: bpy.props.FloatProperty(
@@ -307,7 +307,7 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         description="Percentage of average chain length for tweak bones",
         default=0.25,
         min=0.05,
-        max=1.0
+        max=2.0
     )
     
     ################################################################################################
@@ -325,6 +325,8 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         total_length = sum(edit_bones[name].length for name in chain_bone_names)
         avg_length = total_length / len(chain_bone_names)
         tweak_length = avg_length * self.tweak_scale_factor
+
+        target_coll = armature_data.collections.active
         
         last_parent = edit_bones[chain_bone_names[0]].parent
         
@@ -342,6 +344,8 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
             fk_bone.roll = org_bone.roll
             
             chain.fk_bones.append(fk_bone.name)
+            if target_coll:
+                target_coll.assign(fk_bone)
             
             last_parent = fk_bone
             
@@ -355,12 +359,17 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
             tweak_bone.roll = org_bone.roll
             
             chain.tweak_bones.append(tweak_bone.name)
+            if target_coll:
+                target_coll.assign(tweak_bone)
             
         # Create terminal (tip) tweak bone            
         last_org_bone = edit_bones[chain_bone_names[-1]]
         term_name = generate_bone_name(chain_bone_names[-1], self.org_prefix, self.org_suffix, self.term_bone_name)
         term_bone = edit_bones.new(term_name)
         term_bone.parent = last_parent
+
+        if target_coll:
+            target_coll.assign(term_bone)
         
         term_bone.head = last_org_bone.tail
         direction = (last_org_bone.tail - last_org_bone.head).normalized()
@@ -450,7 +459,6 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
             return {'CANCELLED'}
         
         bone_data = obj.data
-        pose_bones = obj.pose.bones
         
         # Switch to edit mode
         original_mode = obj.mode
@@ -462,8 +470,6 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
             bpy.ops.object.mode_set(mode=original_mode)
             return {'CANCELLED'}                    
 
-        all_bones = bone_data.edit_bones
-        
         # Find all of the indivual bone chains
         try:
             if self.bone_selection == 'SELECTED':
@@ -489,7 +495,11 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         bpy.ops.ed.undo_push(message="Create FK Tweak Chain")
         
         chain_count = len(processed_chains)
-        self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
+
+        if not bone_data.collections.active.is_visible:
+            self.report({'WARNING'}, f"New bones added to hidden collection '{bone_data.collections.active.name}'")
+        else:
+            self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
             
         return {'FINISHED'}
 

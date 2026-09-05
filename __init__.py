@@ -3,38 +3,55 @@ bl_info = {
     "author": "Jamin VanderBerg",
     "version": (1, 2),
     "blender": (2, 93, 0),
-    "location": "View3D > Sidebar > Rig Tools",
+    "location": "View3D > Sidebar > Tool > Rig Tools",
     "description": "Helper functions for rig building",
     "category": "Rigging"
 }
 
 import bpy
 
-def register():
-    from . import eye_targets
-    from . import def_constraints
-    from . import panel
-    from . import weightpaint
-    from . import posemode
-    from . import bone_collections
+from . import pair_bones
+from . import panel
+from . import fk_tweak_chain
+from . import selection_panel
+from . import batch_rename
 
-    global classes
-    classes = (
-        panel.RIG_PT_tools_npanel,
-        eye_targets.EYE_OT_add_targets,
-        def_constraints.RIG_OT_setup_def_constraints,
-        weightpaint.RIG_OT_switch_to_weight_paint,
-        posemode.RIG_OT_switch_back_to_pose,
-        bone_collections.RIG_OT_toggle_bone_collection,
-        bone_collections.RIG_OT_solo_bone_collection,
-        bone_collections.RIG_OT_show_all_bone_collections,
-        bone_collections.RIG_PT_bone_collections_panel,
-    )
+classes = (
+    panel.RIG_PT_tools_npanel,
+    pair_bones.RIG_PG_def_result,
+    pair_bones.RIG_UL_def_results,
+    pair_bones.RIG_OT_pair_bones,
+    fk_tweak_chain.RIG_OT_create_fk_tweak_chain,
+    selection_panel.RIG_OT_select_bones_by_name,
+    selection_panel.RIG_PT_selection_panel,
+    batch_rename.RIG_OT_batch_rename_bones,
+)
+
+addon_keymaps = []
+
+def register():
 
     for cls in classes:
         bpy.utils.register_class(cls)
 
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        # Target the Armature keymap container (active in Edit and Pose modes)
+        km = kc.keymaps.new(name='Armature', space_type='EMPTY')
+        kmi = km.keymap_items.new(
+            "rig.batch_rename_bones", 
+            type='F2', 
+            value='PRESS', 
+            ctrl=True
+        )
+        addon_keymaps.append((km, kmi))
+
 def unregister():
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()
+    
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
