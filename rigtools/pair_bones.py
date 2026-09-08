@@ -1,5 +1,6 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
+from rigtools.utils.bone import is_bone_visible
 
 class RIG_PG_def_result(bpy.types.PropertyGroup):
     def_bone: StringProperty()
@@ -13,24 +14,6 @@ class RIG_UL_def_results(bpy.types.UIList):
         row.label(text=f"{item.def_bone} > {item.control_bone} - {item.message}", icon=item.icon)
         #if item.message:
             #ow.label(text=item.message)
-            
-def is_bone_visible(bone):
-    data_bone = getattr(bone, "bone", bone)
-    
-    if data_bone.hide:
-        return False
-    
-    if hasattr(data_bone, "collections"):
-        if not data_bone.collections:
-            return True
-        return any(coll.is_visible for coll in data_bone.collections)
-    
-    armature = data_bone.id_date if hasattr(data_bone, "id_data") else None
-    if armature and hasattr(armature, "layers"):
-        return any(b_layer and a_layer for b_layer, a_layer in zip(data_bone.layers, armature.layers))
-    
-    return True
-
 
 class RIG_OT_pair_bones(bpy.types.Operator):
     """Setup relationships between bones based on prefix"""

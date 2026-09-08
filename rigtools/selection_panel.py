@@ -1,5 +1,5 @@
 import bpy
-from .pair_bones import is_bone_visible
+from rigtools.utils.bone import is_bone_visible
 
 class RIG_OT_select_bones_by_name(bpy.types.Operator):
 	bl_idname = "rig.select_bones_by_name"
@@ -35,7 +35,7 @@ class RIG_PT_selection_panel(bpy.types.Panel):
 	bl_label = "Quick Bone Selection"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
-	bl_parent_id = "RIG_PT_tools_npanel"
+	bl_category = "Item"
 
 	def draw(self, context):
 		if context.mode not in {'EDIT_ARMATURE', 'POSE'}:

@@ -41,14 +41,15 @@ class RIG_OT_batch_rename_bones(bpy.types.Operator):
 						original_name = bone.name
 						working_name = original_name
 
-						# Strip numeric suffixes like .001, .042 if requested
-						if self.strip_suffix:
-								working_name = re.sub(r'\.\d{3}$', '', working_name)
-
 						# Find & Replace
 						if self.find:
 								working_name = working_name.replace(self.find, self.replace)
-								
+
+						# Strip numeric suffixes like .001, .042 if requested
+						# We do this after find/replace, in case the user uses the number in the find string
+						if self.strip_suffix:
+								working_name = re.sub(r'\.\d{3}$', '', working_name)
+
 						# Prefix & Suffix
 						if self.prefix:
 								working_name = self.prefix + working_name

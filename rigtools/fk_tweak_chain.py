@@ -1,8 +1,8 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from dataclasses import dataclass, field
-import re
-import math
+from rigtools.utils.bone import generate_bone_name, duplicate_bone
+from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget
 
 class ChainBranchingError(Exception):
     """Creates FK/Tweak chain from an existing bone chain."""
@@ -38,8 +38,7 @@ BONE_COLOR_ITEMS = [
     ('THEME18', "18 - Theme Color Set", "18 - Theme Color Set", 'COLORSET_18_VEC', 18),
     ('THEME19', "19 - Theme Color Set", "19 - Theme Color Set", 'COLORSET_19_VEC', 19),
     ('THEME20', "20 - Theme Color Set", "20 - Theme Color Set", 'COLORSET_20_VEC', 20),
-]
-    
+]   
     
 ###############################################################################################
 # Functions for finding bone chains
@@ -113,106 +112,6 @@ def find_hierarchy_chains(context):
     return chains
 
 ###########################################################################################################        
-# Functions for bone creation
-
-def generate_bone_name(org_name, strip_prefix, strip_suffix, template):
-    name = org_name
-    
-    symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
-    match = re.search(symmetry_pattern, name, re.IGNORECASE)
-    
-    if match:
-        base_name = name[:match.start()]
-        extension = match.group(0)
-    else:
-        base_name = name
-        extension = ""
-        
-    if strip_prefix and base_name.startswith(strip_prefix):
-        base_name = base_name[len(strip_prefix):]
-        
-    if strip_suffix and base_name.endswith(strip_suffix):
-        base_name = base_name[:-len(strip_suffix)]
-        
-    if "{name}" not in template:
-        # Gentle fallback behavior for when {name} is missing.
-        # If it starts with a separator, assume the used just mean a suffix
-        separators = ('.', '_', '-')
-        if template.startswith(separators):
-            template = f"{{name}}{template}"
-        else:
-            # Otherwise, we just assume it's a prefix.
-            # empty string template will just return the same bone name,
-            # which is probably fine
-            template = f"{template}{{name}}"
-            
-    formatted_base = template.format(name=base_name)
-    
-    return f"{formatted_base}{extension}"
-
-###########################################################################################################
-# Widget creation
-
-def get_widget_collection(context, collection_name):
-    coll = bpy.data.collections.get(collection_name)
-    if not coll:
-        coll = bpy.data.collections.new(collection_name)
-        context.scene.collection.children.link(coll)
-        coll.hide_viewport = True
-        coll.hide_render = True
-    return coll
-
-def create_sphere_widget(widget_name, collection):    
-    verts = []
-    edges = []
-    segments = 12
-    
-    for axis in ['XY', 'XZ', 'YZ']:
-        start_idx = len(verts)
-        for i in range(segments):
-            angle = (2 * math.pi * i) / segments
-            cos_a = math.cos(angle) * 0.5
-            sin_a = math.sin(angle) * 0.5
-            
-            match axis:
-                case 'XY':
-                    verts.append((cos_a, sin_a, 0.0))
-                case 'XZ':
-                    verts.append((cos_a, 0.0, sin_a))
-                case 'YZ':
-                    verts.append((0.0, cos_a, sin_a))
-                    
-            next_i = (i + 1) % segments
-            edges.append((start_idx + i, start_idx + next_i))
-            
-    mesh = bpy.data.meshes.new(widget_name)
-    mesh.from_pydata(verts, edges, [])
-    mesh.update()
-    
-    wgt = bpy.data.objects.new(widget_name, mesh)
-    collection.objects.link(wgt)
-    
-    return wgt
-
-def create_circle_widget(widget_name, collection):
-    verts = []
-    edges = []
-    segments = 16
-    
-    for i in range(segments):
-        angle = (2 * math.pi * i) / segments
-        verts.append((math.cos(angle) * 0.5, 0.0, math.sin(angle) * 0.5))
-        edges.append((i, (i + 1) % segments))
-        
-    mesh = bpy.data.meshes.new(widget_name)
-    mesh.from_pydata(verts, edges, [])
-    mesh.update()
-    
-    wgt = bpy.data.objects.new(widget_name, mesh)
-    collection.objects.link(wgt)
-    return wgt
-
-###########################################################################################################        
 
 class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
     """Setup relationships between bones based on prefix"""
@@ -220,17 +119,10 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
     bl_label = "Create FK Tweak Chain"
     bl_options = {'REGISTER', 'UNDO'}
 
-    # Properties for the popup
-    org_prefix: StringProperty(
-        name="Strip prefix",
-        description="Prefix to remove from original bones (e.g., 'ORG-' or 'DEF_')",
-        default="ORG-"
-    )
-
-    org_suffix: StringProperty(
-        name="Strip suffix",
-        description="Suffix to remove from original bones (e.g., 'ORG-' or 'DEF_')",
-        default=""
+    do_create_fk: BoolProperty(
+        name="Create FK Bones",
+        description="Create the FK bone chain. If unchecked, the tweak bones will be parented in a chain.",
+        default=True
     )
 
     fk_bone_name: StringProperty(
@@ -239,7 +131,7 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         default="FK-{name}"
     )
     
-    fk_bone_color: bpy.props.EnumProperty(
+    fk_bone_color: EnumProperty(
         name="FK Bone Color",
         description="Select theme color palette for generated FK controls",
         items=BONE_COLOR_ITEMS,
@@ -258,16 +150,22 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         default="{name}.tip.tweak"
     )
     
-    tweak_bone_color: bpy.props.EnumProperty(
+    tweak_bone_color: EnumProperty(
         name="Tweak Bone Color",
         description="Select theme color palette for generated tweak controls",
         items=BONE_COLOR_ITEMS,
         default='THEME09'  # Yellow as default for tweak controls
     )
     
-    do_create_widgets: bpy.props.BoolProperty(
+    do_create_fk_widgets: bpy.props.BoolProperty(
+        name="Create FK Widgets",
+        description="Create widgets for the FK bones",
+        default=True
+    )
+
+    do_create_tweak_widgets: bpy.props.BoolProperty(
         name="Create Widgets",
-        description="Create widgets for FK and tweak bones",
+        description="Create widgets for the tweak bones",
         default=True
     )
     
@@ -314,7 +212,7 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
     # Bone generation functions
 
     def create_tweak_chain(self, armature_data, chain_bone_names) -> FKTweakChain :
-        chain_name = generate_bone_name(chain_bone_names[0], self.org_prefix, self.org_suffix, "{name}")
+        chain_name = generate_bone_name(chain_bone_names[0], "{name}")
         chain = FKTweakChain(
             name = chain_name,
             original_bones = chain_bone_names
@@ -325,51 +223,43 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         total_length = sum(edit_bones[name].length for name in chain_bone_names)
         avg_length = total_length / len(chain_bone_names)
         tweak_length = avg_length * self.tweak_scale_factor
-
-        target_coll = armature_data.collections.active
         
         last_parent = edit_bones[chain_bone_names[0]].parent
         
         for bone_name in chain_bone_names:
             org_bone = edit_bones[bone_name]
-            direction = (org_bone.tail - org_bone.head).normalized()
             chain.bone_lengths[bone_name] = org_bone.length
+
+            if self.do_create_fk:
+                fk_name = generate_bone_name(bone_name, self.fk_bone_name)
+                fk_bone = duplicate_bone(armature_data, org_bone, fk_name, self.fk_scale_factor)
+                fk_bone.parent = last_parent
+
+                chain.fk_bones.append(fk_bone.name)
             
-            fk_name = generate_bone_name(bone_name, self.org_prefix, self.org_suffix, self.fk_bone_name)
-            fk_bone = edit_bones.new(fk_name)
-            fk_bone.parent = last_parent
+                last_parent = fk_bone
             
-            fk_bone.head = org_bone.head
-            fk_bone.tail = org_bone.head + (direction * org_bone.length * self.fk_scale_factor)
-            fk_bone.roll = org_bone.roll
+            tweak_name = generate_bone_name(bone_name, self.tweak_bone_name)
+            tweak_bone = duplicate_bone(armature_data, org_bone, tweak_name, 1)
+            tweak_bone.length = tweak_length
             
-            chain.fk_bones.append(fk_bone.name)
-            if target_coll:
-                target_coll.assign(fk_bone)
-            
-            last_parent = fk_bone
-            
-            tweak_name = generate_bone_name(bone_name, self.org_prefix, self.org_suffix, self.tweak_bone_name)
-            tweak_bone = edit_bones.new(tweak_name)
-            tweak_bone.parent = fk_bone
-            
-            tweak_bone.head = org_bone.head
-                        
-            tweak_bone.tail = org_bone.head + (direction * tweak_length)
-            tweak_bone.roll = org_bone.roll
+            if self.do_create_fk:
+                tweak_bone.parent = fk_bone
+            else:
+                tweak_bone.parent = last_parent
+                last_parent = tweak_bone
             
             chain.tweak_bones.append(tweak_bone.name)
-            if target_coll:
-                target_coll.assign(tweak_bone)
             
         # Create terminal (tip) tweak bone            
         last_org_bone = edit_bones[chain_bone_names[-1]]
-        term_name = generate_bone_name(chain_bone_names[-1], self.org_prefix, self.org_suffix, self.term_bone_name)
+        term_name = generate_bone_name(chain_bone_names[-1], self.term_bone_name)
         term_bone = edit_bones.new(term_name)
-        term_bone.parent = last_parent
+        if self.do_create_fk:
+            term_bone.parent = last_parent
 
-        if target_coll:
-            target_coll.assign(term_bone)
+        for coll in last_org_bone.collections:
+            coll.assign(term_bone)
         
         term_bone.head = last_org_bone.tail
         direction = (last_org_bone.tail - last_org_bone.head).normalized()
@@ -382,14 +272,14 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         for org_name, tweak_name in zip(chain_bone_names, chain.tweak_bones):
             org_bone = edit_bones[org_name]
             tweak_bone = edit_bones[tweak_name]
-            org_bone.parent = tweak_bone
             org_bone.use_connect = False
+            org_bone.parent = tweak_bone
             
         # Children of the last bone need to be children of the terminal tweak bone instead
         last_children = [c for c in last_org_bone.children if c.name not in chain_bone_names]
         for child in last_children:
-            child.parent = term_bone
             child.use_connect = False
+            child.parent = term_bone
             
         return chain
     
@@ -430,19 +320,21 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         tweakers = chain.tweak_bones + [chain.terminal_tweak]
         
         coll = get_widget_collection(context, self.widget_collection)
-                
-        for fk_name in chain.fk_bones:
-            fk_bone = pose_bones[fk_name]
-            widget_name = generate_bone_name(fk_name, self.org_prefix, self.org_suffix, self.widget_name)
-            wgt = create_circle_widget(widget_name, coll)
-            fk_bone.custom_shape = wgt
+
+        if self.do_create_fk_widgets:
+            for fk_name in chain.fk_bones:
+                fk_bone = pose_bones[fk_name]
+                widget_name = generate_bone_name(fk_name, self.widget_name)
+                wgt = create_circle_widget(widget_name, coll)
+                fk_bone.custom_shape = wgt
             
-        for tweak_name in tweakers:
-            tweak_bone = pose_bones[tweak_name]
-            tweak_bone.color.palette = self.tweak_bone_color
-            widget_name = generate_bone_name(tweak_name, self.org_prefix, self.org_suffix, self.widget_name)
-            wgt = create_sphere_widget(widget_name, coll)
-            tweak_bone.custom_shape = wgt
+        if self.do_create_tweak_widgets:
+            for tweak_name in tweakers:
+                tweak_bone = pose_bones[tweak_name]
+                tweak_bone.color.palette = self.tweak_bone_color
+                widget_name = generate_bone_name(tweak_name, self.widget_name)
+                wgt = create_sphere_widget(widget_name, coll)
+                tweak_bone.custom_shape = wgt
 
     ##################################################################################################
     # execute
@@ -489,17 +381,14 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         for chain in processed_chains:
             self.setup_constraints(obj, chain)
             self.setup_colors(obj, chain)
-            if self.do_create_widgets:
+            if self.do_create_fk_widgets or self.do_create_tweak_widgets:
                 self.setup_widgets(obj, context, chain)
                 
         bpy.ops.ed.undo_push(message="Create FK Tweak Chain")
         
         chain_count = len(processed_chains)
 
-        if not bone_data.collections.active.is_visible:
-            self.report({'WARNING'}, f"New bones added to hidden collection '{bone_data.collections.active.name}'")
-        else:
-            self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
+        self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
             
         return {'FINISHED'}
 
@@ -523,12 +412,7 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         box.label(text="Settings:", icon='SETTINGS')
         
         col = box.column()
-        col.prop(self, "bone_selection")
-        col.prop(self, "org_prefix")
-        col.prop(self, "org_suffix")
-        col = box.column()
-        col = box.column()
-        col = box.column()
+        col.prop(self, "do_create_fk")
         col.prop(self, "fk_bone_name")
         col.prop(self, "fk_bone_color")
         col.prop(self, "fk_scale_factor")
@@ -542,7 +426,8 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
         col = box.column()
         col = box.column()
         col = box.column()
-        col.prop(self, "do_create_widgets")
+        col.prop(self, "do_create_fk_widgets")
+        col.prop(self, "do_create_tweak_widgets")
         col.prop(self, "widget_collection")
         col.prop(self, "widget_name")
 
