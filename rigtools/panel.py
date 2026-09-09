@@ -18,7 +18,7 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 
 		if mode in {'OBJECT', 'EDIT_ARMATURE', 'POSE'}:
 			layout.label(text="Rig Setup:")
-			layout.operator("rig.pair_bones", icon='CON_TRANSLIKE')
+			layout.operator("rig.generate_org_bones", icon='CON_TRANSLIKE')
 			layout.operator("rig.batch_rename_bones", icon='SYNTAX_OFF')
 
 		if mode in {'POSE', 'EDIT_ARMATURE'}:

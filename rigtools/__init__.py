@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Rig Tools",
     "author": "Jamin VanderBerg",
-    "version": (0, 61),
+    "version": (0, 67),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Tool > Rig Tools",
     "description": "Helper functions for rig building",
@@ -10,22 +10,23 @@ bl_info = {
 
 import bpy
 
-from rigtools import pair_bones
+from rigtools import generate_org_bones
 from rigtools import panel
 from rigtools import fk_tweak_chain
 from rigtools import selection_panel
 from rigtools import batch_rename
 from rigtools import create_mch_bones
 from rigtools import create_rotation_isolation
+from rigtools import preferences
+from rigtools import preferences_io
 
 classes = (
+    preferences.RigToolsPreferences,
+    preferences_io.RIG_OT_export_preferences,
+    preferences_io.RIG_OT_import_preferences,
     panel.RIG_PT_tools_npanel,
-    pair_bones.RIG_PG_def_result,
-    pair_bones.RIG_UL_def_results,
-    pair_bones.RIG_OT_pair_bones,
+    generate_org_bones.RIG_OT_generate_org_bones,
     fk_tweak_chain.RIG_OT_create_fk_tweak_chain,
-    selection_panel.RIG_OT_select_bones_by_name,
-    selection_panel.RIG_PT_selection_panel,
     batch_rename.RIG_OT_batch_rename_bones,
     create_mch_bones.RIG_OT_create_mch_bones,
     create_mch_bones.RIG_PT_create_mch_bones,
@@ -35,6 +36,8 @@ classes = (
 addon_keymaps = []
 
 def register():
+
+    selection_panel.register()
 
     for cls in classes:
         bpy.utils.register_class(cls)
@@ -76,10 +79,11 @@ def unregister():
     addon_keymaps.clear()
 
     del bpy.types.Scene.mch_bone_name
-    del bpy.types.Scene.mch_scale_factor
     
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+    selection_panel.unregister()
 
 if __name__ == "__main__":
     register()

@@ -1,18 +1,29 @@
 import bpy
 import re
+from rigtools.preferences import get_separators
+
+def get_base_name(bone_name) -> tuple[str, str]:
+    symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
+    match = re.search(symmetry_pattern, bone_name, re.IGNORECASE)
+    
+    if match:
+        base_name = bone_name[:match.start()]
+        extension = match.group(0)
+    else:
+        base_name = bone_name
+        extension = ""
+
+    return base_name, extension
+
+def bone_name_matches(bone_name, prefix, suffix):
+    base_name, extension = get_base_name(bone_name)
+    if len(base_name) <= len(prefix) + len(suffix):
+        return False
+    return base_name.startswith(prefix) and base_name.endswith(suffix)
 
 def generate_bone_name(org_name, template, strip_name=True):
     name = org_name
-    
-    symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
-    match = re.search(symmetry_pattern, name, re.IGNORECASE)
-    
-    if match:
-        base_name = name[:match.start()]
-        extension = match.group(0)
-    else:
-        base_name = name
-        extension = ""
+    base_name, extension = get_base_name(name)    
 
     if strip_name:
         prefixes = ["ORG-", "DEF-", "MCH-", "CTRL-", "ctrl-", "org-", "def-", "mch-",
@@ -32,7 +43,7 @@ def generate_bone_name(org_name, template, strip_name=True):
     if "{name}" not in template:
         # Gentle fallback behavior for when {name} is missing.
         # If it starts with a separator, assume the used just mean a suffix
-        separators = ('.', '_', '-')
+        separators = tuple(get_separators())
         if template.startswith(separators):
             template = f"{{name}}{template}"
         else:
@@ -45,7 +56,7 @@ def generate_bone_name(org_name, template, strip_name=True):
     
     return f"{formatted_base}{extension}"
 
-def duplicate_bone(armature_data, bone, name, scale):
+def duplicate_bone(armature_data, bone, name, scale, copy_collections=True):
     new_bone = armature_data.edit_bones.new(name)
 
     direction = (bone.tail - bone.head).normalized()
@@ -64,8 +75,9 @@ def duplicate_bone(armature_data, bone, name, scale):
 
     bone.use_connect = connected
 
-    for coll in bone.collections:
-        coll.assign(new_bone)
+    if copy_collections:
+        for coll in bone.collections:
+            coll.assign(new_bone)
 
     return new_bone
             

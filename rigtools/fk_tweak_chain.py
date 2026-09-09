@@ -2,7 +2,9 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from dataclasses import dataclass, field
 from rigtools.utils.bone import generate_bone_name, duplicate_bone
+from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
 from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget
+from rigtools.preferences import get_preferences
 
 class ChainBranchingError(Exception):
     """Creates FK/Tweak chain from an existing bone chain."""
@@ -16,30 +18,7 @@ class FKTweakChain:
     tweak_bones: list[str] = field(default_factory=list)
     terminal_tweak: str = ""
     bone_lengths: dict[str, float] = field(default_factory=dict)
-    
-BONE_COLOR_ITEMS = [
-    ('THEME01', "01 - Theme Color Set", "01 - Theme Color Set", 'COLORSET_01_VEC', 1),
-    ('THEME02', "02 - Theme Color Set", "02 - Theme Color Set", 'COLORSET_02_VEC', 2),
-    ('THEME03', "03 - Theme Color Set", "03 - Theme Color Set", 'COLORSET_03_VEC', 3),
-    ('THEME04', "04 - Theme Color Set", "04 - Theme Color Set", 'COLORSET_04_VEC', 4),
-    ('THEME05', "05 - Theme Color Set", "05 - Theme Color Set", 'COLORSET_05_VEC', 5),
-    ('THEME06', "06 - Theme Color Set", "06 - Theme Color Set", 'COLORSET_06_VEC', 6),
-    ('THEME07', "07 - Theme Color Set", "07 - Theme Color Set", 'COLORSET_07_VEC', 7),
-    ('THEME08', "08 - Theme Color Set", "08 - Theme Color Set", 'COLORSET_08_VEC', 8),
-    ('THEME09', "09 - Theme Color Set", "09 - Theme Color Set", 'COLORSET_09_VEC', 9),
-    ('THEME10', "10 - Theme Color Set", "10 - Theme Color Set", 'COLORSET_10_VEC', 10),
-    ('THEME11', "11 - Theme Color Set", "11 - Theme Color Set", 'COLORSET_11_VEC', 11),
-    ('THEME12', "12 - Theme Color Set", "12 - Theme Color Set", 'COLORSET_12_VEC', 12),
-    ('THEME13', "13 - Theme Color Set", "13 - Theme Color Set", 'COLORSET_13_VEC', 13),
-    ('THEME14', "14 - Theme Color Set", "14 - Theme Color Set", 'COLORSET_14_VEC', 14),
-    ('THEME15', "15 - Theme Color Set", "15 - Theme Color Set", 'COLORSET_15_VEC', 15),
-    ('THEME16', "16 - Theme Color Set", "16 - Theme Color Set", 'COLORSET_16_VEC', 16),
-    ('THEME17', "17 - Theme Color Set", "17 - Theme Color Set", 'COLORSET_17_VEC', 17),
-    ('THEME18', "18 - Theme Color Set", "18 - Theme Color Set", 'COLORSET_18_VEC', 18),
-    ('THEME19', "19 - Theme Color Set", "19 - Theme Color Set", 'COLORSET_19_VEC', 19),
-    ('THEME20', "20 - Theme Color Set", "20 - Theme Color Set", 'COLORSET_20_VEC', 20),
-]   
-    
+
 ###############################################################################################
 # Functions for finding bone chains
     
