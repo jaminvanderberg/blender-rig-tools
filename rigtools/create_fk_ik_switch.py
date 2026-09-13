@@ -98,6 +98,16 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		items=spline_twist_type,
 		default='START_END'
 	)
+
+	tweak_relationship: EnumProperty(
+		name="Tweak Relationship",
+		description="Type of relationship for the tweak bones",
+		items=[
+			('STRETCH_TO', 'Stretch To', 'Stretch the tweak bone to the target bone'),
+			('DAMPED_TRACK', 'Damped Track', 'Damped track the tweak bone to the target bone'),
+		],
+		default='STRETCH_TO'
+	)
 	##################################################################################################
 	# execute
 	
@@ -156,7 +166,8 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			do_create_fk = True,
 			do_create_fk_widgets = False,
 			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
-			fk_collection_name = "" # These are the switch bones
+			fk_collection_name = "", # These are the switch bones
+			tweak_relationship = self.tweak_relationship,
 		)
 
 		ik_options = StandardIKOptions(
@@ -238,6 +249,8 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		col = box.column()
 		col.prop(self, "switch_property_name")
 		col.prop(self, "add_tweak_bones")
+		if self.add_tweak_bones:
+			col.prop(self, "tweak_relationship")
 
 		layout.separator()
 		

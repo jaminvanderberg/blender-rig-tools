@@ -3,11 +3,12 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from dataclasses import dataclass, field
 from rigtools.utils.bone import generate_bone_name, duplicate_bone
 from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
-from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget
+from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget, fk_widget_types
 from rigtools.preferences import get_preferences
 from rigtools.tool.rotation_follow import create_rotation_follow_setup
 from rigtools.utils.bone_chain import find_chains_from_selection, ChainBranchingError
 from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tweak_chain_pose_mode, FKTweakChain, TweakChainOptions
+from rigtools.armature_settings import get_armature_settings
 
 ###############################################################################################
 # Functions for finding bone chains
@@ -76,10 +77,11 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 		default=False
 	)
 
-	do_create_fk_widgets: bpy.props.BoolProperty(
+	fk_widget: bpy.props.EnumProperty(
 		name="Create FK Widgets",
 		description="Create widgets for the FK bones",
-		default=True
+		items=fk_widget_types,
+		default='CIRCLE'
 	)
 
 	override_collections: BoolProperty(
@@ -132,6 +134,15 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 		default=""
 	)
 
+	tweak_relationship: EnumProperty(
+		name="Tweak Relationship",
+		description="Type of relationship for the tweak bones",
+		items=[
+			('STRETCH_TO', 'Stretch To', 'Stretch the tweak bone to the target bone'),
+			('DAMPED_TRACK', 'Damped Track', 'Damped track the tweak bone to the target bone'),
+		],
+		default='STRETCH_TO'
+	)
 	##################################################################################################
 	# execute
 	
@@ -173,9 +184,10 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 			fk_bone_template = self.fk_bone_template,
 			skip_first_tweak = self.skip_first_tweak,
 			do_create_fk = self.do_create_fk,
-			do_create_fk_widgets = self.do_create_fk_widgets,
+			fk_widget = self.fk_widget,
 			fk_collection_name = self.fk_collection_name if self.override_collections else None,
 			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
+			tweak_relationship = self.tweak_relationship,
 		)
 
 		processed_chains: list[FKTweakChain] = []
@@ -203,6 +215,7 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 
 	def invoke(self, context, event):
 		prefs = get_preferences()
+		props = self.properties		
 
 		if not props.is_property_set("fk_bone_template"):
 			self.fk_bone_template = prefs.fk_template
@@ -213,14 +226,17 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 		layout = self.layout
 		box = layout.box()
 		box.label(text="FK Tweak Chain Settings:", icon='SETTINGS')
+		settings = get_armature_settings(context.object.data, context)
 
 		col = box.column()
 		col.prop(self, "do_create_fk")
 		if self.do_create_fk:
-			col.prop(self, "do_create_fk_widgets")
+			if settings.do_create_widgets:
+				col.prop(self, "fk_widget")	
 			col.prop(self, "fk_bone_template")
 
 		col.separator()
+		col.prop(self, "tweak_relationship")
 		col.prop(self, "skip_first_tweak")
 
 		layout.separator()

@@ -32,8 +32,25 @@ class RIG_OT_select_bones_by_name(bpy.types.Operator):
 		self.report({'INFO'}, f"Selected {count} bone{'s' if count != 1 else ''}")
 		return {'FINISHED'}
 
+
+def draw_selection_ui(layout, context):
+	prefs = get_preferences(context)
+
+	tags = [t.strip() for t in prefs.selection_buttons.split(",") if t.strip()]
+	if tags:
+		grid = layout.grid_flow(row_major=True, columns=prefs.selection_columns, even_columns=True, align=True)
+		for tag in tags:
+			control = grid.operator("rig.select_bones_by_name", text=tag)
+			control.target_name = tag
+	row = layout.row(align=True)
+	row.prop(context.window_manager, "bone_search", text="", icon='VIEWZOOM')
+	op = row.operator("rig.select_bones_by_name", text="", icon='RESTRICT_SELECT_OFF')
+	op.target_name = context.window_manager.bone_search
+
+
 class RIG_PT_selection_panel(bpy.types.Panel):
 	bl_label = "Select Bones by Name"
+	bl_idname = "RIG_PT_selection_panel"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
 	bl_category = "Rig Tools"
@@ -43,24 +60,32 @@ class RIG_PT_selection_panel(bpy.types.Panel):
 		return context.object and context.object.type == 'ARMATURE' and context.mode in {'EDIT_ARMATURE', 'POSE'}
 
 	def draw(self, context):
+		draw_selection_ui(self.layout, context)
+
+
+class RIG_PT_selection_panel_item(bpy.types.Panel):
+	bl_label = "Select Bones by Name"
+	bl_idname = "RIG_PT_selection_panel_item"
+	bl_space_type = 'VIEW_3D'
+	bl_region_type = 'UI'
+	bl_category = "Item"
+	bl_options = {'DEFAULT_CLOSED'}
+
+	@classmethod
+	def poll(cls, context):
 		prefs = get_preferences(context)
+		if not prefs.show_selection_on_item_panel:
+			return False
+		return context.object and context.object.type == 'ARMATURE' and context.mode in {'EDIT_ARMATURE', 'POSE'}
 
-		layout = self.layout
+	def draw(self, context):
+		draw_selection_ui(self.layout, context)
 
-		tags = [t.strip() for t in prefs.selection_buttons.split(",") if t.strip()]
-		if tags:
-			grid = layout.grid_flow(row_major = True, columns=prefs.selection_columns, even_columns=True, align=True)
-			for tag in tags:
-				control = grid.operator("rig.select_bones_by_name", text=tag)		
-				control.target_name = tag
-		row = layout.row(align=True)
-		row.prop(context.window_manager, "bone_search", text="", icon='VIEWZOOM')
-		op = row.operator("rig.select_bones_by_name", text="", icon='RESTRICT_SELECT_OFF')
-		op.target_name = context.window_manager.bone_search
 
 classes = (
 	RIG_OT_select_bones_by_name,
 	RIG_PT_selection_panel,
+	RIG_PT_selection_panel_item,
 )
 
 def register():

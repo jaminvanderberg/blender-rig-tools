@@ -30,6 +30,11 @@ class RigToolsPreferences(AddonPreferences):
 		min=1,
 		max=10
 	)
+	show_selection_on_item_panel: BoolProperty(
+		name="Show on Item Panel",
+		description="Also show Select Bones by Name on the Item sidebar tab",
+		default=True
+	)
 
 	# Name Stripping
 	strip_tags: StringProperty(
@@ -186,6 +191,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.label(text="Quick Bone Selection", icon='RESTRICT_SELECT_OFF')
 		box.prop(self, "selection_buttons")
 		box.prop(self, "selection_columns")
+		box.prop(self, "show_selection_on_item_panel")
 
 		# Preview of selection buttons
 		preview_box = box.box()

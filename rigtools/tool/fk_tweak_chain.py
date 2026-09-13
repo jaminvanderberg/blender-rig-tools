@@ -1,7 +1,7 @@
 import bpy
 from dataclasses import dataclass, field
 from rigtools.utils.bone import generate_bone_name, duplicate_bone, set_bone_collection
-from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget
+from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_fk_widget, fk_widget_types
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 
@@ -19,9 +19,10 @@ class TweakChainOptions:
 	fk_bone_template: str = "FK-{name}"
 	skip_first_tweak: bool = False
 	do_create_fk: bool = True
-	do_create_fk_widgets: bool = False
+	fk_widget: bool = "CIRCLE"
 	tweak_collection_name: str = ""
 	fk_collection_name: str = ""
+	tweak_relationship: str = "STRETCH_TO"
 
 def create_tweak_chain_edit_mode(armature_data, chain_bone_names, options: TweakChainOptions) -> FKTweakChain :
 	prefs = get_preferences()
@@ -132,20 +133,23 @@ def create_tweak_chain_pose_mode(context, obj, chain: FKTweakChain, options: Twe
 	for orig_name, target_tweak in zip(chain.original_bones, targets):
 		pbone = pose_bones[orig_name]
 
-		c_name = "Stretch To Tweak"
-		constraint = pbone.constraints.get(c_name)
-		if not constraint:
-			constraint = pbone.constraints.new(type='STRETCH_TO')
-			constraint.name = c_name
-
+		constraint = pbone.constraints.new(type=options.tweak_relationship)
 		constraint.target = obj
 		constraint.subtarget = target_tweak
-		constraint.volume = 'VOLUME_XZX'
-		constraint.rest_length = chain.bone_lengths[orig_name]
+		if options.tweak_relationship == "STRETCH_TO":
+			constraint.rest_length = chain.bone_lengths[orig_name]
+
+	tweakers = [t for t in chain.tweak_bones if t] + [chain.terminal_tweak]
+
+	# Lock Transforms
+	for tweak_name in tweakers:
+		if not tweak_name:
+			continue
+		pb = pose_bones[tweak_name]
+		pb.lock_rotation = (True, True, True)
+		pb.lock_rotation_w = True
 
 	# Bone Colors
-	tweakers = [t for t in chain.tweak_bones if t] + [chain.terminal_tweak]
-	
 	for fk_name in chain.fk_bones:
 		fk_bone = pose_bones[fk_name]
 		fk_bone.color.palette = prefs.fk_bone_color
@@ -157,11 +161,11 @@ def create_tweak_chain_pose_mode(context, obj, chain: FKTweakChain, options: Twe
 
 	# Widgets
 	coll = get_widget_collection(context, settings.widget_collection)
-	if settings.do_create_widgets and options.do_create_fk_widgets:
+	if settings.do_create_widgets and options.fk_widget != "NONE":
 		for fk_name in chain.fk_bones:
 			fk_bone = pose_bones[fk_name]
 			widget_name = generate_bone_name(fk_name, settings.widget_template)
-			wgt = create_circle_widget(widget_name, coll)
+			wgt = create_fk_widget(options.fk_widget, widget_name, coll)
 			fk_bone.custom_shape = wgt
 		
 	if settings.do_create_widgets:
