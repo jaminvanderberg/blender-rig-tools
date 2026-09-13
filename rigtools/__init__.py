@@ -21,6 +21,7 @@ from rigtools import preferences
 from rigtools import preferences_io
 from rigtools import armature_settings
 from rigtools import create_fk_ik_switch
+from rigtools import rename_chain
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -42,6 +43,7 @@ def register():
 	armature_settings.register()
 	selection_panel.register()
 	create_fk_ik_switch.register()
+	rename_chain.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -87,6 +89,7 @@ def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
+	rename_chain.unregister()
 	selection_panel.unregister()
 	armature_settings.unregister()
 	create_fk_ik_switch.unregister()

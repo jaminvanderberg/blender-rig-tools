@@ -21,6 +21,7 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 			layout.operator("rig.generate_org_bones", icon='CON_TRANSLIKE')
 			if mode in {'POSE', 'EDIT_ARMATURE'}:
 				layout.operator("rig.batch_rename_bones", icon='SYNTAX_OFF')
+				layout.operator("rig.rename_chain", icon='SYNTAX_OFF')
 
 		if mode in {'POSE', 'EDIT_ARMATURE'}:
 			layout.label(text="Chain Tools:")

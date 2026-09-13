@@ -31,3 +31,67 @@ def find_chains_from_selection(context):
 		walk_chain(head, [])
 		
 	return chains
+
+
+import math
+
+def sort_chains(context, chains, mode, axis, start_angle_deg=0.0, invert=False):
+	edit_bones = context.object.data.edit_bones
+	axis_idx = 'XYZ'.index(axis)
+
+	heads = [edit_bones[chain[0]].head.copy() for chain in chains]
+	center = sum(heads, heads[0].__class__()) / len(heads)  # or use mathutils.Vector
+
+	from mathutils import Vector
+	heads = [edit_bones[chain[0]].head.copy() for chain in chains]
+	center = sum((Vector(h) for h in heads), Vector()) / len(heads)
+
+	def sort_key(chain):
+		co = edit_bones[chain[0]].head
+		if mode == 'LINEAR':
+			return (co[axis_idx], chain[0])
+
+		# ANGULAR: plane perpendicular to axis
+		d = co - center
+		a, b = [i for i in (0, 1, 2) if i != axis_idx]
+		angle = math.atan2(d[b], d[a])
+		start = math.radians(start_angle_deg)
+		return ((angle - start) % math.tau, chain[0])
+
+	chains = sorted(chains, key=sort_key)
+	if invert:
+		chains.reverse()
+	return chains
+	
+name_segment_types = [
+	('2DIGIT', "2 Digit", "Use a 2 digit number for the chain name."),
+	('3DIGIT', "3 Digit", "Use a 3 digit number for the chain name."),
+	('LOWER', "Lowercase Letter", "Use a lowercase letter for the chain name."),
+	('UPPER', "Uppercase Letter", "Use a uppercase letter for the chain name."),
+]
+
+def get_name_segment(i, seg_type):
+	if seg_type == '2DIGIT':
+		return f'{i+1:02d}'
+	elif seg_type == '3DIGIT':
+		return f'{i+1:03d}'
+	elif seg_type == 'LOWER':
+		return f'{chr(i + 97)}'
+	elif seg_type == 'UPPER':
+		return f'{chr(i + 65)}'	
+
+def rename_chain(context, chain, name_template, bone_name_type):
+	obj = context.object
+	edit_bones = obj.data.edit_bones
+
+	for i, old_name in enumerate(chain):
+		new_name = name_template.replace('{bone}', get_name_segment(i, bone_name_type))
+		if new_name != old_name:
+			edit_bones[old_name].name = new_name
+
+def rename_chains(context, chains, name_template, chain_name_type, bone_name_type):
+	obj = context.object
+	edit_bones = obj.data.edit_bones
+
+	for i, chain in enumerate(chains):
+		rename_chain(context, chain, name_template.replace('{chain}', get_name_segment(i, chain_name_type)), bone_name_type)
