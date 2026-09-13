@@ -1,6 +1,6 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
-from rigtools.utils.bone import is_bone_visible, generate_bone_name, get_base_name, bone_name_matches, duplicate_bone
+from rigtools.utils.bone import is_bone_visible, generate_bone_name, get_base_name, bone_name_matches, duplicate_bone, set_bone_collection
 from rigtools.preferences import get_preferences, get_separators
 
 class RIG_OT_generate_org_bones(bpy.types.Operator):
@@ -72,7 +72,7 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
             if target_name not in edit_bones:
                 target_bone = duplicate_bone(context.object.data, def_bone, target_name, 1.0, collection == None)
                 if collection:
-                    collection.assign(target_bone)
+                    set_bone_collection(context.object.data, target_bone, collection.name)
                 created_bones.append(target_bone.name)
             else:
                 target_bone = edit_bones[target_name]

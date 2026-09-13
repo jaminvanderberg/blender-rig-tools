@@ -61,3 +61,15 @@ def create_circle_widget(widget_name, collection):
     wgt = bpy.data.objects.new(widget_name, mesh)
     collection.objects.link(wgt)
     return wgt
+
+def create_line_widget(widget_name, collection):
+    verts = [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
+    edges = [(0, 1)]
+
+    mesh = bpy.data.meshes.new(widget_name)
+    mesh.from_pydata(verts, edges, [])
+    mesh.update()
+
+    wgt = bpy.data.objects.new(widget_name, mesh)
+    collection.objects.link(wgt)
+    return wgt

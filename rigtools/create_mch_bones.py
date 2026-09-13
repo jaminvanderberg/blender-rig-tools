@@ -5,12 +5,13 @@ class RIG_PT_create_mch_bones(bpy.types.Panel):
     bl_label = "Create MCH Bones"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Tool"
+    bl_category = "Rig Tools"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.type == 'ARMATURE' and context.mode in {'EDIT_ARMATURE', 'POSE'}
 
     def draw(self, context):
-        if context.mode not in {'EDIT_ARMATURE', 'POSE'}:
-            return
-
         layout = self.layout
 
         col = layout.column()

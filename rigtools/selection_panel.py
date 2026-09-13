@@ -36,12 +36,13 @@ class RIG_PT_selection_panel(bpy.types.Panel):
 	bl_label = "Select Bones by Name"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
-	bl_category = "Item"
+	bl_category = "Rig Tools"
+
+	@classmethod
+	def poll(cls, context):
+		return context.object and context.object.type == 'ARMATURE' and context.mode in {'EDIT_ARMATURE', 'POSE'}
 
 	def draw(self, context):
-		if context.mode not in {'EDIT_ARMATURE', 'POSE'}:
-			return
-
 		prefs = get_preferences(context)
 
 		layout = self.layout
