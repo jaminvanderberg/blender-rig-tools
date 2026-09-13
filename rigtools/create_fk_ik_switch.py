@@ -8,7 +8,7 @@ from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
 from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tweak_chain_pose_mode, FKTweakChain, TweakChainOptions
 from rigtools.armature_settings import get_armature_settings
 from rigtools.tool.standard_ik import StandardIKOptions, create_standard_ik_edit_mode, create_standard_ik_pose_mode
-from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode, create_spline_ik_object_mode, create_spline_ik_pose_mode
+from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode, create_spline_ik_object_mode, create_spline_ik_pose_mode, spline_twist_type
 
 class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	"""Create a FK/IK switch for the selected bone chains."""
@@ -91,7 +91,13 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		description="Skip the first bone in the chain for the IK spline",
 		default=False
 	)
-	
+
+	twist_type: EnumProperty(
+		name="Twist Controllers",
+		description="Type of twist to create for the IK spline",
+		items=spline_twist_type,
+		default='START_END'
+	)
 	##################################################################################################
 	# execute
 	
@@ -162,7 +168,8 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		spline_options = SplineIKOptions(
 			control_count = self.control_count,
 			skip_first = self.skip_first,
-			ik_collection_name = self.ik_collection_name if self.override_collections else None
+			ik_collection_name = self.ik_collection_name if self.override_collections else None,
+			twist_type = self.twist_type
 		)
 
 		created_chains = []
@@ -241,6 +248,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			box.label(text="Spline IK Settings:", icon='CON_SPLINEIK')
 			col = box.column()
 			col.prop(self, "control_count")
+			col.prop(self, "twist_type")
 			col.prop(self, "skip_first")
 		elif self.ik_type == 'IK':
 			box.label(text="IK Settings:", icon='CON_KINEMATIC')

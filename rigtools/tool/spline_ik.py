@@ -5,7 +5,7 @@ from bpy.props import StringProperty
 from rna_prop_ui import rna_idprop_ui_create
 from dataclasses import dataclass
 from mathutils import Vector
-from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_line_widget
+from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_line_widget, create_twist_widget
 from rigtools.preferences import get_preferences
 
 @dataclass
@@ -13,12 +13,22 @@ class SplineIKChain:
 	mch_bone_names: list[str] = None
 	control_names: list[str] = None
 	spline_object: bpy.types.Object = None
+	start_twist_name: str = None
+	end_twist_name: str = None
+
+spline_twist_type = [
+	('NONE', "None", "No twist controllers"),
+	('START_END', "Start and End", "Twist controllers at the start and end of the spline"),
+	('START', "Start", "Twist controller at the start of the spline"),
+	('END', "End", "Twist controller at the end of the spline"),
+]
 
 @dataclass
 class SplineIKOptions:
 	control_count: int = 3
 	skip_first: bool = False
 	ik_collection_name: str = None
+	twist_type: str = 'START_END'
 
 def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions, name_source=None) -> SplineIKChain:
 	obj = context.object
@@ -32,6 +42,8 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 	root_bone = edit_bones.get(settings.root_bone_name)
 
 	bones = mch_bone_names[1 if options.skip_first else 0:]
+
+	chain_parent = edit_bones[mch_bone_names[0]].parent
 
 	spline_length = sum(edit_bones[name].length for name in bones) / len(bones) * 0.5
 
@@ -73,7 +85,7 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 		spline_bone.head = pos
 		direction = (points[s + 1] - points[s]).normalized()
 		spline_bone.tail = pos + direction * spline_length
-		spline_bone.parent = root_bone
+		spline_bone.parent = chain_parent
 		spline_bone.roll = ref_bone.roll
 
 		if options.ik_collection_name:
@@ -84,10 +96,40 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 
 		control_names.append(spline_bone.name)
 
+	# Twist controllers
+	start_twist_name = None
+	end_twist_name = None
+	if options.twist_type == 'START' or options.twist_type == 'START_END':
+		if "{i}" in prefs.ik_spline_twist_template:
+			twist_template = prefs.ik_spline_twist_template.replace("{i}", "start")
+		else:
+			twist_template = prefs.ik_spline_twist_template + ".start"
+		twist_bone_name = generate_bone_name(control_names[0], twist_template)
+		ref_bone = edit_bones[control_names[0]]
+		start_twist_bone = duplicate_bone(obj.data, ref_bone, twist_bone_name, 1.2)
+		mch_bone = edit_bones[mch_bone_names[1 if options.skip_first else 0]]
+		mch_bone.parent = start_twist_bone
+		start_twist_bone.parent = ref_bone
+		start_twist_name = start_twist_bone.name
+
+
+	if options.twist_type == 'END' or options.twist_type == 'START_END':
+		if "{i}" in prefs.ik_spline_twist_template:
+			twist_template = prefs.ik_spline_twist_template.replace("{i}", "end")
+		else:
+			twist_template = prefs.ik_spline_twist_template + ".end"
+		twist_bone_name = generate_bone_name(control_names[-1], twist_template)
+		ref_bone = edit_bones[control_names[-1]]
+		end_twist_bone = duplicate_bone(obj.data, ref_bone, twist_bone_name, 1.2)
+		end_twist_bone.parent = ref_bone
+		end_twist_name = end_twist_bone.name
+
 	return SplineIKChain(
 		mch_bone_names=mch_bone_names,
 		control_names=control_names,
-		spline_object=None
+		spline_object=None,
+		start_twist_name=start_twist_name,
+		end_twist_name=end_twist_name
 	)
 
 def create_spline_ik_object_mode(context, chain: SplineIKChain, options: SplineIKOptions):
@@ -153,7 +195,9 @@ def create_spline_ik_object_mode(context, chain: SplineIKChain, options: SplineI
 	return SplineIKChain(
 		mch_bone_names=chain.mch_bone_names,
 		control_names=chain.control_names,
-		spline_object=curve_obj
+		spline_object=curve_obj,
+		start_twist_name=chain.start_twist_name,
+		end_twist_name=chain.end_twist_name
 	)
 
 def create_spline_ik_pose_mode(context, chain: SplineIKChain, options: SplineIKOptions):
@@ -173,10 +217,57 @@ def create_spline_ik_pose_mode(context, chain: SplineIKChain, options: SplineIKO
 	spline_constraint.target = chain.spline_object
 	spline_constraint.chain_count = len(chain.mch_bone_names) - 1 if options.skip_first else len(chain.mch_bone_names)
 
+	# End Twist
+	if chain.end_twist_name:
+		ik_names = chain.mch_bone_names[1 if options.skip_first else 0:]
+		n = len(ik_names)
+		end_twist = pose_bones[chain.end_twist_name]
+		end_twist.rotation_mode = 'XYZ'
+
+		for name in ik_names:
+			pb = pose_bones[name]
+			pb.rotation_mode = 'XYZ'
+
+			fcurve = pb.driver_add('rotation_euler', 1)
+			driver = fcurve.driver
+			driver.type = 'SCRIPTED'
+			driver.expression = f'var / {n}'
+
+			var = driver.variables.new()
+			var.name = 'var'
+			var.type = 'TRANSFORMS'
+			target = var.targets[0]
+			target.id = obj
+			target.bone_target = chain.end_twist_name
+			target.transform_type = 'ROT_Y'
+			target.transform_space = 'LOCAL_SPACE'
+
 	# Bone Colors
 	for control_name in chain.control_names:
 		control_bone = pose_bones[control_name]
 		control_bone.color.palette = prefs.ik_bone_color
+
+	if chain.start_twist_name:
+		start_twist_bone = pose_bones[chain.start_twist_name]
+		start_twist_bone.color.palette = prefs.ik_bone_color
+	if chain.end_twist_name:
+		end_twist_bone = pose_bones[chain.end_twist_name]
+		end_twist_bone.color.palette = prefs.ik_bone_color
+
+	# Lock Transforms
+	for control_name in chain.control_names:
+		pb = pose_bones[control_name]
+		pb.lock_rotation = (True, True, True)
+		pb.lock_scale = (True, True, True)
+
+	for twist_name in [chain.start_twist_name, chain.end_twist_name]:
+		if not twist_name:
+			continue
+		pb = pose_bones[twist_name]
+		pb.lock_location = (True, True, True)
+		pb.lock_rotation = (True, False, True) # Y free
+		pb.lock_scale = (True, True, True)
+		pb.rotation_mode = 'XYZ'
 
 	# Widgets
 	if settings.do_create_widgets:
@@ -186,5 +277,17 @@ def create_spline_ik_pose_mode(context, chain: SplineIKChain, options: SplineIKO
 			wgt = create_sphere_widget(control_widget_name, coll)
 			control_bone = pose_bones[control_name]
 			control_bone.custom_shape = wgt
+
+		if chain.start_twist_name:
+			start_twist_widget_name = generate_bone_name(chain.start_twist_name, settings.widget_template)
+			wgt = create_twist_widget(start_twist_widget_name, coll)
+			start_twist_bone = pose_bones[chain.start_twist_name]
+			start_twist_bone.custom_shape = wgt
+
+		if chain.end_twist_name:
+			end_twist_widget_name = generate_bone_name(chain.end_twist_name, settings.widget_template)
+			wgt = create_twist_widget(end_twist_widget_name, coll)
+			end_twist_bone = pose_bones[chain.end_twist_name]
+			end_twist_bone.custom_shape = wgt
 
 	return chain

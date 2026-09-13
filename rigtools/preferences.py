@@ -79,6 +79,11 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for the IK spline bone names. {i} is the position number (start, mid, end).",
 		default="{name}.spline.{i}"
 	)
+	ik_spline_twist_template: StringProperty(
+		name="IK Spline Twist Bone",
+		description="Template for the IK spline twist bone names. {name} is the name of the spline bone.",
+		default="{name}.twist.{i}"
+	)
 	mch_template: StringProperty(
 		name="MCH Bone",
 		description="Template for standard MCH bones.",
@@ -210,6 +215,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "mch_template")
 		box.prop(self, "ik_mch_template")
 		box.prop(self, "ik_spline_template")
+		box.prop(self, "ik_spline_twist_template")
 		box.prop(self, "switch_template")
 		box.prop(self, "tweak_template")
 		box.prop(self, "term_template")
