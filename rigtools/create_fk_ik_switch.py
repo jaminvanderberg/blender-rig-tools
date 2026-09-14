@@ -114,7 +114,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		name="FK Widget",
 		description="Type of widget to create for the FK bones",
 		items=fk_widget_types,
-		default='CIRCLE'
+		default='FK'
 	)
 	
 	##################################################################################################
@@ -173,7 +173,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			fk_bone_template = prefs.switch_template,
 			skip_first_tweak = False,
 			do_create_fk = True,
-			fk_widget = self.fk_widget,
+			fk_widget = "None",
 			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
 			fk_collection_name = "", # These are the switch bones
 			tweak_relationship = self.tweak_relationship,
@@ -227,7 +227,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			create_tweak_chain_pose_mode(context, obj, tweak_chain, options)
 
 		for chain, fk_bone_names, ik_bone_names in created_chains:
-			create_fk_ik_switch_pose_mode(context, chain, fk_bone_names, ik_bone_names, self.switch_property_name)
+			create_fk_ik_switch_pose_mode(context, chain, fk_bone_names, ik_bone_names, self.switch_property_name, self.fk_widget)
 
 		if self.ik_type == 'IK':
 			for ik_chain in created_ik_chains:
@@ -257,6 +257,8 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 
 		col = box.column()
 		col.prop(self, "switch_property_name")
+		col.separator()
+		col.prop(self, "fk_widget")
 		col.prop(self, "add_tweak_bones")
 		if self.add_tweak_bones:
 			col.prop(self, "tweak_relationship")

@@ -4,6 +4,7 @@ from rigtools.armature_settings import get_armature_settings
 from bpy.props import StringProperty
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
+from rigtools.utils.widget import get_widget_collection, create_fk_widget
 
 def create_fk_ik_switch_edit_mode(context, switch_bone_names, name_source=None):
 	obj = context.object
@@ -18,7 +19,7 @@ def create_fk_ik_switch_edit_mode(context, switch_bone_names, name_source=None):
 
 	return fk_bone_names, ik_bone_names
 
-def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_bone_names, switch_property_name):
+def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_bone_names, switch_property_name, fk_widget_type):
 	obj = context.object
 	settings = get_armature_settings(obj.data, context)
 	prefs = get_preferences()
@@ -50,10 +51,12 @@ def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_
 		switch_bone = pose_bones[switch_bone_name]
 
 		fk_constraint = switch_bone.constraints.new('COPY_TRANSFORMS')
+		fk_constraint.name = "Copy Transforms - FK"
 		fk_constraint.target = obj
 		fk_constraint.subtarget = fk_bone_name
 
 		ik_constraint = switch_bone.constraints.new('COPY_TRANSFORMS')
+		ik_constraint.name = "Copy Transforms - IK"
 		ik_constraint.target = obj
 		ik_constraint.subtarget = ik_bone_name
 
@@ -67,5 +70,11 @@ def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_
 		var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{prop_name}"]'
 
 		fk_bone.color.palette = prefs.fk_bone_color
+
+		if fk_widget_type != "None":
+			coll = get_widget_collection(context, settings.widget_collection)
+			widget_name = generate_bone_name(fk_bone_name, settings.widget_template)	
+			wgt = create_fk_widget(fk_widget_type, widget_name, coll)
+			fk_bone.custom_shape = wgt		
 
 	return fk_bone_names, ik_bone_names

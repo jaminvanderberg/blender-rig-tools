@@ -14,7 +14,6 @@ class SplineIKChain:
 	control_names: list[str] = None
 	spline_object: bpy.types.Object = None
 	twist_names: list[str] = None
-	twist_mch_indexes: list[int] = None
 
 spline_twist_type = [
 	('NONE', "None", "No twist controllers"),
@@ -48,24 +47,26 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 
 	spline_length = sum(edit_bones[name].length for name in bones) / len(bones) * 0.5
 
-	# For this calculation, we're including the distance between the heads of disconnected bones
 	points = [edit_bones[b].head for b in bones] + [edit_bones[bones[-1]].tail]
-	seg_lengths = [(points[i + 1] - points[i]).length for i in range(len(points) - 1)]
-	total_seg_length = sum(seg_lengths)
 	
 	control_names = []
 	twist_names = []
-	twist_mch_indexes = []
+	twist_positions = []
 	bone_suffix = "abcdefghijklmnopqrstuvwxyz"
+	bone_count = len(bones)
 	for i in range(options.control_count):
-		target = total_seg_length * (i / (options.control_count - 1))
-		remaining = target
-		for s, length in enumerate(seg_lengths):
-			if remaining < length or s == len(seg_lengths) - 1:
-				u = 0.0 if length == 0.0 else min(remaining, length) / length
-				pos = points[s].lerp(points[s + 1], u)
-				break
-			remaining -= length
+		chain_pos = (i / (options.control_count - 1)) * bone_count
+		joint_index = round(chain_pos)
+
+		if chain_pos >= bone_count:
+			seg_index = bone_count - 1
+			seg_t = 1.0
+		else:
+			seg_index = int(chain_pos)
+			seg_t = chain_pos - seg_index
+		
+		pos = points[seg_index].lerp(points[seg_index + 1], seg_t)
+		direction = (points[seg_index + 1] - points[seg_index]).normalized()
 
 		if i == 0:
 			pos_name = "start"
@@ -83,11 +84,11 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 			spline_template = prefs.ik_spline_template + "." + pos_name
 			twist_template = prefs.ik_spline_twist_template + "." + pos_name
 
-		ref_bone = edit_bones[bones[s]]
+		ref_bone = edit_bones[bones[seg_index]]
 		spline_bone_name = generate_bone_name(name_source[0] if name_source else ref_bone.name, spline_template)
 		spline_bone = edit_bones.new(spline_bone_name)
 		spline_bone.head = pos
-		direction = (points[s + 1] - points[s]).normalized()
+		direction = (points[seg_index + 1] - points[seg_index]).normalized()
 		spline_bone.tail = pos + direction * spline_length
 		spline_bone.parent = chain_parent
 		spline_bone.roll = ref_bone.roll
@@ -105,15 +106,15 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 		if do_twist:
 			twist_name = generate_bone_name(name_source[0] if name_source else ref_bone.name, twist_template)
 			twist_bone = duplicate_bone(obj.data, spline_bone, twist_name, 1.2)
-			twist_bone.parent = spline_bone
 			twist_names.append(twist_bone.name)
+			twist_bone.parent = spline_bone
 
 			if i == 0:
-				twist_mch_indexes.append(0)
+				twist_positions.append(0.0)
 			elif i == options.control_count - 1:
-				twist_mch_indexes.append(len(bones))
+				twist_positions.append(1.0)
 			else:
-				twist_mch_indexes.append(min(len(bones), max(0, round(s + u))))
+				twist_positions.append(chain_pos - joint_index)
 
 		if options.ik_collection_name:
 			set_bone_collection(obj.data, spline_bone, options.ik_collection_name)
@@ -138,7 +139,6 @@ def create_spline_ik_edit_mode(context, mch_bone_names, options: SplineIKOptions
 		control_names=control_names,
 		spline_object=None,
 		twist_names=twist_names,
-		twist_mch_indexes=twist_mch_indexes
 	)
 
 def create_spline_ik_object_mode(context, chain: SplineIKChain, options: SplineIKOptions):
@@ -206,7 +206,6 @@ def create_spline_ik_object_mode(context, chain: SplineIKChain, options: SplineI
 		control_names=chain.control_names,
 		spline_object=curve_obj,
 		twist_names=chain.twist_names,
-		twist_mch_indexes=chain.twist_mch_indexes
 	)
 
 def create_spline_ik_pose_mode(context, chain: SplineIKChain, options: SplineIKOptions):
@@ -226,40 +225,76 @@ def create_spline_ik_pose_mode(context, chain: SplineIKChain, options: SplineIKO
 	spline_constraint.target = chain.spline_object
 	spline_constraint.chain_count = len(chain.mch_bone_names) - 1 if options.skip_first else len(chain.mch_bone_names)
 
-	# Twist
 	ik_names = chain.mch_bone_names[1 if options.skip_first else 0:]
+
+	# Twist
 	names = chain.twist_names or []
-	splits = chain.twist_mch_indexes or []
 
 	if len(names) >= 2:
+		bone_count = len(ik_names)
+		denom = len(names) - 1
+
+		# list of (twist_index, n_seg)
+		influence = {b: [] for b in range(bone_count)}
+
 		for k in range(len(names) - 1):
-			start, end = splits[k], splits[k + 1]
-			if end <= start:
+			start = int((k / denom) * bone_count)
+			mid = int(((k + 1) / denom) * bone_count)
+			end = int(((k + 2) / denom) * bone_count)
+
+			twist = k + 1
+
+			for b in range(start, mid + 1):
+				if b < bone_count:
+					influence[b].append((twist, mid - start + 1))
+			for b in range(mid + 1, end + 1):
+				if b < bone_count:
+					influence[b].append((twist, -(end - mid + 1)))
+
+		## DEBUG OUTPUT ###############################################################
+		print(f"twist influences ({bone_count} bones, {len(names)} twists):")
+		for b, contribs in influence.items():
+			if not contribs:
+				print(f"  {ik_names[b]}: (none)")
 				continue
-			n_seg = end - start
-			prev_name = names[k] if k > 0 else None
-			next_name = names[k + 1]
-			for bone_name in ik_names[start:end]:
-				pb = pose_bones[bone_name]
-				pb.rotation_mode = 'XYZ'
-				fcurve = pb.driver_add('rotation_euler', 1)
-				driver = fcurve.driver
-				driver.type = 'SCRIPTED'
-				def add_rot(var_name, bone_target):
-					var = driver.variables.new()
-					var.name = var_name
-					var.type = 'TRANSFORMS'
-					t = var.targets[0]
-					t.id = obj
-					t.bone_target = bone_target
-					t.transform_type = 'ROT_Y'
-					t.transform_space = 'LOCAL_SPACE'
-				add_rot('t1', next_name)
-				if prev_name:
-					add_rot('t0', prev_name)
-					driver.expression = f'(t1 - t0) / {n_seg}'
-				else:
-					driver.expression = f't1 / {n_seg}'
+			parts = []
+			for twist_index, n_seg in contribs:
+				sign = '+' if n_seg > 0 else '-'
+				parts.append(f"{sign}{names[twist_index]}/{abs(n_seg)}")
+			print(f"  [{b}] {ik_names[b]}: {' '.join(parts)}")	
+		################################################################################				
+
+		for b in range(bone_count):
+			contribs = influence[b]
+			if len(contribs) == 0:
+				continue
+
+			pb = pose_bones[ik_names[b]]
+
+			pb.rotation_mode = 'XYZ'
+			fcurve = pb.driver_add('rotation_euler', 1)
+			driver = fcurve.driver
+			driver.type = 'SCRIPTED'
+
+			expr = ''
+			first = True
+
+			for twist_index, n_seg in contribs:
+				var = driver.variables.new()
+				var.name = 't' + str(twist_index)
+				var.type = 'TRANSFORMS'
+				t = var.targets[0]
+				t.id = obj
+				t.bone_target = names[twist_index]
+				t.transform_type = 'ROT_Y'
+				t.transform_space = 'LOCAL_SPACE'
+
+				if not first:
+					expr += ' + '
+				expr += f't{twist_index} / {n_seg}'
+				first = False
+
+			driver.expression = expr
 
 	# Bone Colors
 	for control_name in chain.control_names:
