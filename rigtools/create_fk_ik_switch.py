@@ -9,6 +9,7 @@ from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tw
 from rigtools.armature_settings import get_armature_settings
 from rigtools.tool.standard_ik import StandardIKOptions, create_standard_ik_edit_mode, create_standard_ik_pose_mode
 from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode, create_spline_ik_object_mode, create_spline_ik_pose_mode, spline_twist_type
+from rigtools.utils.widget import fk_widget_types
 
 class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	"""Create a FK/IK switch for the selected bone chains."""
@@ -108,6 +109,14 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		],
 		default='STRETCH_TO'
 	)
+
+	fk_widget: EnumProperty(
+		name="FK Widget",
+		description="Type of widget to create for the FK bones",
+		items=fk_widget_types,
+		default='CIRCLE'
+	)
+	
 	##################################################################################################
 	# execute
 	
@@ -164,7 +173,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			fk_bone_template = prefs.switch_template,
 			skip_first_tweak = False,
 			do_create_fk = True,
-			do_create_fk_widgets = False,
+			fk_widget = self.fk_widget,
 			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
 			fk_collection_name = "", # These are the switch bones
 			tweak_relationship = self.tweak_relationship,
