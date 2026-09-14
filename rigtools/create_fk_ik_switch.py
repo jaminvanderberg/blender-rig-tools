@@ -206,17 +206,32 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			fk_bone_names, ik_bone_names = create_fk_ik_switch_edit_mode(context, chain, name_source = org_chain)
 			created_chains.append((chain, fk_bone_names, ik_bone_names))
 
-			if self.override_collections and self.fk_collection_name:
-				for bone_name in fk_bone_names:
-					bone = bone_data.edit_bones[bone_name]
-					set_bone_collection(bone_data, bone, self.fk_collection_name)
-
 			if self.ik_type == 'IK':
 				ik_chain = create_standard_ik_edit_mode(context, ik_bone_names, ik_options, name_source=org_chain)
 				created_ik_chains.append(ik_chain)
 			elif self.ik_type == 'SPLINE':
 				ik_chain = create_spline_ik_edit_mode(context, ik_bone_names, spline_options, name_source=org_chain)
 				created_ik_chains.append(ik_chain)
+
+			# Bone collections
+			# This is done last, so they don't get copied
+			if prefs.mch_collection_name and self.add_tweak_bones:
+				# chain is the switch bones
+				for bone_name in chain:
+					bone = bone_data.edit_bones[bone_name]
+					set_bone_collection(bone_data, bone, prefs.mch_collection_name)
+
+			if self.override_collections and self.fk_collection_name:
+				# these are the final FK bones
+				for bone_name in fk_bone_names:
+					bone = bone_data.edit_bones[bone_name]
+					set_bone_collection(bone_data, bone, self.fk_collection_name)
+
+			if prefs.mch_collection_name:
+				# these are the MCH-IK bones
+				for bone_name in ik_bone_names:
+					bone = bone_data.edit_bones[bone_name]
+					set_bone_collection(bone_data, bone, prefs.mch_collection_name)
 
 		if self.ik_type == 'SPLINE':
 			for ik_chain in created_ik_chains:

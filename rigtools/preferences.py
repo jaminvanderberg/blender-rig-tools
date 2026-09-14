@@ -125,6 +125,12 @@ class RigToolsPreferences(AddonPreferences):
 		default="MCH-INT-{name}"
 	)
 
+	mch_collection_name: StringProperty(
+		name="MCH Collection",
+		description="Name of bone collection where MCH bones are created",
+		default=""
+	)
+
 	# Rig Structure Defaults
 	root_bone_name: StringProperty(
 		name="Root Bone",
@@ -227,6 +233,8 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "term_template")
 		box.prop(self, "socket_template")
 		box.prop(self, "int_template")
+		box.separator()
+		box.prop(self, "mch_collection_name")
 
 		# Rig Structure Defaults
 		box = layout.box()

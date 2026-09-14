@@ -1,5 +1,5 @@
 import bpy
-from rigtools.utils.bone import generate_bone_name, duplicate_bone
+from rigtools.utils.bone import generate_bone_name, duplicate_bone, set_bone_collection
 from rigtools.preferences import get_preferences
 
 def create_rotation_follow_setup(context, bone_names, relationship = 'COPY_ROTATION'):
@@ -18,6 +18,8 @@ def create_rotation_follow_setup(context, bone_names, relationship = 'COPY_ROTAT
 		bone = edit_bones[bone_name]
 		mch_bone_name = generate_bone_name(bone_name, prefs.mch_template)
 		mch_bone = duplicate_bone(obj.data,bone, mch_bone_name, 0.35)
+		if prefs.mch_collection_name:
+			set_bone_collection(obj.data, mch_bone, prefs.mch_collection_name)
 		mch_bones.append(mch_bone.name)
 		bone.use_connect = False
 		bone.parent = mch_bone

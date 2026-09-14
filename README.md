@@ -1,16 +1,229 @@
-#Rig Tools
+# Rig Tools
 
-## Pair Bones
+Blender 4.0+ addon for armature setup and chain building.
 
-## Quick Bone Selection Tool
+**Install:** Preferences → Add-ons → Install → select `rigtools.zip` (or the `rigtools` folder).  
+**UI:** View3D → Sidebar → **Rig Tools** (armature selected).
 
-Select bones by name
+---
+
+## Contents
+
+- [Introduction](#introduction)
+- [Preferences](#preferences)
+- [Armature Settings](#armature-settings)
+- [Rename Chain(s)](#rename-chains)
+- [Create FK/Tweak Chain](#create-fktweak-chain)
+- [Create FK/IK Switch](#create-fkik-switch)
+- [Create MCH Bones](#create-mch-bones)
+- [Create Rotation Isolation](#create-rotation-isolation)
+- [Find Dependents](#find-dependents)
+- [Generate ORG Bones](#generate-org-bones)
+- [Select Bones by Name](#select-bones-by-name)
+- [Batch Rename Bones](#batch-rename-bones)
+
+
+
+---
+
+<!-- Copy this block for each new tool:
+
+### Tool Name
+
+**Where:** N-panel → Rig Tools (Edit / Pose)  
+**Requires:** …
+
+One-line summary of what it does.
+
+1. Step
+2. Step
+
+**Output:** bones / constraints / props it adds  
+**Notes:** gotchas, limitations
+
+-->
+
+## Introduction
+
+This is a series of tools designed to speed up repetitive tasks while creating rigs.
+The design philosphophy is to not attempt to cover every possible contingency while creating a rig,
+but rather to provide powerful, flexible tools for the tasks that are repetitive or complex.
+
+Many of the tools operate on chains of bones.  A chain is a series of bones where one is parented to
+another.  All of these tools expect linear chains; that is, each bone can only have one child. These
+tools work on the selected bones only, so you can get around this limitation by selecting only one child per parent.
+The tools do not require these children to be connected.
+
+Tools that operate on bone chains:
+- [Rename Chain(s)](#rename-chains)
+- [Create FK/Tweak Chain](#create-fktweak-chain)
+- [Create FK/IK Switch](#create-fkik-switch)
+
+These tools can operate on more than one chain at a time.  Rename chain has a special naming operation for multiple
+chains, and the chain creation tools will just make multiple chains with the same parameters.
+
+## Preferences
+
+**Where:** Preferences → Add-ons → Rig Tools  
+**Requires:** —
+
+Naming templates, bone colors, selection buttons, import/export.
+
+- Selection buttons / columns
+- Strip tags & separators
+- Naming templates (DEF, ORG, FK, IK, etc.)
+- Import / Export preferences (JSON)
+
+## Generate ORG Bones
+
+**Where:** N-panel → Rig Tools (Object / Edit / Pose)  
+**Requires:** Armature with DEF bones
+
+This tool will create ORG bones for all the DEF bones in the rig, selection, or view.
+Calling them 'ORG' bones is a Rigify convention that Blender follows as well,
+and I've chosen to follow it as well. Although you can change the name of the bones
+if you want.
+
+The purpose is to have a set of bones that control the DEF bone, and these ORG bones
+will be the target of all the rigs mechanisms.  Typically, the ORG bone will control
+the DEF bone via a Copy Transforms constraint.  I've included an option to parent them instead,
+but I'm not sure how useful that is.
+
+This tool was designed to be safe to run over and over again.  It won't make multiple
+constraints and it won't create duplicate bone.  It will scan to see if the bone and constraint
+exist, and create any that don't.  So you can run this over and over again for the whole rig,
+and it shouldn't cause any issues as long as you follow the naming convention.
+
+The new bones can be added to a bone collection, if specified.  If the bone already exists,
+it will not be moved into this bone collection.
+
+**Output:**  Generates ORG bones matching the name of a corresponding DEF bone, if they don't exist already
+
+## Select Bones by Name
+
+**Where:** N-panel → Rig Tools (and optionally Item tab)  
+**Requires:** Armature in Pose or Edit mode
+
+Useful for selecting bones that match a naming convention.  
+Check out the (#preferences), where you can customize this list or add your own.
+
+Note that the search is case insensitive and looks for the exact string specified.
+So it would be possible for "IK" to match on "spike", which is why a separator was added to be more specific.
+It's possible that "DEF" could match with "default", or "ORG" could match with "organic" or "organism", so be aware
+and adjust the preferences as necessary.
+
+There is an additional search box that can be used for custom search strings.
+
+**Output:** —  Adds bones to the current selection
+**Notes:** Button labels/terms come from addon Preferences.
+
+## Batch Rename Bones
+
+**Where:** N-panel → Rig Tools (Edit / Pose); shortcut `Ctrl+F2`  
+**Requires:** Selected bones
+
+This is a replacement for the default batch rename tool that's customized for bones.
+It will automatically strip numbers from the end of bone names, if the option is selected.
+
+**Output:** —  Renames selected bones based on find/replace, add prefix/suffix, and strip numbers
+
+## Rename Chain(s)
+
+**Where:** N-panel → Rig Tools (Edit / Pose)  
+**Requires:** Selected bone chain(s)
+
+Tool used to rename bones along a chain, or multiple chains.
+A useful tool for renaming long chains or many chains with the same name (such as hair or a dress).
+
+For bones along a single chain, they will be numbered in order.
+Use the "{bone}" placeholder in the name template, which will be replaced
+with the number (or letter) on each bone in the chain.
+
+For bones along multiple chains, the bones in each individual chain will be renamed as above, using the "{bone}" placeholder.
+Additionally, a "{chain}" placeholder may be used to a number or letter that describe the chain.
+To choose the order for the chains, select an ordering mode.  The default is "Angular" around the Z axis.
+That is, it will search in a circle around the Z axis and use that to pick the order.  
+This is the default because it's useful for hair and dresses, where the chains usually go around in a circle.
+You can pick a starting angle and flip the direction.  A preview of the chosen number/letter should show up in the 3d viewport.
+You can also select the "Linear" option to evaluate chain order linearly along the selected axis.
+
+**Output:** —  Renames selected bones based on a template
+
+## Create MCH Bones
+
+**Where:** N-panel → Rig Tools (Edit / Pose)
+**Requires:** Selected bones
+
+Quick tool for creating mechanism bone.  
+The mechanism bone will be named based on the template provided.
+The mechanism bone will the take existing parent from the selected bone, 
+and the mechanism bone will become the new parent of the selected bone.
+
+The tool works on multiple bones.  It will create a MCH bone for each bone in the selection.
+
+**Output:**  Generates one or more MCH bones that are parents of the selected bone(s)
+
+## Create Rotation Isolation
+
+**Where:** N-panel → Rig Tools (Edit / Pose)  
+**Requires:** Selected bone
+
+Create a rotation isolation mechanism driven by a custom property.
+
+1. …
+
+**Creates:**  
+**Notes:**
 
 ## Create FK/Tweak Chain
 
-Creates FK/Tweak chain from an existing bone chain.
-Chains must be linear (one child per parent), but don't need to be connected.
+**Where:** N-panel → Rig Tools (Edit / Pose)  
+**Requires:** Linear bone chain (one child per parent; connection optional)
 
-## Batch Rename
+Creates an FK/Tweak chain from an existing bone chain.
 
-Batch rename bones via find and replace, add prefix/suffix, and strip numbers
+1. Select chain
+2. Run **Create FK Tweak Chain**
+
+**Creates:**  
+**Notes:** Chains must be linear (one child per parent), but don't need to be connected.
+
+## Create FK/IK Switch
+
+**Where:** N-panel → Rig Tools (Edit / Pose)  
+**Requires:** Selected bone chain(s)
+
+Create an FK/IK switch for the selected bone chains.
+
+1. …
+
+**Creates:**  
+**Notes:**
+
+## Find Dependents
+
+**Where:** …  
+**Requires:** Active bone
+
+List bones that depend on the active bone (children, constraints, drivers).
+
+1. …
+
+**Creates:** —  
+**Notes:**
+
+## Armature Settings
+
+**Where:** …  
+**Requires:** Armature
+
+Per-armature settings used by the tools (e.g. root bone).
+
+1. …
+
+**Creates:**  
+**Notes:**
+
+
+
+**Notes:**
