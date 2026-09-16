@@ -23,6 +23,7 @@ from rigtools import armature_settings
 from rigtools import create_fk_ik_switch
 from rigtools import rename_chain
 from rigtools import find_dependents
+from rigtools.rig_ui import collections_panel
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -46,6 +47,7 @@ def register():
 	create_fk_ik_switch.register()
 	rename_chain.register()
 	find_dependents.register()
+	collections_panel.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -91,6 +93,7 @@ def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
+	collections_panel.unregister()
 	find_dependents.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()
