@@ -1,8 +1,8 @@
 bl_info = {
 	"name": "Rig Tools",
 	"author": "Jamin VanderBerg",
-	"version": (0, 80),
-	"blender": (4, 0, 0),
+	"version": (0, 90),
+	"blender": (4, 1, 0),
 	"location": "View3D > Sidebar > Rig Tools",
 	"description": "Helper functions for rig building",
 	"category": "Rigging"
@@ -24,6 +24,7 @@ from rigtools import create_fk_ik_switch
 from rigtools import rename_chain
 from rigtools import find_dependents
 from rigtools.rig_ui import collections_panel
+from rigtools.rig_ui import property_panel
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -48,6 +49,7 @@ def register():
 	rename_chain.register()
 	find_dependents.register()
 	collections_panel.register()
+	property_panel.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -94,6 +96,7 @@ def unregister():
 		bpy.utils.unregister_class(cls)
 
 	collections_panel.unregister()
+	property_panel.unregister()
 	find_dependents.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()

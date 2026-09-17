@@ -405,7 +405,8 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 
 		layout = self.layout
 		header = layout.row(align=True)
-		header.prop(wm, "rig_ui_edit_collections", text="Edit", toggle=True)
+		if not editing: header.alignment = 'RIGHT'
+		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 
 		if editing:
 			header.separator()
@@ -456,7 +457,7 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 			for j, coll in enumerate(row['colls']):
 				hidden = _is_hidden(arm, coll.name)
 				selected = not sel_gap and coll.name == sel_name
-				if count > 1 and j > 0:
+				if count > 1 and j > 0 and selected:
 					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_LEFT')
 					shift.collection_name = coll.name
 					shift.direction = 'LEFT'
@@ -475,7 +476,7 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 						text="",
 						icon='HIDE_ON' if hidden else 'HIDE_OFF',
 					)
-				if count > 1 and j < count - 1:
+				if count > 1 and j < count - 1 and selected:
 					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_RIGHT')
 					shift.collection_name = coll.name
 					shift.direction = 'RIGHT'
