@@ -386,7 +386,7 @@ class RIG_OT_ui_collection_hide(bpy.types.Operator):
 
 
 class RIG_PT_collection_ui(bpy.types.Panel):
-	bl_label = "Bone Collections"
+	bl_label = "Rig UI"
 	bl_idname = "RIG_PT_collection_ui"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'

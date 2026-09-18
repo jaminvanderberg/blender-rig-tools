@@ -182,7 +182,7 @@ def _iterate_properties(armature_data, prop_bone, context, show_hidden=False):
 
 
 class RIG_PT_properties_ui(bpy.types.Panel):
-	bl_label = "Properties"
+	bl_label = "Rig Properties"
 	bl_idname = "RIG_PT_properties_ui"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
