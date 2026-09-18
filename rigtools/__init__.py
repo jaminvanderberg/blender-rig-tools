@@ -25,6 +25,7 @@ from rigtools import rename_chain
 from rigtools import find_dependents
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import property_panel
+from rigtools.rig_ui import visibility_panel
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -50,6 +51,7 @@ def register():
 	find_dependents.register()
 	collections_panel.register()
 	property_panel.register()
+	visibility_panel.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -102,6 +104,7 @@ def unregister():
 	selection_panel.unregister()
 	armature_settings.unregister()
 	create_fk_ik_switch.unregister()
+	visibility_panel.unregister()
 
 if __name__ == "__main__":
 	register()
