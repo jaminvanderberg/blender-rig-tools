@@ -10,47 +10,6 @@ from rigtools.utils.bone_chain import find_chains_from_selection, ChainBranching
 from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tweak_chain_pose_mode, FKTweakChain, TweakChainOptions
 from rigtools.armature_settings import get_armature_settings
 
-###############################################################################################
-# Functions for finding bone chains
-
-def is_ancestor_selected(bone, selected_set):
-	parent = bone.parent
-	while parent:
-		if parent in selected_set:
-			return True
-		parent = parent.parent
-	return False
-
-def find_hierarchy_chains(context):
-	selected_bones = set(context.selected_editable_bones)
-	if not selected_bones:
-		return []
-	
-	heads = [
-		bone for bone in selected_bones
-		if not is_ancestor_selected(bone, selected_bones)
-	]
-	chains = []
-	
-	def walk_hierarchy(current_bone, current_chain):
-		current_chain.append(current_bone.name)
-		children = current_bone.children
-		
-		if len(children) > 1:
-			raise ChainBranchingError(
-				f"Branching detected at bone '{current_bone.name}'. Use selection mode and select a linear chain."
-			)
-		elif len(children) == 0:
-			chains.append(current_chain)
-			return
-		
-		walk_hierarchy(children[0], current_chain)
-		
-	for head in heads:
-		walk_hierarchy(head, [])
-		
-	return chains
-
 ###########################################################################################################        
 
 class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):

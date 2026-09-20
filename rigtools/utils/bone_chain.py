@@ -1,9 +1,11 @@
+from rigtools.utils.bone import get_selected_bones
+
 class ChainBranchingError(Exception):
 	"""Creates FK/Tweak chain from an existing bone chain."""
 	pass
 
 def find_chains_from_selection(context):
-	selected_bones = set(context.selected_editable_bones)
+	selected_bones = get_selected_bones(context)
 	if not selected_bones:
 		return []
 	
@@ -95,3 +97,42 @@ def rename_chains(context, chains, name_template, chain_name_type, bone_name_typ
 
 	for i, chain in enumerate(chains):
 		rename_chain(context, chain, name_template.replace('{chain}', get_name_segment(i, chain_name_type)), bone_name_type)
+
+###############################################################################################
+# Hierarchy
+
+def is_ancestor_selected(bone, selected_set):
+	parent = bone.parent
+	while parent:
+		if parent in selected_set:
+			return True
+		parent = parent.parent
+	return False
+
+def find_hierarchy_chains(context, connected_only=False):
+	selected_bones = get_selected_bones(context)
+	if not selected_bones:
+		return []
+	
+	heads = [
+		bone for bone in selected_bones
+		if not is_ancestor_selected(bone, selected_bones)
+	]
+	chains = []
+	
+	def walk_hierarchy(current_bone, current_chain):
+		current_chain.append(current_bone.name)
+		children = list(current_bone.children)
+		if connected_only:
+			children = [c for c in children if c.use_connect]
+		
+		if len(children) == 0:
+			chains.append(current_chain)
+			return
+		
+		walk_hierarchy(children[0], current_chain)
+		
+	for head in heads:
+		walk_hierarchy(head, [])
+		
+	return chains

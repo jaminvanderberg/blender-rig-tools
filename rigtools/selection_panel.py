@@ -1,6 +1,7 @@
 import bpy
 from rigtools.utils.bone import is_bone_visible
 from rigtools.preferences import get_preferences
+from rigtools.utils.bone_chain import find_hierarchy_chains
 
 class RIG_OT_select_bones_by_name(bpy.types.Operator):
 	bl_idname = "rig.select_bones_by_name"
@@ -32,6 +33,25 @@ class RIG_OT_select_bones_by_name(bpy.types.Operator):
 		self.report({'INFO'}, f"Selected {count} bone{'s' if count != 1 else ''}")
 		return {'FINISHED'}
 
+class RIG_OT_select_chains(bpy.types.Operator):
+	bl_idname = "rig.select_chains"
+	bl_label = "Select Chains"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	connected_only: bpy.props.BoolProperty(default=False)
+
+	def execute(self, context):
+		chains = find_hierarchy_chains(context, self.connected_only)
+		for chain in chains:
+			for bone_name in chain:
+				if context.mode == 'EDIT_ARMATURE':
+					bone = context.object.data.edit_bones.get(bone_name)
+				elif context.mode == 'POSE':
+					bone = context.object.pose.bones.get(bone_name)
+				if bone:
+					bone.select = True
+
+		return {'FINISHED'}
 
 def draw_selection_ui(layout, context):
 	prefs = get_preferences(context)
@@ -46,7 +66,13 @@ def draw_selection_ui(layout, context):
 	row.prop(context.window_manager, "bone_search", text="", icon='VIEWZOOM')
 	op = row.operator("rig.select_bones_by_name", text="", icon='RESTRICT_SELECT_OFF')
 	op.target_name = context.window_manager.bone_search
-
+	
+	layout.separator()
+	row = layout.row(align=True)
+	op = row.operator("rig.select_chains", text="Select Hierarchy", icon='LIBRARY_DATA_DIRECT')
+	op.connected_only = False
+	op = row.operator("rig.select_chains", text="Select Connected", icon='PARTICLES')
+	op.connected_only = True
 
 class RIG_PT_selection_panel(bpy.types.Panel):
 	bl_label = "Select Bones by Name"
@@ -61,7 +87,6 @@ class RIG_PT_selection_panel(bpy.types.Panel):
 
 	def draw(self, context):
 		draw_selection_ui(self.layout, context)
-
 
 class RIG_PT_selection_panel_item(bpy.types.Panel):
 	bl_label = "Select Bones by Name"
@@ -84,6 +109,7 @@ class RIG_PT_selection_panel_item(bpy.types.Panel):
 
 classes = (
 	RIG_OT_select_bones_by_name,
+	RIG_OT_select_chains,
 	RIG_PT_selection_panel,
 	RIG_PT_selection_panel_item,
 )

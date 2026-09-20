@@ -23,6 +23,7 @@ from rigtools import armature_settings
 from rigtools import create_fk_ik_switch
 from rigtools import rename_chain
 from rigtools import find_dependents
+from rigtools import weight_paint_proxy
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import property_panel
 from rigtools.rig_ui import visibility_panel
@@ -49,6 +50,7 @@ def register():
 	create_fk_ik_switch.register()
 	rename_chain.register()
 	find_dependents.register()
+	weight_paint_proxy.register()
 	collections_panel.register()
 	property_panel.register()
 	visibility_panel.register()
@@ -100,6 +102,7 @@ def unregister():
 	collections_panel.unregister()
 	property_panel.unregister()
 	find_dependents.unregister()
+	weight_paint_proxy.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()
 	armature_settings.unregister()

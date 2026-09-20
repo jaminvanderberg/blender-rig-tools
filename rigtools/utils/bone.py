@@ -2,6 +2,13 @@ import bpy
 import re
 from rigtools.preferences import get_separators
 
+def get_selected_bones(context):
+	if context.mode == 'EDIT_ARMATURE':
+		return list(context.selected_editable_bones)
+	elif context.mode == 'POSE':
+		return list(context.selected_pose_bones)
+	return []
+
 def get_base_name(bone_name) -> tuple[str, str]:
 	symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
 	match = re.search(symmetry_pattern, bone_name, re.IGNORECASE)

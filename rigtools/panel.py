@@ -26,8 +26,11 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 			layout.operator("rig.rename_chain", icon='GROUP_BONE')
 
 		if mode in {'POSE', 'EDIT_ARMATURE'}:
+			layout.label(text="Weight Paint Tools:")
+			layout.operator("rig.weight_paint_proxy", icon='WPAINT_HLT')
+			
+		if mode in {'POSE', 'EDIT_ARMATURE'}:
 			layout.label(text="Chain Tools:")
 			layout.operator("rig.create_rotation_isolation", icon='CON_ROTLIKE')
 			layout.operator("rig.create_fk_tweak_chain", icon='CON_STRETCHTO')
 			layout.operator("rig.create_fk_ik_switch", icon='CON_CHILDOF')
-
