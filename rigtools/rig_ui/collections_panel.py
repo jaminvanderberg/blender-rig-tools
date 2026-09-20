@@ -394,10 +394,18 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 
 	@classmethod
 	def poll(cls, context):
-		return context.object and context.object.type == 'ARMATURE'
+		if context.object.type == 'ARMATURE':
+			return True
+		if bool([mod for mod in context.object.modifiers if mod.type == 'ARMATURE']):
+			return True
+		return False
 
 	def draw(self, context):
-		arm = context.object.data
+
+		if context.object.type == 'ARMATURE':
+			arm = context.object.data
+		else:
+			arm = [mod for mod in context.object.modifiers if mod.type == 'ARMATURE'][0].object.data
 		wm = context.window_manager
 		editing = wm.rig_ui_edit_collections
 		sel_name = wm.rig_ui_sel_name
