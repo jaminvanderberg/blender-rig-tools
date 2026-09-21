@@ -5,6 +5,7 @@ import blf
 from bpy_extras.view3d_utils import location_3d_to_region_2d
 from rigtools.utils.chain_order_overlay import _draw_order_overlay, _remove_preview
 from rigtools.utils import chain_order_overlay
+from collections import defaultdict
 
 def stitch_cols(a, b, faces):
 	i = j = 0
@@ -19,6 +20,87 @@ def stitch_cols(a, b, faces):
 	while j < len(b) - 1:
 		faces.append((a[-1], b[j+1], b[j]))
 		j += 1
+
+def seed_weight_map(chains, grid):
+	weights = defaultdict(dict)
+	for col_idx, chain in enumerate(chains):
+		col = grid[col_idx]
+		for row, bone_name in enumerate(chain):
+			weights[col[row]][bone_name] = 1.0
+		weights[col[-1]][chain[-1]] = 1.0
+	return weights
+
+def normalize_vert(wmap):
+	total = sum(wmap.values())
+	if total <= 0:
+		return
+	for b in wmap:
+		wmap[b] /= total
+
+def spread_weights(weights, grid, chians, *,
+	carry_v = 0.25, carry_h = 0.15,
+	protect_rows = 1,
+	iterations = 1,
+	close_loop = True
+):
+	ncols = len(grid)
+
+	def neighbors(c, r):
+		col = grid[c]
+		if r > 0:
+			yield grid[c][r-1], 'up'
+		if r < len(col) - 1:
+			yield grid[c][r+1], 'down'
+		if ncols > 1:
+			left = (c - 1) % ncols if close_loop else c - 1
+			right = (c + 1) % ncols if close_loop else c + 1
+			for nc in (left, right):
+				if nc < 0 or nc >= ncols:
+					continue
+				if r >= len(grid[nc]):
+					continue					
+				yield grid[nc][r], 'side'
+
+	for _ in range(iterations):
+		acc = defaultdict(lambda: defaultdict(float))
+
+		for c, col in enumerate(grid):
+			for r, v in enumerate(col):
+				is_top = (r == 0)
+				for bone, w in weights[v].items():
+					if w <= 0:
+						continue
+					
+					pushes = []
+					for nv, kind in neighbors(c, r):
+						if kind in ('up', 'down'):
+							if is_top and kind == 'up':
+								continue
+							if kind == 'up' and r <= protect_rows + 1:
+								continue
+							if kind == 'down' and r <= protect_rows:
+								continue
+							pushes.append((nv, carry_v))
+						else:
+							pushes.append((nv, carry_h))
+
+					given = sum(f for _, f in pushes)
+					keep = max(0,0, 1.0 - given)
+					acc[v][bone] += w * keep
+					for nv, f in pushes:
+						acc[nv][bone] += w * f
+
+		weights = {v: dict(bones) for v, bones in acc.items()}
+		for v in weights:
+			normalize_vert(weights[v])
+			
+	return weights
+
+def write_vertex_groups(obj, weights):
+	for v, bones in weights.items():
+		for bone, w in bones.items():
+			vg = obj.vertex_groups.get(bone) or obj.vertex_groups.new(name=bone)
+			vg.add([v], w, 'REPLACE')
 
 class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 		"""Create a weight paint proxy for the selected chains."""
@@ -92,6 +174,43 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			default="WProxy-{armature}"
 		)
 
+		spread_weights: bpy.props.BoolProperty(
+			name="Smooth Weights",
+			description="Spread the weights of the bones.",
+			default=True
+		)
+
+		carry_v: bpy.props.FloatProperty(
+			name="Carry Vertical",
+			description="The amount of weight to carry vertically.",
+			min=0.0,
+			max=1.0,
+			default=0.25
+		)
+		
+		carry_h: bpy.props.FloatProperty(
+			name="Carry Horizontal",
+			description="The amount of weight to carry horizontally.",
+			min=0.0,
+			max=1.0,
+			default=0.15
+		)
+		
+		protect_rows: bpy.props.IntProperty(
+			name="Protect Rows",
+			description="The number of rows to protect.",
+			min=0,
+			default=1
+		)
+		
+		iterations: bpy.props.IntProperty(
+			name="Iterations",
+			description="The number of iterations to run.",
+			min=1,
+			default=1
+		)
+
+
 		def execute(self, context):
 			_remove_preview(context)
 
@@ -151,13 +270,15 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 				modifier.object = context.object
 
 			if self.seed_weights:
-				for col_idx, chain in enumerate(chains):
-					col = grid[col_idx]
-					for row, bone_name in enumerate(chain):
-						bg = obj.vertex_groups.get(bone_name) or obj.vertex_groups.new(name=bone_name)
-						bg.add([col[row]], 1.0, 'REPLACE')
-					vg = obj.vertex_groups.get(chain[-1]) or obj.vertex_groups.new(name=chain[-1])
-					vg.add([col[-1]], 1.0, 'REPLACE')
+				weights = seed_weight_map(chains, grid)
+				if self.spread_weights:
+					weights = spread_weights(weights, grid, chains, 
+						carry_v = self.carry_v,
+						carry_h = self.carry_h,
+						protect_rows = self.protect_rows,
+						iterations = self.iterations,
+						close_loop = self.close_loop)
+				write_vertex_groups(obj, weights)
 
 			bpy.ops.object.mode_set(mode='OBJECT')
 			for o in context.selected_objects:
@@ -208,6 +329,13 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			col = layout.column()
 			col.prop(self, "object_name")
 			col.prop(self, "seed_weights")
+			if self.seed_weights:
+				col.prop(self, "spread_weights")
+			if self.seed_weights and self.spread_weights:
+				col.prop(self, "carry_v")
+				col.prop(self, "carry_h")
+				col.prop(self, "protect_rows")
+				col.prop(self, "iterations")
 
 			for area in context.screen.areas:
 				if area.type == 'VIEW_3D':
