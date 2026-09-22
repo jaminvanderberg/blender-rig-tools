@@ -8,14 +8,13 @@ from bpy_extras.view3d_utils import location_3d_to_region_2d
 _preview = None  # {"op": operator, "handler": handle}
 
 def _draw_order_overlay():
-	print("overlay draw", bpy.context.mode, len(find_chains_from_selection(bpy.context) or []))	
 	state = _preview
 	if not state:
 		return
 	op = state["op"]
 	context = bpy.context
 	obj = context.active_object
-	if not obj or obj.type != 'ARMATURE' or obj.mode != 'EDIT':
+	if not obj or obj.type != 'ARMATURE' or obj.mode not in ('EDIT', 'POSE'):
 		return
 
 	chains = find_chains_from_selection(context)
@@ -30,11 +29,11 @@ def _draw_order_overlay():
 
 	region = context.region
 	rv3d = context.region_data
-	edit_bones = obj.data.edit_bones
+	bones = obj.data.edit_bones if obj.mode == 'EDIT' else obj.data.bones
 	mw = obj.matrix_world
 
 	# world-space heads + center (same math as sort_chains)
-	heads_w = [mw @ edit_bones[c[0]].head for c in chains]
+	heads_w = [mw @ bones[c[0]].head for c in chains]
 	center = sum(heads_w, heads_w[0].__class__()) / len(heads_w)
 
 	# lines: center → each head (angular), or polyline through heads (linear)

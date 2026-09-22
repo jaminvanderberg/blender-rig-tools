@@ -28,6 +28,8 @@ class RIG_OT_select_bones_by_name(bpy.types.Operator):
 			for ebone in obj.data.edit_bones:
 				if is_bone_visible(ebone) and self.target_name.upper() in ebone.name.upper():
 					ebone.select = True
+					ebone.select_head = True
+					ebone.select_tail = True
 					count += 1
 
 		self.report({'INFO'}, f"Selected {count} bone{'s' if count != 1 else ''}")
@@ -46,9 +48,11 @@ class RIG_OT_select_chains(bpy.types.Operator):
 			for bone_name in chain:
 				if context.mode == 'EDIT_ARMATURE':
 					bone = context.object.data.edit_bones.get(bone_name)
+					bone.select = True
+					bone.select_head = True
+					bone.select_tail = True
 				elif context.mode == 'POSE':
 					bone = context.object.pose.bones.get(bone_name)
-				if bone:
 					bone.select = True
 
 		return {'FINISHED'}

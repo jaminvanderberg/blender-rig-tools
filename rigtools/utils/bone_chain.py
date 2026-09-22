@@ -38,18 +38,22 @@ def find_chains_from_selection(context):
 import math
 
 def sort_chains(context, chains, mode, axis, start_angle_deg=0.0, invert=False):
-	edit_bones = context.object.data.edit_bones
+	bones = (
+		context.object.data.edit_bones 
+		if context.object.mode == 'EDIT' 
+		else context.object.data.bones
+	)
 	axis_idx = 'XYZ'.index(axis)
 
-	heads = [edit_bones[chain[0]].head.copy() for chain in chains]
+	heads = [bones[chain[0]].head.copy() for chain in chains]
 	center = sum(heads, heads[0].__class__()) / len(heads)  # or use mathutils.Vector
 
 	from mathutils import Vector
-	heads = [edit_bones[chain[0]].head.copy() for chain in chains]
+	heads = [bones[chain[0]].head.copy() for chain in chains]
 	center = sum((Vector(h) for h in heads), Vector()) / len(heads)
 
 	def sort_key(chain):
-		co = edit_bones[chain[0]].head
+		co = bones[chain[0]].head
 		if mode == 'LINEAR':
 			return (co[axis_idx], chain[0])
 

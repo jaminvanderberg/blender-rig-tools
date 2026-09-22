@@ -7,7 +7,23 @@ from rigtools.utils.chain_order_overlay import _draw_order_overlay, _remove_prev
 from rigtools.utils import chain_order_overlay
 from collections import defaultdict
 
-def stitch_cols(a, b, faces):
+def stitch_cols(a, b, faces, align_end = False):
+
+	if align_end:
+		i = len(a) - 1
+		j = len(b) - 1
+		while i > 0 and j > 0:
+			i -= 1
+			j -= 1
+			faces.append((a[i], a[i+1], b[j+1], b[j]))
+		while i > 0:
+			i -= 1
+			faces.append((a[i], a[i+1], b[0]))
+		while j > 0:
+			j -= 1
+			faces.append((a[0], b[j+1], b[j]))
+		return
+
 	i = j = 0
 	while i < len(a) - 1 and j < len(b) - 1:
 		faces.append((a[i], a[i+1], b[j+1], b[j]))
@@ -41,7 +57,8 @@ def spread_weights(weights, grid, chians, *,
 	carry_v = 0.25, carry_h = 0.15,
 	protect_rows = 1,
 	iterations = 1,
-	close_loop = True
+	close_loop = True,
+	align_end = False
 ):
 	ncols = len(grid)
 
@@ -57,9 +74,21 @@ def spread_weights(weights, grid, chians, *,
 			for nc in (left, right):
 				if nc < 0 or nc >= ncols:
 					continue
-				if r >= len(grid[nc]):
-					continue					
-				yield grid[nc][r], 'side'
+				nr = r + len(grid[nc]) - len(col) if align_end else r
+				base = r + len(grid[nc]) - len(col) if align_end else r
+				if base < 0:
+					side_r = 0
+				elif base >= len(grid[nc]):
+					side_r = len(grid[nc]) - 1
+				else:
+					side_r = base
+				if (r > protect_rows) == (side_r < protect_rows):
+					yield grid[nc][side_r], 'side'
+				for dr, kind in ((-1, 'diag_up'), (1, 'diag_down')):
+					nr = base + dr
+					if nr < 0 or nr >= len(grid[nc]) or nr <= protect_rows:
+						continue
+					yield grid[nc][nr], kind
 
 	for _ in range(iterations):
 		acc = defaultdict(lambda: defaultdict(float))
@@ -73,14 +102,15 @@ def spread_weights(weights, grid, chians, *,
 					
 					pushes = []
 					for nv, kind in neighbors(c, r):
-						if kind in ('up', 'down'):
-							if is_top and kind == 'up':
+						if kind in ('up', 'down', 'diag_up', 'diag_down'):
+							if is_top and kind in ('up', 'diag_up'):
 								continue
-							if kind == 'up' and r <= protect_rows + 1:
+							if kind in ('up', 'diag_up') and r <= protect_rows + 1:
 								continue
-							if kind == 'down' and r <= protect_rows:
+							if kind in ('down', 'diag_down') and r <= protect_rows:
 								continue
-							pushes.append((nv, carry_v))
+							factor = carry_v * carry_h if kind.startswith('diag') else carry_v
+							pushes.append((nv, factor))
 						else:
 							pushes.append((nv, carry_h))
 
@@ -175,30 +205,30 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 		)
 
 		spread_weights: bpy.props.BoolProperty(
-			name="Smooth Weights",
+			name="Spread Weights",
 			description="Spread the weights of the bones.",
 			default=True
 		)
 
 		carry_v: bpy.props.FloatProperty(
-			name="Carry Vertical",
+			name="Spread Along Chain",
 			description="The amount of weight to carry vertically.",
 			min=0.0,
 			max=1.0,
-			default=0.25
+			default=0.10
 		)
 		
 		carry_h: bpy.props.FloatProperty(
-			name="Carry Horizontal",
+			name="Spread Across Chain",
 			description="The amount of weight to carry horizontally.",
 			min=0.0,
 			max=1.0,
-			default=0.15
+			default=0.10
 		)
 		
 		protect_rows: bpy.props.IntProperty(
-			name="Protect Rows",
-			description="The number of rows to protect.",
+			name="Lock Root Rows",
+			description="Don't spread weight along chain for the first n rows.",
 			min=0,
 			default=1
 		)
@@ -210,6 +240,15 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			default=1
 		)
 
+		chain_align: bpy.props.EnumProperty(
+			name="Chain Align",
+			description="Which end lines up when chains have different lengths.",
+			items=[
+				('START', "Start", "Line up the roots. Extra length fans onto the tip."),
+				('END', "End", "Line up the tips. Extra length fans onto the root."),
+			],
+			default='START'
+		)
 
 		def execute(self, context):
 			_remove_preview(context)
@@ -219,8 +258,11 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			chains = find_chains_from_selection(context)
 			if self.stitch_chain and len(chains) > 1:
 				chains = sort_chains(context, chains, self.order_mode, self.order_axis, self.order_start_angle, self.order_invert)
-			
-			bones = context.object.data.edit_bones if context.mode == 'EDIT_ARMATURE' else context.object.data.bones
+
+			bpy.ops.object.mode_set(mode='EDIT')
+
+			bones = context.object.data.edit_bones
+			align_end = self.chain_align == 'END'
 
 			vertices = []
 			edges = []
@@ -246,9 +288,9 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 
 			if self.stitch_chain and len(grid) > 1:
 				for c in range(len(grid) - 1):
-					stitch_cols(grid[c], grid[c+1], faces)
+					stitch_cols(grid[c], grid[c+1], faces, align_end)
 				if self.close_loop:
-					stitch_cols(grid[-1], grid[0], faces)
+					stitch_cols(grid[-1], grid[0], faces, align_end)
 
 			mesh_name = self.object_name
 			if '{armature}' in mesh_name:
@@ -277,7 +319,8 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 						carry_h = self.carry_h,
 						protect_rows = self.protect_rows,
 						iterations = self.iterations,
-						close_loop = self.close_loop)
+						close_loop = self.close_loop,
+						align_end = align_end)
 				write_vertex_groups(obj, weights)
 
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -310,20 +353,28 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 
 			layout.label(text=f"Found {len(chains)} chains.")
 
-			layout.separator()
-			col = layout.column()
-			col.prop(self, "stitch_chain")
-			if self.stitch_chain:
-				col.prop(self, "close_loop")
+			min_length = min(len(chain) for chain in chains)
+			max_length = max(len(chain) for chain in chains)
 
-				box = layout.box()
-				box.label(text="Chain Order Settings:", icon='SORTALPHA')
-				box.prop(self, "order_mode")
-				row = box.row(align=True)
-				row.prop(self, "order_axis", expand=True)
-				if self.order_mode == 'ANGULAR':
-					box.prop(self, "order_start_angle")
-				box.prop(self, "order_invert")
+			if len(chains) > 1:
+				layout.separator()
+				col = layout.column()
+				col.prop(self, "stitch_chain")
+
+				if self.stitch_chain and min_length != max_length:
+					col.prop(self, "chain_align")
+
+				if self.stitch_chain:
+					col.prop(self, "close_loop")
+
+					box = layout.box()
+					box.label(text="Chain Order Settings:", icon='SORTALPHA')
+					box.prop(self, "order_mode")
+					row = box.row(align=True)
+					row.prop(self, "order_axis", expand=True)
+					if self.order_mode == 'ANGULAR':
+						box.prop(self, "order_start_angle")
+					box.prop(self, "order_invert")
 
 			layout.separator()
 			col = layout.column()
@@ -333,9 +384,11 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 				col.prop(self, "spread_weights")
 			if self.seed_weights and self.spread_weights:
 				col.prop(self, "carry_v")
-				col.prop(self, "carry_h")
-				col.prop(self, "protect_rows")
+				if self.sitch_chain:
+					col.prop(self, "carry_h")
 				col.prop(self, "iterations")
+				col.separator()
+				col.prop(self, "protect_rows")
 
 			for area in context.screen.areas:
 				if area.type == 'VIEW_3D':
