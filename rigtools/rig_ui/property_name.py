@@ -43,6 +43,13 @@ def guess_property_label(property_name, context=None):
 		label = f"{side_name} {label}"
 	return label
 
+def guess_snapping_label(property_name, context=None):
+	base, side = guess_group(property_name, context)
+	side_name = SIDE_NAMES.get(side)
+	if side_name:
+		return f"{side_name} {base}", base
+	return base, base
+
 def guess_group(property_name, context=None):
 	base, side = split_side(property_name)
 	tokens = _tokens(base, context)

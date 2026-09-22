@@ -99,6 +99,11 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for the IK MCH bones.",
 		default="MCH-IK-{name}"
 	)
+	fk_ik_snap_template: StringProperty(
+		name="IK > FK Snap Bone",
+		description="Template for the IK > FK snapping bones. Note: will be combined with the IK and pole templates.",
+		default="MCH-FK-IK-{name}.master"
+	)
 	switch_template: StringProperty(
 		name="Switch Bone",
 		description="Template FK/IK switch control bones.",

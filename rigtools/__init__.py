@@ -27,6 +27,7 @@ from rigtools import weight_paint_proxy
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import property_panel
 from rigtools.rig_ui import visibility_panel
+from rigtools.rig_ui import snapping_panel
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -54,6 +55,7 @@ def register():
 	collections_panel.register()
 	property_panel.register()
 	visibility_panel.register()
+	snapping_panel.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -108,6 +110,7 @@ def unregister():
 	armature_settings.unregister()
 	create_fk_ik_switch.unregister()
 	visibility_panel.unregister()
+	snapping_panel.unregister()
 
 if __name__ == "__main__":
 	register()

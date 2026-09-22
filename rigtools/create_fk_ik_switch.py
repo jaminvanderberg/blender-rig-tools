@@ -10,6 +10,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.tool.standard_ik import StandardIKOptions, create_standard_ik_edit_mode, create_standard_ik_pose_mode
 from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode, create_spline_ik_object_mode, create_spline_ik_pose_mode, spline_twist_type
 from rigtools.utils.widget import fk_widget_types
+from rigtools.rig_ui.snapping_panel import register_snap_chain
 
 class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	"""Create a FK/IK switch for the selected bone chains."""
@@ -116,6 +117,12 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		items=fk_widget_types,
 		default='FK'
 	)
+
+	enable_snapping: BoolProperty(
+		name="Enable FK<->IK Snapping",
+		description="Setup additional bones for IK>FK snapping, and enable the snapping UI",
+		default=True
+	)
 	
 	##################################################################################################
 	# execute
@@ -182,7 +189,8 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		ik_options = StandardIKOptions(
 			enable_ik_stretch = self.enable_ik_stretch,
 			pole_distance = self.pole_distance,
-			ik_collection_name = self.ik_collection_name if self.override_collections else None
+			ik_collection_name = self.ik_collection_name if self.override_collections else None,
+			enable_snapping = self.enable_snapping
 		)
 
 		spline_options = SplineIKOptions(
@@ -207,8 +215,19 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			created_chains.append((chain, fk_bone_names, ik_bone_names))
 
 			if self.ik_type == 'IK':
-				ik_chain = create_standard_ik_edit_mode(context, ik_bone_names, ik_options, name_source=org_chain)
+				ik_chain = create_standard_ik_edit_mode(context, ik_bone_names, fk_bone_names, ik_options, name_source=org_chain)
 				created_ik_chains.append(ik_chain)
+
+				if self.enable_snapping:
+					register_snap_chain(obj.data, 
+						switch_property=self.switch_property_name,
+						fk_bones=fk_bone_names,
+						ik_mch_bones=ik_bone_names, 
+						ik_control=ik_chain.ik_control_name, 
+						ik_pole=ik_chain.pole_name, 
+						snap_control=ik_chain.snap_control_name, 
+						snap_pole=ik_chain.snap_pole_name, 
+						context=context)
 			elif self.ik_type == 'SPLINE':
 				ik_chain = create_spline_ik_edit_mode(context, ik_bone_names, spline_options, name_source=org_chain)
 				created_ik_chains.append(ik_chain)
@@ -292,6 +311,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		elif self.ik_type == 'IK':
 			box.label(text="IK Settings:", icon='CON_KINEMATIC')
 			col = box.column()
+			col.prop(self, "enable_snapping")
 			col.prop(self, "enable_ik_stretch")
 			col.prop(self, "pole_distance")
 

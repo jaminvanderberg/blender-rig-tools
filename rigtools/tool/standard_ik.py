@@ -14,14 +14,17 @@ class IKChain:
 	ik_control_name: str = None
 	pole_name: str = None
 	pole_vis_name: str = None
+	snap_control_name: str = None
+	snap_pole_name: str = None
 
 @dataclass
 class StandardIKOptions:
 	enable_ik_stretch: bool = True
 	pole_distance: float = 1.0
 	ik_collection_name: str = None
+	enable_snapping: bool = True
 
-def create_standard_ik_edit_mode(context, mch_bone_names, options: StandardIKOptions, name_source=None) -> IKChain:
+def create_standard_ik_edit_mode(context, mch_bone_names, fk_bone_names, options: StandardIKOptions, name_source=None) -> IKChain:
 	obj = context.object
 	edit_bones = obj.data.edit_bones
 	prefs = get_preferences()
@@ -50,6 +53,24 @@ def create_standard_ik_edit_mode(context, mch_bone_names, options: StandardIKOpt
 	pole_bone.parent = root_bone
 	pole_bone.align_roll(Vector((1, 0, 0)))
 
+
+	snap_control_name = None
+	snap_pole_name = None
+	if options.enable_snapping:
+		snap_control_name = generate_bone_name(ik_control_bone.name, prefs.fk_ik_snap_template)
+		snap_control_bone = duplicate_bone(obj.data, ik_control_bone, snap_control_name, 0.8)
+		snap_control_bone.parent = edit_bones[fk_bone_names[-1]]
+		snap_control_name = snap_control_bone.name
+
+		snap_pole_name = generate_bone_name(pole_bone.name, prefs.fk_ik_snap_template)
+		snap_pole_bone = duplicate_bone(obj.data, pole_bone, snap_pole_name, 0.8)
+		snap_pole_bone.parent = edit_bones[fk_bone_names[0]]
+		snap_pole_name = snap_pole_bone.name
+
+		if prefs.mch_collection_name:
+			set_bone_collection(obj.data, snap_control_bone, prefs.mch_collection_name)
+			set_bone_collection(obj.data, snap_pole_bone, prefs.mch_collection_name)
+
 	pole_vis_bone = None
 	if settings.do_create_widgets:
 		pole_vis_bone_name = generate_bone_name(name_source[0] if name_source else first_mch_bone_name, prefs.ik_pole_vis_template)
@@ -75,7 +96,9 @@ def create_standard_ik_edit_mode(context, mch_bone_names, options: StandardIKOpt
 		mch_bone_names=mch_bone_names,
 		ik_control_name=ik_control_bone.name,
 		pole_name=pole_bone.name,
-		pole_vis_name=pole_vis_bone.name if pole_vis_bone else None
+		pole_vis_name=pole_vis_bone.name if pole_vis_bone else None,
+		snap_control_name=snap_control_name,
+		snap_pole_name=snap_pole_name,
 	)
 
 def create_standard_ik_pose_mode(context, chain: IKChain, options: StandardIKOptions):
