@@ -239,35 +239,41 @@ Tool to assist creating a simplified mesh that can be the target of a Data Trans
 Provides additional tools for spreading the weights across the mesh.
 Principal use case for this tool is skirts, cloth, etc.
 
-If "Stitch chain" is enabled, it will create faces between chains based on the settings provided.
+**Stitch Chain** - If enabled, it will create faces between chains based on the settings provided.
 If "Stitch chain" isn't used, the mesh will contain edges only and will need to be stitched manually.
-The "Ordering Mode" defines how the chains are orders.  The default is "Angular" around the Z axis.
-The "Angular" will search in a circle around the centroid of the select chain heads, 
+
+**Ordering Mode** - This option defines how the chains are ordered.  The default is "Angular" around the Z axis.
+The "Angular" will search in a circle around the centroid of the selected chain heads, 
 in the plane perpendicular to the chosen axis.
 This is the most useful when chains go around in a circle (like a skirt).
 You can pick a starting angle and flip the direction.  A preview of the chosen number/letter should show up in the 3d viewport.
 You can also select the "Linear" option to evaluate chain order linearly along the selected axis.
 
-The "Close Loop" option will close the edges between the last chain and the first chain, creating a full loop.
+**Close Loop** - This option will close the edges between the last chain and the first chain, creating a full loop.
 
-If the chains are not all the same length, and "Chain Align" parameter will appear.
+**Chain Align** - Option only appears if the chains are not all the same length.
 The tool will need to create a triangle fan for any additional vertices.
 The "Chain Align" parameter controls whether the triangle occur at the start or the end of the chains.
 This will also control how the weights are distributed.
 
-The "Seed Weights" option will fill the new mesh with vertex group weights for the respective bones. 
+**Seed Weights** - This option will fill the new mesh with vertex group weights for the respective bones. 
 If "Spread weights" isn't used, this will set all weights to 1.0.
-If "Spread weights" is used, it will distrubte the weights around the mesh based on additional settings.
-"Spread along chain" controls how much weight is distributed up/down along each chain. (Higher = softer/more weight bleed)
-"Spread across chain" controls how much weight is distributed left/right between chains.
-You can use the "Iteration" setting to control how many times the spread is run,
+
+**Spread Weights** - if used, the tool will distribute the weights around the mesh based on additional settings.
+
+**Spread Along Chain** - controls how much weight is distributed up/down along each chain. (Higher = softer/more weight bleed)
+
+**Spread Across Chain** - controls how much weight is distributed left/right between chains.
+
+**Iterations** - You can use this setting to control how many times the spread is run,
 this will typically lead to smoother weights.
-"Lock Root Rows" will prevent weight disribution down the chain for the first n bones in each chain.
+
+**Lock Root Rows** - will prevent weight distribution down the chain for the first n bones in each chain.
 Skirts and other cloth will typically want at least 1 locked row to prevent bones further down the chain
 from affecting where the cloth is attached.
 
 The purpose of this tool isn't to create a perfect proxy that will work flawlessly without
-any additional weight painting.  The purpose of this tool is the accelerate the building
+any additional weight painting.  The purpose of this tool is to accelerate the building
 of a proxy and give a solid baseline for additional manual weight painting.
 
 **Output:** Creates a new mesh with armature modifier and weights based on settings.
