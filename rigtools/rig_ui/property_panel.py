@@ -190,16 +190,19 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 
 	@classmethod
 	def poll(cls, context):
-		return context.object and context.object.type == 'ARMATURE'
+		if not context.object or context.object.type != 'ARMATURE':
+			return False
+		settings = get_armature_settings(context.object.data, context)
+		prop_bone = context.active_object.pose.bones.get(settings.property_bone_name)
+		if not prop_bone:
+			return False
+		return any(not k.startswith("_") for k in prop_bone.keys())
 
 	def draw(self, context):
 		settings = get_armature_settings(context.object.data, context)
 		prop_bone_name = settings.property_bone_name
 		obj = context.active_object
 		prop_bone = obj.pose.bones[prop_bone_name]
-		if not prop_bone:
-			self.report({'ERROR'}, "Property bone not found")
-			return {'CANCELLED'}
 		
 		layout = self.layout
 		split_size = 0.7
