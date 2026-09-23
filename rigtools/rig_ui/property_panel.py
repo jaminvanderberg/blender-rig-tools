@@ -208,10 +208,6 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 		split_size = 0.7
 
 		wm = context.window_manager
-		header = layout.row(align=True)
-		header.alignment = 'RIGHT'
-		icon = 'HIDE_OFF' if wm.rig_ui_show_hidden_properties else 'HIDE_ON'
-		header.prop(wm, "rig_ui_show_hidden_properties", icon=icon, toggle=True)
 
 		props = _iterate_properties(obj.data, prop_bone, context, wm.rig_ui_show_hidden_properties)
 
@@ -234,8 +230,15 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 				row.label(text=prop_data["label"], translate=False)
 				row = split.row(align=True)
 				row.prop(prop_bone, f'["{prop_data["name"]}"]', text = "", slider=True)
-				op = row.operator("rig.ui_property_modify", text="", icon='MODIFIER')
+				op = row.operator("rig.ui_property_modify", text="", icon='SETTINGS')
 				op.property_name = prop_data["name"]
+
+		hidden_count = sum(1 for prop_data in props if prop_data["hidden"])
+		if hidden_count > 0:
+			header = layout.row(align=True)
+			header.alignment = 'RIGHT'
+			icon = 'HIDE_OFF' if wm.rig_ui_show_hidden_properties else 'HIDE_ON'
+			header.prop(wm, "rig_ui_show_hidden_properties", icon=icon, toggle=True)
 
 classes = (
 	RigUIPropertyItem,

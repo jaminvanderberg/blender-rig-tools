@@ -12,6 +12,11 @@ class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 		description="Root bone name",
 		default=""
 	)
+	torso_bone_name: bpy.props.StringProperty(
+		name="Torso",
+		description="Torso bone name",
+		default=""
+	)
 	property_bone_name: bpy.props.StringProperty(
 		name="Property",
 		description="Property bone name",
@@ -43,6 +48,7 @@ def initialize_armature_settings(armature_data, context):
 
 	prefs = get_preferences()
 	settings.root_bone_name = prefs.root_bone_name
+	settings.torso_bone_name = prefs.torso_bone_name
 	settings.property_bone_name = prefs.property_bone_name
 	settings.do_create_widgets = prefs.do_create_widgets
 	settings.widget_collection = prefs.widget_collection
@@ -79,11 +85,8 @@ class RIG_PT_armature_settings(bpy.types.Panel):
 		layout = self.layout
 		col = layout.column(align=True)
 		col.prop(settings, "root_bone_name")
+		col.prop(settings, "torso_bone_name")
 		col.prop(settings, "property_bone_name")
-		col.prop(settings, "do_create_widgets")
-		if settings.do_create_widgets:
-			col.prop(settings, "widget_collection")
-			col.prop(settings, "widget_template")
 
 		layout.separator()
 		layout.operator("rig.initialize_armature_settings", text="Reinitialize from Preferences", icon='FILE_REFRESH')

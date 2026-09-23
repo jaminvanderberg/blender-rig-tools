@@ -214,23 +214,17 @@ class RIG_PT_snapping_ui(bpy.types.Panel):
 		split_size = 0.7
 
 		wm = context.window_manager
-		header = layout.row(align=True)
-		header.alignment = 'RIGHT'
-		icon = 'HIDE_OFF' if wm.rig_ui_show_hidden_snapping_chains else 'HIDE_ON'
-		header.prop(wm, "rig_ui_show_hidden_snapping_chains", icon=icon, toggle=True)
 
 		props = _iterate_snapping_chains(obj.data, context, wm.rig_ui_show_hidden_snapping_chains)
 
 		for group, group_props in groupby(props, key=lambda x: x["group"]):
-			header, body = layout.panel(f"rig_ui_snap_chains_{group}", default_closed=True)
-			header.label(text=f"{group} Snapping")
-			if not body:
-				continue
 
-			current_sub = object() # force first box
-			col = None
+			col = layout.column(align=True)
+			col.label(text=f"{group} Snapping")
+
 			for prop_data in group_props:
-				col = body.box().column(align=True)
+				col = layout.box().column(align=True)
+
 				row = col.row()
 				row.active = not prop_data["hidden"]
 				split = row.split(align=True, factor=split_size)
@@ -238,13 +232,23 @@ class RIG_PT_snapping_ui(bpy.types.Panel):
 				row.label(text=prop_data["label"], translate=False)
 				row = split.row(align=True)
 				row.prop(prop_bone, f'["{prop_data["name"]}"]', text = "", slider=True)
-				op = col.operator("rig.snap_chain_modify", text="", icon='MODIFIER')
+				op = row.operator("rig.snap_chain_modify", text="", icon='SETTINGS')
 				op.switch_property = prop_data["name"]
+
 				row = col.row(align=True)
 				op = row.operator("rig.snap_ik_to_fk", text="Snap IK > FK", icon='SNAP_ON')
 				op.switch_property = prop_data["name"]
 				op = row.operator("rig.snap_fk_to_ik", text="Snap FK > IK", icon='SNAP_OFF')
 				op.switch_property = prop_data["name"]
+
+			col.separator()
+
+		hidden_count = sum(1 for prop_data in props if prop_data["hidden"])
+		if hidden_count > 0:
+			header = layout.row(align=True)
+			header.alignment = 'RIGHT'
+			icon = 'HIDE_OFF' if wm.rig_ui_show_hidden_snapping_chains else 'HIDE_ON'
+			header.prop(wm, "rig_ui_show_hidden_snapping_chains", icon=icon, toggle=True)
 
 classes = (
 	RigUISnapBoneItem,

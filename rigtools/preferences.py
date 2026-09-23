@@ -104,6 +104,11 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for the IK > FK snapping bones. Note: will be combined with the IK and pole templates.",
 		default="MCH-FK-IK-{name}.master"
 	)
+	ik_parent_template: StringProperty(
+		name="IK Parent Control Bone",
+		description="Template for the IK parent bone. Note: will be combined with the IK and pole templates.",
+		default="MCH-IK-{name}.parent"
+	)
 	switch_template: StringProperty(
 		name="Switch Bone",
 		description="Template FK/IK switch control bones.",
@@ -141,6 +146,11 @@ class RigToolsPreferences(AddonPreferences):
 		name="Root Bone",
 		description="Name of root bone for rotation isolation",
 		default="root"
+	)
+	torso_bone_name: StringProperty(
+		name="Torso Bone",
+		description="Name of torso bone for IK parent switching",
+		default="torso"
 	)
 	property_bone_name: StringProperty(
 		name="Property Bone",
@@ -231,6 +241,8 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "ik_pole_vis_template")
 		box.prop(self, "mch_template")
 		box.prop(self, "ik_mch_template")
+		box.prop(self, "fk_ik_snap_template")
+		box.prop(self, "ik_parent_template")
 		box.prop(self, "ik_spline_template")
 		box.prop(self, "ik_spline_twist_template")
 		box.prop(self, "switch_template")
@@ -245,6 +257,7 @@ class RigToolsPreferences(AddonPreferences):
 		box = layout.box()
 		box.label(text="Rig Structure Defaults", icon='CON_ARMATURE')
 		box.prop(self, "root_bone_name")
+		box.prop(self, "torso_bone_name")
 		box.prop(self, "property_bone_name")
 		box.prop(self, "do_create_widgets")
 		if self.do_create_widgets:

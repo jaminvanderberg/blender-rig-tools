@@ -400,6 +400,23 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 			return True
 		return False
 
+	def draw_edit_buttons(self, context, layout):
+		wm = context.window_manager
+		if not wm.rig_ui_edit_collections:
+			return False
+			
+		col = layout.column(align=True)
+		header = col.row(align=True)
+		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
+		header.separator()
+		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP_BAR').direction = 'ROW_UP'
+		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP', emboss=False).direction = 'JOIN_UP'
+		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN', emboss=False).direction = 'JOIN_DOWN'
+		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN_BAR').direction = 'ROW_DOWN'
+		header.separator()
+		header.operator("rig.ui_collection_add_gap", text="Gap")
+		return True
+
 	def draw(self, context):
 
 		if context.object.type == 'ARMATURE':
@@ -412,25 +429,20 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 		sel_gap = wm.rig_ui_sel_gap
 
 		layout = self.layout
-		header = layout.row(align=True)
-		if not editing: header.alignment = 'RIGHT'
-		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 
-		if editing:
-			header.separator()
-			header.operator("rig.ui_collection_move", text="", icon='TRIA_UP_BAR').direction = 'ROW_UP'
-			header.operator("rig.ui_collection_move", text="", icon='TRIA_UP', emboss=False).direction = 'JOIN_UP'
-			header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN', emboss=False).direction = 'JOIN_DOWN'
-			header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN_BAR').direction = 'ROW_DOWN'
-			header.separator()
-			header.operator("rig.ui_collection_add_gap", text="Gap")
-
+		self.draw_edit_buttons(context, layout)
+	
 		col = layout.column(align=True)
 
 		if editing:
 			self._draw_edit(col, arm, sel_name, sel_gap)
 		else:
 			self._draw_view(col, arm)
+
+		if not self.draw_edit_buttons(context, layout):
+			header = layout.row(align=True)
+			header.alignment = 'RIGHT'
+			header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 
 	def _draw_view(self, col, arm):
 		for row in _iter_rows(arm):

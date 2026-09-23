@@ -19,7 +19,7 @@ def create_fk_ik_switch_edit_mode(context, switch_bone_names, name_source=None):
 
 	return fk_bone_names, ik_bone_names
 
-def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_bone_names, switch_property_name, fk_widget_type):
+def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_bone_names, switch_property_name, switch_property_type, fk_widget_type):
 	obj = context.object
 	settings = get_armature_settings(obj.data, context)
 	prefs = get_preferences()
@@ -35,14 +35,23 @@ def create_fk_ik_switch_pose_mode(context, switch_bone_names, fk_bone_names, ik_
 
 	if prop_name not in prop_bone:
 		prop_bone[prop_name] = 1
-		
-		rna_idprop_ui_create(
-			prop_bone,
-			prop_name,
-			default=1,
-			min=0,
-			max=1
-		)
+		if switch_property_type == 'ENUM':
+			rna_idprop_ui_create(
+				prop_bone,
+				prop_name,
+				default=1,
+				min=0,
+				max=1,
+				items=[('0', "FK", "FK"), ('1', "IK", "IK")]
+			)
+		else:
+			rna_idprop_ui_create(
+				prop_bone,
+				prop_name,
+				default=1.0,
+				min=0.0,
+				max=1.0
+			)
 		prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
 
 	for switch_bone_name, fk_bone_name, ik_bone_name in zip(switch_bone_names, fk_bone_names, ik_bone_names):
