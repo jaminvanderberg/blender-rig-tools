@@ -40,6 +40,11 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	bl_property = "switch_property_name"
 
 	# FK/Tweak Settings
+	limb_property_base_name: StringProperty(
+		name="Limb Property Base Name",
+		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
+		default=""
+	)
 
 	add_tweak_bones: BoolProperty(
 		name="Add Tweak Bones",
@@ -176,6 +181,18 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		name="Parent Label",
 		description="Label for the self parent of the IK parent",
 		default="Foot"
+	)
+
+	add_rotation_isolation: BoolProperty(
+		name="Add Rotation Isolation",
+		description="Add rotation isolation to the start of the FK chain.",
+		default=False
+	)
+
+	rotation_isolation_property_name: StringProperty(
+		name="Rotation Isolation Property Name",
+		description="Name of the property to store the rotation isolation",
+		default=""
 	)
 	
 	##################################################################################################
@@ -385,10 +402,20 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 
 	def draw(self, context):
 		layout = self.layout
+		split_size = 0.4
+
+		col = layout.column()
+		col.prop(self, "add_rotation_isolation")
+		if self.add_rotation_isolation:
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Isolation Property Name:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "rotation_isolation_property_name", text="")
+		col.separator()
+
 		box = layout.box()
 		box.label(text="IK/FK Switch Settings:", icon='SETTINGS')
-
-		split_size = 0.4
 
 		col = box.column(align=True)
 		split = col.split(align=True, factor=split_size)
@@ -449,8 +476,13 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		col = layout.column(align=True)
 		col.prop(self, "ik_parent")
 		if self.ik_parent:
-			col.prop(self, "ik_parent_property_name")
-
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="IK Parent Property Name:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "ik_parent_property_name", text="")
+			
+			col = layout.column()
 			box = col.box()
 			box.label(text="IK Parents:", icon='CON_ARMATURE')
 			parents = context.window_manager.rig_ik_parents

@@ -141,6 +141,24 @@ class RigToolsPreferences(AddonPreferences):
 		default=""
 	)
 
+	# Property Name Templates
+	rotation_isolation_property_template: StringProperty(
+		name="Rotation Isolation Property",
+		description="Template for the rotation isolation property.",
+		default="{name}.rot.follow{side}"
+	)
+	fk_ik_switch_property_template: StringProperty(
+		name="FK/IK Switch Property",
+		description="Template for the FK/IK switch property.",
+		default="{name}.FK.IK{side}"
+	)
+	ik_parent_property_template: StringProperty(
+		name="IK Parent Property",
+		description="Template for the IK parent property.",
+		default="{name}.ik.parent{side}"
+	)
+
+
 	# Rig Structure Defaults
 	root_bone_name: StringProperty(
 		name="Root Bone",
@@ -252,6 +270,42 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "int_template")
 		box.separator()
 		box.prop(self, "mch_collection_name")
+
+		# Property Name Templates
+		box = layout.box()
+		box.label(text="Property Name Templates", icon='PROPERTIES')
+
+		left = box.split(factor=0.4)
+		col = left.column()
+		right = left.split(factor=0.75)
+		col = right.column(align=True)
+		col.label(text="{name} -> limb base name (e.g. 'arm')")
+		col.label(text="{side} -> .L / .R / (blank)")
+
+		col = box.column()
+		col.prop(self, "rotation_isolation_property_template")
+		col.prop(self, "fk_ik_switch_property_template")
+		col.prop(self, "ik_parent_property_template")
+
+		example_name = "arm"
+		example_side = ".L"
+		split = box.split(factor=0.2)
+		split.column() # empty column for spacing
+		middle = split.split(factor=0.75)
+		preview_box = middle.box()
+		middle.column() # right spacing
+
+		split = preview_box.split(factor=0.33)
+		split.label(text=f"Example ({example_name}{example_side}):")
+		col = split.column(align=True)
+		for attr in (
+			"rotation_isolation_property_template",
+			"fk_ik_switch_property_template",
+			"ik_parent_property_template",
+		):
+			template = getattr(self, attr)
+			resolved = template.format(name=example_name, side=example_side)
+			col.label(text=resolved)
 
 		# Rig Structure Defaults
 		box = layout.box()
