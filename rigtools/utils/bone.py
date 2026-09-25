@@ -160,3 +160,16 @@ def is_collection_visible(collection, armature_data):
 	if collection:
 		return collection.is_visible_effectively
 	return not armature_data.collections.is_solo_active
+
+
+def find_side(bone_names):
+	ret = None
+	first_bone_name = ""
+	for name in bone_names:
+		base_name, side = get_base_name(name)
+		if not first_bone_name:
+			first_bone_name = name
+			ret = side
+		elif ret != side:
+			raise ValueError(f"Side mismatch: Bone {name} does not have the same side as {first_bone_name}")
+	return ret

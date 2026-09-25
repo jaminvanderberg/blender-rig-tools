@@ -12,6 +12,8 @@ from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode,
 from rigtools.utils.widget import fk_widget_types
 from rigtools.rig_ui.snapping_panel import register_snap_chain
 from rigtools.tool.ik_parent import IKParentOptions, IKParentTarget, create_ik_parent_edit_mode, create_ik_parent_pose_mode
+from rigtools.utils.property import generate_property_name
+from rigtools.utils.bone import find_side
 
 class IKParentSlot(bpy.types.PropertyGroup):
 	label: bpy.props.StringProperty(name="Label", default="")
@@ -58,12 +60,6 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		default=True
 	)
 	
-	switch_property_name: StringProperty(
-		name="Switch Property Name",
-		description="Name of the property to switch the FK/IK",
-		default=""
-	)
-
 	switch_property_type: EnumProperty(
 		name="Switch Property Type",
 		description="Type of the switch property",
@@ -124,7 +120,7 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	)
 
 	skip_first: BoolProperty(
-		name="Skip First",
+		name="Skip First Bone",
 		description="Skip the first bone in the chain for the IK spline",
 		default=False
 	)
@@ -165,18 +161,12 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		description="Setup IK parent switching"
 	)
 
-	ik_parent_property_name: StringProperty(
-		name="IK Parent Property Name",
-		description="Name of the property to switch the IK parent",
-		default=""
-	)
-
 	add_ik_control_as_pole_parent: BoolProperty(
 		name="Add IK Control as Pole Parent",
 		description="Add the IK control as the pole parent",
 		default=False
 	)
-
+	
 	ik_parent_self_parent_label: StringProperty(
 		name="Parent Label",
 		description="Label for the self parent of the IK parent",
@@ -187,12 +177,6 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		name="Add Rotation Isolation",
 		description="Add rotation isolation to the start of the FK chain.",
 		default=False
-	)
-
-	rotation_isolation_property_name: StringProperty(
-		name="Rotation Isolation Property Name",
-		description="Name of the property to store the rotation isolation",
-		default=""
 	)
 	
 	##################################################################################################
@@ -209,15 +193,15 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			self.report({'ERROR'}, f"Can't use from Object mode")
 			return {'CANCELLED'}
 
-		if not self.switch_property_name:
-			self.report({'ERROR'}, "Switch property name is required.")
+		if not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
 
 		settings = get_armature_settings(obj.data, context)
 		prefs = get_preferences()
 		if settings.property_bone_name not in obj.pose.bones:
 			self.report({'ERROR'}, f"Property bone '{settings.property_bone_name}' not found.")
-			return {'CANCELLED'}			
+			return {'CANCELLED'}
 
 		bone_data = obj.data
 		
@@ -276,11 +260,19 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		created_ik_chains = []
 		created_ik_chains_with_spline = []
 		created_ik_parents = []
+		chain_sides = []
 		##############
 		# Edit mode
 		##############
 		for chain in chains:
 			org_chain = chain
+			try:
+				chain_sides.append(find_side(chain))
+			except ValueError as e:
+				self.report({'ERROR'}, str(e))
+				bpy.ops.object.mode_set(mode=original_mode)
+				return {'CANCELLED'}
+
 			if self.add_tweak_bones:
 				tweak_chain = create_tweak_chain_edit_mode(bone_data, chain, options)
 				chain = tweak_chain.fk_bones
@@ -351,9 +343,10 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		for tweak_chain in created_tweak_chains:
 			create_tweak_chain_pose_mode(context, obj, tweak_chain, options)
 
-		for chain, fk_bone_names, ik_bone_names in created_chains:
+		for (chain, fk_bone_names, ik_bone_names), side in zip(created_chains, chain_sides, strict=True):
+			switch_property_name = generate_property_name(prefs.switch_template, self.limb_property_base_name, side)
 			create_fk_ik_switch_pose_mode(context, chain, fk_bone_names, ik_bone_names,
-				self.switch_property_name, self.switch_property_type, self.fk_widget)
+				switch_property_name, self.switch_property_type, self.fk_widget)
 
 		if self.ik_type == 'IK':
 			for ik_chain in created_ik_chains:
@@ -364,9 +357,10 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 				create_spline_ik_pose_mode(context, ik_chain, spline_options)
 
 		if self.ik_parent:
-			for parent_bone_names, self_target in created_ik_parents:
+			for (parent_bone_names, self_target), side in zip(created_ik_parents, chain_sides, strict=True):
+				ik_parent_property_name = generate_property_name(prefs.ik_parent_template, self.limb_property_base_name, side)
 				options = IKParentOptions(
-					property_name=self.ik_parent_property_name,
+					property_name=ik_parent_property_name,
 					parents=[
 						IKParentTarget(label=s.label, bone=s.bone)
 						for s in context.window_manager.rig_ik_parents
@@ -404,25 +398,15 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		layout = self.layout
 		split_size = 0.4
 
-		col = layout.column()
-		col.prop(self, "add_rotation_isolation")
-		if self.add_rotation_isolation:
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Isolation Property Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "rotation_isolation_property_name", text="")
-		col.separator()
-
 		box = layout.box()
 		box.label(text="IK/FK Switch Settings:", icon='SETTINGS')
 
-		col = box.column(align=True)
+		col = box.column()
 		split = col.split(align=True, factor=split_size)
 		row = split.row(align=True)
-		row.label(text="Switch Property Name:", translate=False)
+		row.label(text="Limb Property Base Name:", translate=False)
 		row = split.row(align=True)
-		row.prop(self, "switch_property_name", text="")
+		row.prop(self, "limb_property_base_name", text="")
 
 		split = col.split(align=True, factor=split_size)
 		row = split.row(align=True)
@@ -431,6 +415,9 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		row.prop(self, "switch_property_type", text="")
 
 		col.separator()
+
+		col = layout.column()
+		col.prop(self, "add_rotation_isolation")
 
 		split = col.split(align=True, factor=split_size)
 		row = split.row(align=True)
@@ -476,12 +463,6 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 		col = layout.column(align=True)
 		col.prop(self, "ik_parent")
 		if self.ik_parent:
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="IK Parent Property Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "ik_parent_property_name", text="")
-			
 			col = layout.column()
 			box = col.box()
 			box.label(text="IK Parents:", icon='CON_ARMATURE')

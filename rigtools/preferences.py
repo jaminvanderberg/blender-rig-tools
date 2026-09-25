@@ -2,6 +2,7 @@ import bpy
 from bpy.types import AddonPreferences
 from bpy.props import StringProperty, IntProperty, EnumProperty, BoolProperty
 from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
+from rigtools.utils.property import generate_property_name
 
 addon_name = __package__.split('.')[0] if __package__ else "rigtools"
 
@@ -304,7 +305,7 @@ class RigToolsPreferences(AddonPreferences):
 			"ik_parent_property_template",
 		):
 			template = getattr(self, attr)
-			resolved = template.format(name=example_name, side=example_side)
+			resolved = generate_property_name(template, example_name, example_side)
 			col.label(text=resolved)
 
 		# Rig Structure Defaults
