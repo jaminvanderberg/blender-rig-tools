@@ -14,6 +14,10 @@ def get_separators(context=None):
 	pref = get_preferences(context)
 	return list(pref.strip_separators.strip())
 
+def get_strip_tags(context=None):
+	pref = get_preferences(context)
+	return [tag.strip() for tag in pref.strip_tags.split(",") if tag.strip()]
+
 class RigToolsPreferences(AddonPreferences):
 	bl_idname = addon_name
 

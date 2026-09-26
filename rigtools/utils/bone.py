@@ -1,6 +1,6 @@
 import bpy
 import re
-from rigtools.preferences import get_separators
+from rigtools.preferences import get_separators, get_strip_tags
 
 def get_selected_bones(context):
 	if context.mode == 'EDIT_ARMATURE':
@@ -49,24 +49,32 @@ def strip_bone_numbers(base_name):
 
 	return "".join(kept)
 
+def strip_bone_tags(base_name, context=None):
+	tags = get_strip_tags(context)
+	separators = get_separators(context)
+	if not tags or not separators:
+		return base_name
+
+	for tag in tags:
+		tag_lower = tag.lower()
+		for sep in separators:
+			prefix = tag_lower + sep
+			if base_name.lower().startswith(prefix):
+				base_name = base_name[len(prefix):]
+				break
+		for sep in separators:
+			suffix = sep + tag_lower
+			if base_name.lower().endswith(suffix):
+				base_name = base_name[:-len(suffix)]
+				break
+	return base_name
+
 def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False):
 	name = org_name
-	base_name, extension = get_base_name(name)    
+	base_name, extension = get_base_name(name)
 
 	if strip_name:
-		prefixes = ["ORG-", "DEF-", "MCH-", "CTRL-", "ctrl-", "org-", "def-", "mch-",
-					"ORG_", "DEF_", "MCH_", "CTRL_", "ctrl_", "org_", "def_", "mch_",
-					"ORG.", "DEF.", "MCH.", "CTRL.", "ctrl.", "org.", "def.", "mch."]
-		for p in prefixes:
-			if base_name.startswith(p):
-				base_name = base_name[len(p):]
-
-		suffixes = ["-ORG", "-DEF", "-MCH", "-CTRL", "-ctrl", "-org", "-def", "-mch",
-					"_ORG", "_DEF", "_MCH", "_CTRL", "_ctrl", "_org", "_def", "_mch",
-					".ORG", ".DEF", ".MCH", ".CTRL", ".ctrl", ".org", ".def", ".mch"]
-		for s in suffixes:
-			if base_name.endswith(s):
-				base_name = base_name[:-len(s)]
+		base_name = strip_bone_tags(base_name)
 		
 	if strip_numbers:
 		base_name = strip_bone_numbers(base_name)
