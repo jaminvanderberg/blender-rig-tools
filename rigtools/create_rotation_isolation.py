@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty
 from rigtools.armature_settings import get_armature_settings
-from rigtools.tool.rotation_isolation import create_rotation_isolation_edit_mode, create_rotation_isolation_pose_mode
+from rigtools.tool.rotation_isolation import RotationIsolation
 
 class RIG_OT_create_rotation_isolation(bpy.types.Operator):
 	"""Create a isolate rotation mechanism for the selected bone and drive it by a custom property."""
@@ -65,15 +65,20 @@ class RIG_OT_create_rotation_isolation(bpy.types.Operator):
 			bpy.ops.object.mode_set(mode=original_mode)
 			return {'CANCELLED'}
 		
-		bone_list = create_rotation_isolation_edit_mode(context, bone_data, [bone.name for bone in context.selected_editable_bones])
+		isolation = RotationIsolation(
+			property_name=self.property_name,
+			include_scale=self.include_scale,
+			disable_scale=self.disable_scale,
+		)
+		isolation.edit_mode(context, bone_data, [bone.name for bone in context.selected_editable_bones])
 
-		# We need to switch to pose mode so the newly created pose bones to update
 		bpy.ops.object.mode_set(mode='POSE')
-		create_rotation_isolation_pose_mode(context, obj, bone_list, self.property_name, self.include_scale, self.disable_scale)
+		isolation.pose_mode(context)
 
 		bpy.ops.object.mode_set(mode=original_mode)
-		
-		self.report({'INFO'}, f"Successfully generated {len(bone_list)} rotation isolation mechanism{'s' if len(bone_list) != 1 else ''}.")              
+
+		count = len(isolation.created_bones)
+		self.report({'INFO'}, f"Successfully generated {count} rotation isolation mechanism{'s' if count != 1 else ''}.")              
 			
 		return {'FINISHED'}
 

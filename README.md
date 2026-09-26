@@ -45,6 +45,22 @@ One-line summary of what it does.
 
 ## Introduction
 
+This is set of tools for advanced rig manipulation in Blender.
+If you want an easy rigging setup in Blender, Rigify is a much better fit.
+This is my attempt at overcoming some of the rigidity of Rigify, turning the rig-building
+into more of a interactive process rather than the setup-and-click mentality of Rigify.
+This methodology doesn't leave the rig in an uneditable state, and makes it easier
+to go back and make changes to the rig.
+
+I found myself locked out of a rig that I had "finalized" a month before.  When I joined
+the face rig (shapekey-based) to the Rigify rig, it caused several problems with Rigify's RigUI.
+I was able to solve these will some effort.  But then later, when I decided to add a skirt to 
+the outfit, I was locked out of using Rigify's tools to create it. 
+I knew that creating a second Rigify rig and joining it would only cause more problems with the rig UI,
+and I wasn't sure if I'd be able to add these new bones to the rig UI.
+I found myself wishing I could setup the Rigify chains in a more ala carte fashion.
+This add-on has been my slow push towards that goal.
+
 This is a series of tools designed to speed up repetitive tasks while creating rigs.
 The design philosphophy is to not attempt to cover every possible contingency while creating a rig,
 but rather to provide powerful, flexible tools for the tasks that are repetitive or complex.

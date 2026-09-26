@@ -1,13 +1,10 @@
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
-from dataclasses import dataclass, field
-from rigtools.utils.bone import generate_bone_name, duplicate_bone
-from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
-from rigtools.utils.widget import get_widget_collection, create_circle_widget, create_sphere_widget, fk_widget_types
+from bpy.props import StringProperty, BoolProperty, EnumProperty
+from rigtools.utils.widget import fk_widget_types
 from rigtools.preferences import get_preferences
-from rigtools.tool.rotation_follow import create_rotation_follow_setup
-from rigtools.utils.bone_chain import find_chains_from_selection, ChainBranchingError
-from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tweak_chain_pose_mode, FKTweakChain, TweakChainOptions
+from rigtools.tool.rotation_follow import RotationFollow
+from rigtools.utils.bone_chain import find_chains_from_selection, find_hierarchy_chains, ChainBranchingError, get_assembly_chains
+from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.armature_settings import get_armature_settings
 
 ###########################################################################################################        
@@ -106,63 +103,15 @@ class RIG_OT_create_fk_tweak_chain(bpy.types.Operator):
 	# execute
 	
 	def execute(self, context):
-	
-		obj = context.object
-		if not obj or obj.type != 'ARMATURE':
-			self.report({'ERROR'}, "Active object must be an armature.")
-			return {'CANCELLED'}
-		
-		if obj.mode == 'OBJECT':
-			self.report({'ERROR'}, f"Can't use from Object mode")
-			return {'CANCELLED'}
-		
-		bone_data = obj.data
-		
-		# Switch to edit mode
-		original_mode = obj.mode
-		if obj.mode != 'EDIT':
-			bpy.ops.object.mode_set(mode='EDIT')
-			
-		if not context.selected_editable_bones:
-			self.report({'ERROR'}, "No edit bones selected. Select at least one bone chain.")
-			bpy.ops.object.mode_set(mode=original_mode)
-			return {'CANCELLED'}                    
 
-		# Find all of the indivual bone chains
 		try:
-			if self.bone_selection == 'SELECTED':
-				chains = find_chains_from_selection(context)
-			else:
-				chains = find_hierarchy_chains(context)                
-		except ChainBranchingError as e:
+			chains, original_mode = get_assembly_chains(context)
+		except Exception as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
 			return {'CANCELLED'}
+
 		
-		options = TweakChainOptions(
-			fk_bone_template = self.fk_bone_template,
-			skip_first_tweak = self.skip_first_tweak,
-			do_create_fk = self.do_create_fk,
-			fk_widget = self.fk_widget,
-			fk_collection_name = self.fk_collection_name if self.override_collections else None,
-			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
-			tweak_relationship = self.tweak_relationship,
-		)
 
-		processed_chains: list[FKTweakChain] = []
-		for chain in chains:
-			processed_chains.append(create_tweak_chain_edit_mode(bone_data, chain, options))
-			
-		bpy.ops.object.mode_set(mode='POSE')
-		for chain in processed_chains:
-			create_tweak_chain_pose_mode(context, obj, chain, options)
-
-		if self.create_rotation_follow_setup:
-			for chain in processed_chains:
-				create_rotation_follow_setup(context, 
-					chain.fk_bones[self.rotation_follow_skip:], 
-					self.rotation_follow_relationship
-				)
 				
 		bpy.ops.ed.undo_push(message="Create FK Tweak Chain")
 		

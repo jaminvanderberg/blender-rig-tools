@@ -22,6 +22,7 @@ from rigtools import preferences_io
 from rigtools import armature_settings
 from rigtools import create_fk_ik_switch
 from rigtools import rename_chain
+from rigtools import parent_along_chain
 from rigtools import find_dependents
 from rigtools import weight_paint_proxy
 from rigtools.rig_ui import collections_panel
@@ -40,6 +41,7 @@ classes = (
 	create_mch_bones.RIG_OT_create_mch_bones,
 	create_mch_bones.RIG_PT_create_mch_bones,
 	create_rotation_isolation.RIG_OT_create_rotation_isolation,
+	parent_along_chain.RIG_OT_parent_along_chain,
 )
 
 addon_keymaps = []

@@ -1,7 +1,7 @@
 def generate_property_name(template, base_name, side):
-    if "{side}" in template:
-        return template.format(base_name=base_name, side=side)
-    elif "{base_name}" in template:
-        return template.format(base_name=base_name)
-    else:
-        return template
+	ret = template
+	if "{name}" in template:
+		ret = ret.replace("{name}", base_name)
+	if "{side}" in template:
+		ret = ret.replace("{side}", side)
+	return ret

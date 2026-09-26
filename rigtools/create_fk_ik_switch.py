@@ -1,19 +1,11 @@
 import bpy
-from rigtools.utils.bone import set_bone_collection
-from rigtools.tool.fk_ik_switch import create_fk_ik_switch_edit_mode, create_fk_ik_switch_pose_mode
-from rigtools.utils.bone_chain import find_chains_from_selection
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
-from rigtools.preferences import get_preferences
-from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
-from rigtools.tool.fk_tweak_chain import create_tweak_chain_edit_mode, create_tweak_chain_pose_mode, FKTweakChain, TweakChainOptions
 from rigtools.armature_settings import get_armature_settings
-from rigtools.tool.standard_ik import StandardIKOptions, create_standard_ik_edit_mode, create_standard_ik_pose_mode
-from rigtools.tool.spline_ik import SplineIKOptions, create_spline_ik_edit_mode, create_spline_ik_object_mode, create_spline_ik_pose_mode, spline_twist_type
+from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.utils.widget import fk_widget_types
-from rigtools.rig_ui.snapping_panel import register_snap_chain
-from rigtools.tool.ik_parent import IKParentOptions, IKParentTarget, create_ik_parent_edit_mode, create_ik_parent_pose_mode
-from rigtools.utils.property import generate_property_name
-from rigtools.utils.bone import find_side
+from rigtools.tool.ik_parent import IKParentTarget
+from rigtools.utils.bone_chain import get_assembly_chains
+from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
 
 class IKParentSlot(bpy.types.PropertyGroup):
 	label: bpy.props.StringProperty(name="Label", default="")
@@ -68,24 +60,6 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 			('FLOAT', "Float", "A float slider with values between 0.0 and 1.0"),
 		],
 		default='ENUM'
-	)
-
-	fk_collection_name: StringProperty(
-		name="FK Collection Name",
-		description="Name of the collection to store the FK bones, or blank to copy collection from selected bones",
-		default=""
-	)
-
-	ik_collection_name: StringProperty(
-		name="IK Collection Name",
-		description="Name of the collection to store the IK bones, or blank to copy collection from selected bones",
-		default=""
-	)
-
-	tweak_collection_name: StringProperty(
-		name="Tweak Collection Name",
-		description="Name of the collection to store the tweak bones, or blank to copy collection from selected bones",
-		default=""
 	)
 
 	ik_type: EnumProperty(
@@ -176,53 +150,21 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 	add_rotation_isolation: BoolProperty(
 		name="Add Rotation Isolation",
 		description="Add rotation isolation to the start of the FK chain.",
-		default=False
+		default=True
 	)
 	
 	##################################################################################################
 	# execute
 	
 	def execute(self, context):
-	
-		obj = context.object
-		if not obj or obj.type != 'ARMATURE':
-			self.report({'ERROR'}, "Active object must be an armature.")
-			return {'CANCELLED'}
-		
-		if obj.mode == 'OBJECT':
-			self.report({'ERROR'}, f"Can't use from Object mode")
-			return {'CANCELLED'}
-
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
 
-		settings = get_armature_settings(obj.data, context)
-		prefs = get_preferences()
-		if settings.property_bone_name not in obj.pose.bones:
-			self.report({'ERROR'}, f"Property bone '{settings.property_bone_name}' not found.")
-			return {'CANCELLED'}
-
-		bone_data = obj.data
-		
-		# Switch to edit mode
-		original_mode = obj.mode
-		if obj.mode != 'EDIT':
-			bpy.ops.object.mode_set(mode='EDIT')
-			
-		if not context.selected_editable_bones:
-			self.report({'ERROR'}, "No edit bones selected. Select at least one bone.")
-			bpy.ops.object.mode_set(mode=original_mode)
-			return {'CANCELLED'}
-
-		bone_data = obj.data
-		
-		# Find all of the indivual bone chains
 		try:
-			chains = find_chains_from_selection(context)
+			chains, original_mode = get_assembly_chains(context)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
 			return {'CANCELLED'}
 
 		for chain in chains:
@@ -231,156 +173,41 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 				bpy.ops.object.mode_set(mode=original_mode)
 				return {'CANCELLED'}
 
-		options = TweakChainOptions(
-			fk_bone_template = prefs.switch_template,
-			skip_first_tweak = False,
-			do_create_fk = True,
-			fk_widget = "None",
-			tweak_collection_name = self.tweak_collection_name if self.override_collections else None,
-			fk_collection_name = "", # These are the switch bones
-			tweak_relationship = self.tweak_relationship,
+		options = IKAssemblyOptions(
+			limb_property_base_name=self.limb_property_base_name,
+			add_tweak_bones=self.add_tweak_bones,
+			switch_property_type=self.switch_property_type,
+			add_rotation_isolation=self.add_rotation_isolation,
+			override_collections=self.override_collections,
+			ik_type=self.ik_type,
+			enable_ik_stretch=self.enable_ik_stretch,
+			pole_distance=self.pole_distance,
+			spline_control_count=self.control_count,
+			spline_skip_first=self.skip_first,
+			twist_type=self.twist_type,
+			tweak_relationship=self.tweak_relationship,
+			fk_widget=self.fk_widget,
+			enable_snapping=self.enable_snapping,
+			ik_parent=self.ik_parent,
+			ik_parents=[
+				IKParentTarget(label=s.label, bone=s.bone)
+				for s in context.window_manager.rig_ik_parents
+				if s.bone
+			],
+			add_ik_control_as_pole_parent=self.add_ik_control_as_pole_parent,
+			ik_parent_self_parent_label=self.ik_parent_self_parent_label,
 		)
 
-		ik_options = StandardIKOptions(
-			enable_ik_stretch = self.enable_ik_stretch,
-			pole_distance = self.pole_distance,
-			ik_collection_name = self.ik_collection_name if self.override_collections else None,
-			enable_snapping = self.enable_snapping
-		)
+		try:
+			create_ik_assembly(context, chains, options)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			bpy.ops.object.mode_set(mode=original_mode)
+			return {'CANCELLED'}
 
-		spline_options = SplineIKOptions(
-			control_count = self.control_count,
-			skip_first = self.skip_first,
-			ik_collection_name = self.ik_collection_name if self.override_collections else None,
-			twist_type = self.twist_type
-		)
+		# If everything succeeds, we leave it in Pose mode so the user can see the result
 
-		created_chains = []
-		created_tweak_chains = []
-		created_ik_chains = []
-		created_ik_chains_with_spline = []
-		created_ik_parents = []
-		chain_sides = []
-		##############
-		# Edit mode
-		##############
-		for chain in chains:
-			org_chain = chain
-			try:
-				chain_sides.append(find_side(chain))
-			except ValueError as e:
-				self.report({'ERROR'}, str(e))
-				bpy.ops.object.mode_set(mode=original_mode)
-				return {'CANCELLED'}
-
-			if self.add_tweak_bones:
-				tweak_chain = create_tweak_chain_edit_mode(bone_data, chain, options)
-				chain = tweak_chain.fk_bones
-				created_tweak_chains.append(tweak_chain)
-
-			fk_bone_names, ik_bone_names = create_fk_ik_switch_edit_mode(context, chain, name_source = org_chain)
-			created_chains.append((chain, fk_bone_names, ik_bone_names))
-
-			if self.ik_type == 'IK':
-				ik_chain = create_standard_ik_edit_mode(context, ik_bone_names, fk_bone_names, ik_options, name_source=org_chain)
-				created_ik_chains.append(ik_chain)
-
-				if self.enable_snapping:
-					register_snap_chain(obj.data, 
-						switch_property=self.switch_property_name,
-						fk_bones=fk_bone_names,
-						ik_mch_bones=ik_bone_names, 
-						ik_control=ik_chain.ik_control_name, 
-						ik_pole=ik_chain.pole_name, 
-						snap_control=ik_chain.snap_control_name, 
-						snap_pole=ik_chain.snap_pole_name, 
-						context=context)
-			elif self.ik_type == 'SPLINE':
-				ik_chain = create_spline_ik_edit_mode(context, ik_bone_names, spline_options, name_source=org_chain)
-				created_ik_chains.append(ik_chain)
-
-			if self.ik_parent:
-				if self.ik_type == 'IK':
-					bones_to_parent = [ik_chain.ik_control_name, ik_chain.pole_name]
-					self_target = ik_chain.ik_control_name
-				else: #SPLINE
-					bones_to_parent = ik_chain.control_names
-					self_target = ik_chain.control_names[0]
-				parent_bone_names = create_ik_parent_edit_mode(context, bones_to_parent)
-				created_ik_parents.append((parent_bone_names, self_target))
-
-			# Bone collections
-			# This is done last, so they don't get copied
-			if prefs.mch_collection_name and self.add_tweak_bones:
-				# chain is the switch bones
-				for bone_name in chain:
-					bone = bone_data.edit_bones[bone_name]
-					set_bone_collection(bone_data, bone, prefs.mch_collection_name)
-
-			if self.override_collections and self.fk_collection_name:
-				# these are the final FK bones
-				for bone_name in fk_bone_names:
-					bone = bone_data.edit_bones[bone_name]
-					set_bone_collection(bone_data, bone, self.fk_collection_name)
-
-			if prefs.mch_collection_name:
-				# these are the MCH-IK bones
-				for bone_name in ik_bone_names:
-					bone = bone_data.edit_bones[bone_name]
-					set_bone_collection(bone_data, bone, prefs.mch_collection_name)
-
-		##############
-		# Object mode
-		##############
-		if self.ik_type == 'SPLINE':
-			for ik_chain in created_ik_chains:
-				spline_chain = create_spline_ik_object_mode(context, ik_chain, spline_options)
-				created_ik_chains_with_spline.append(spline_chain)
-
-		##############
-		# Pose mode
-		##############
-		for tweak_chain in created_tweak_chains:
-			create_tweak_chain_pose_mode(context, obj, tweak_chain, options)
-
-		for (chain, fk_bone_names, ik_bone_names), side in zip(created_chains, chain_sides, strict=True):
-			switch_property_name = generate_property_name(prefs.switch_template, self.limb_property_base_name, side)
-			create_fk_ik_switch_pose_mode(context, chain, fk_bone_names, ik_bone_names,
-				switch_property_name, self.switch_property_type, self.fk_widget)
-
-		if self.ik_type == 'IK':
-			for ik_chain in created_ik_chains:
-				create_standard_ik_pose_mode(context, ik_chain, ik_options)
-		
-		if self.ik_type == 'SPLINE':
-			for ik_chain in created_ik_chains_with_spline:
-				create_spline_ik_pose_mode(context, ik_chain, spline_options)
-
-		if self.ik_parent:
-			for (parent_bone_names, self_target), side in zip(created_ik_parents, chain_sides, strict=True):
-				ik_parent_property_name = generate_property_name(prefs.ik_parent_template, self.limb_property_base_name, side)
-				options = IKParentOptions(
-					property_name=ik_parent_property_name,
-					parents=[
-						IKParentTarget(label=s.label, bone=s.bone)
-						for s in context.window_manager.rig_ik_parents
-						if s.bone
-					],
-					self_parent_mch = (
-						parent_bone_names[1] # pole parent
-						if self.ik_type == 'IK' and self.add_ik_control_as_pole_parent 
-						else None
-					),
-					self_parent_name = self_target,
-					self_parent_label = self.ik_parent_self_parent_label
-				)
-				create_ik_parent_pose_mode(context, parent_bone_names, options)
-
-		# Leave it in pose mode so the user can test the rig
-		#bpy.ops.object.mode_set(mode=original_mode)
-		
-		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")              
-			
+		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
 		return {'FINISHED'}
 
 	def invoke(self, context, event):
@@ -484,30 +311,6 @@ class RIG_OT_create_fk_ik_switch(bpy.types.Operator):
 				if self.add_ik_control_as_pole_parent:
 					row = split.row(align=True)
 					row.prop(self, "ik_parent_self_parent_label", text="")
-
-		layout.separator()
-		box = layout.box()
-
-		col = box.column(align=True)
-
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="FK Collection Name:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "fk_collection_name", text="")
-
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="IK Collection Name:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "ik_collection_name", text="")
-
-		if self.add_tweak_bones:
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Tweak Collection Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "tweak_collection_name", text="")
 
 classes = (
 	IKParentSlot,

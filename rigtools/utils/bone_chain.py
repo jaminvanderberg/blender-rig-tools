@@ -1,4 +1,7 @@
 from rigtools.utils.bone import get_selected_bones
+from rigtools.armature_settings import get_armature_settings
+from rigtools.preferences import get_preferences
+import bpy
 
 class ChainBranchingError(Exception):
 	"""Creates FK/Tweak chain from an existing bone chain."""
@@ -140,3 +143,45 @@ def find_hierarchy_chains(context, connected_only=False):
 		walk_hierarchy(head, [])
 		
 	return chains
+
+###############################################################################################
+# Assembly
+###############################################################################################
+
+def get_assembly_chains(context, check_property_bone = True) -> tuple[list[list[str]], str]:
+	""" Switches mode to edit mode
+		Returns: list of chains of bones names, original mode
+		Raises ValueError if the object is not an armature, or in object mode, or no edit bones are selected,
+		or the property bone is not found.
+	"""
+	obj = context.object
+	if not obj or obj.type != 'ARMATURE':
+		raise ValueError("Active object must be an armature.")
+	
+	if obj.mode == 'OBJECT':
+		raise ValueError(f"Can't use from Object mode")
+
+	settings = get_armature_settings(obj.data, context)
+	prefs = get_preferences()
+	if check_property_bone and settings.property_bone_name not in obj.pose.bones:
+		raise ValueError(f"Property bone '{settings.property_bone_name}' not found.")
+
+	armature_data = obj.data
+	
+	# Switch to edit mode
+	original_mode = obj.mode
+	if obj.mode != 'EDIT':
+		bpy.ops.object.mode_set(mode='EDIT')
+		
+	if not context.selected_editable_bones:
+		bpy.ops.object.mode_set(mode=original_mode)
+		raise ValueError("No edit bones selected. Select at least one bone.")
+	
+	# Find all of the indivual bone chains
+	try:
+		chains = find_chains_from_selection(context)
+	except Exception as e:
+		bpy.ops.object.mode_set(mode=original_mode)
+		raise ValueError(str(e))
+
+	return chains, original_mode

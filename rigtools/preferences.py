@@ -2,7 +2,6 @@ import bpy
 from bpy.types import AddonPreferences
 from bpy.props import StringProperty, IntProperty, EnumProperty, BoolProperty
 from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
-from rigtools.utils.property import generate_property_name
 
 addon_name = __package__.split('.')[0] if __package__ else "rigtools"
 
@@ -136,10 +135,34 @@ class RigToolsPreferences(AddonPreferences):
 		default="MCH-INT-{name}"
 	)
 
-	mch_collection_name: StringProperty(
+	ik_collection_template: StringProperty(
+		name="IK Collection",
+		description="Template for the IK collection name.",
+		default="{Name}.IK{side}"
+	)
+
+	fk_collection_template: StringProperty(
+		name="FK Collection",
+		description="Template for the FK collection name.",
+		default="{Name}.FK{side}"
+	)
+
+	tweak_collection_template: StringProperty(
+		name="Tweak Collection",
+		description="Template for the tweak collection name.",
+		default="{Name}.Tweak{side}"
+	)
+
+	mch_collection_template: StringProperty(
 		name="MCH Collection",
+		description="Template for the MCH collection name.",
+		default="MCH-{Name}"
+	)
+
+	mch_collection_name: StringProperty(
+		name="Non-Limb MCH Collection",
 		description="Name of bone collection where MCH bones are created",
-		default=""
+		default="MCH-TMP"
 	)
 
 	# Property Name Templates
@@ -270,6 +293,22 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "socket_template")
 		box.prop(self, "int_template")
 		box.separator()
+
+		box = layout.box()
+		box.label(text="Collection Templates", icon='OUTLINER_COLLECTION')
+
+		left = box.split(factor=0.4)
+		col = left.column()
+		right = left.split(factor=0.75)
+		col = right.column(align=True)
+		col.label(text="{name} -> limb base name (e.g. 'arm')")
+		col.label(text="{Name} -> proper case of base name (e.g. 'Arm')")
+		col.label(text="{side} -> .L / .R / (blank)")
+		box.prop(self, "ik_collection_template")
+		box.prop(self, "fk_collection_template")
+		box.prop(self, "tweak_collection_template")
+		box.prop(self, "mch_collection_template")
+		box.separator()
 		box.prop(self, "mch_collection_name")
 
 		# Property Name Templates
@@ -287,26 +326,6 @@ class RigToolsPreferences(AddonPreferences):
 		col.prop(self, "rotation_isolation_property_template")
 		col.prop(self, "fk_ik_switch_property_template")
 		col.prop(self, "ik_parent_property_template")
-
-		example_name = "arm"
-		example_side = ".L"
-		split = box.split(factor=0.2)
-		split.column() # empty column for spacing
-		middle = split.split(factor=0.75)
-		preview_box = middle.box()
-		middle.column() # right spacing
-
-		split = preview_box.split(factor=0.33)
-		split.label(text=f"Example ({example_name}{example_side}):")
-		col = split.column(align=True)
-		for attr in (
-			"rotation_isolation_property_template",
-			"fk_ik_switch_property_template",
-			"ik_parent_property_template",
-		):
-			template = getattr(self, attr)
-			resolved = generate_property_name(template, example_name, example_side)
-			col.label(text=resolved)
 
 		# Rig Structure Defaults
 		box = layout.box()
