@@ -198,6 +198,21 @@ class RigToolsPreferences(AddonPreferences):
 		description="Name of torso bone for IK parent switching",
 		default="torso"
 	)
+	hips_bone_name: StringProperty(
+		name="Hips Bone",
+		description="Name of hips bone for IK parent switching",
+		default="hips"
+	)
+	chest_bone_name: StringProperty(
+		name="Chest Bone",
+		description="Name of chest bone for IK parent switching",
+		default="chest"
+	)
+	head_bone_name: StringProperty(
+		name="Head Bone",
+		description="Name of head bone for IK parent switching",
+		default="head"
+	)
 	property_bone_name: StringProperty(
 		name="Property Bone",
 		description="Name of bone holding custom properties",
@@ -336,6 +351,9 @@ class RigToolsPreferences(AddonPreferences):
 		box.label(text="Rig Structure Defaults", icon='CON_ARMATURE')
 		box.prop(self, "root_bone_name")
 		box.prop(self, "torso_bone_name")
+		box.prop(self, "hips_bone_name")
+		box.prop(self, "chest_bone_name")
+		box.prop(self, "head_bone_name")
 		box.prop(self, "property_bone_name")
 		box.prop(self, "do_create_widgets")
 		if self.do_create_widgets:

@@ -17,6 +17,21 @@ class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 		description="Torso bone name",
 		default=""
 	)
+	hips_bone_name: bpy.props.StringProperty(
+		name="Hips",
+		description="Hips bone name",
+		default=""
+	)
+	chest_bone_name: bpy.props.StringProperty(
+		name="Chest",
+		description="Chest bone name",
+		default=""
+	)
+	head_bone_name: bpy.props.StringProperty(
+		name="Head",
+		description="Head bone name",
+		default=""
+	)
 	property_bone_name: bpy.props.StringProperty(
 		name="Property",
 		description="Property bone name",
@@ -49,6 +64,9 @@ def initialize_armature_settings(armature_data, context):
 	prefs = get_preferences()
 	settings.root_bone_name = prefs.root_bone_name
 	settings.torso_bone_name = prefs.torso_bone_name
+	settings.hips_bone_name = prefs.hips_bone_name
+	settings.chest_bone_name = prefs.chest_bone_name
+	settings.head_bone_name = prefs.head_bone_name
 	settings.property_bone_name = prefs.property_bone_name
 	settings.do_create_widgets = prefs.do_create_widgets
 	settings.widget_collection = prefs.widget_collection
@@ -86,6 +104,9 @@ class RIG_PT_armature_settings(bpy.types.Panel):
 		col = layout.column(align=True)
 		col.prop(settings, "root_bone_name")
 		col.prop(settings, "torso_bone_name")
+		col.prop(settings, "hips_bone_name")
+		col.prop(settings, "chest_bone_name")
+		col.prop(settings, "head_bone_name")
 		col.prop(settings, "property_bone_name")
 
 		layout.separator()
