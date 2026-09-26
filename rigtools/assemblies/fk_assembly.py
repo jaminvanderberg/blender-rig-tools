@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.preferences import get_preferences
+from rigtools.rig_ui.property_name import guess_assembly_name
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.rotation_follow import RotationFollow
 from rigtools.tool.rotation_isolation import RotationIsolation
@@ -29,11 +31,17 @@ def create_fk_assembly(context, chains: list[list[str]], options: FKAssemblyOpti
 	
 	armature_data = context.object.data
 
-	processed_chains: list[FKTweakChain] = []
-	rotation_isolation_chains = []
-	rotation_follow_chains = []
+	assemblies = []
+	##############
+	# Edit mode
+	##############
 	for chain in chains:
 		side = find_side(chain)
+		
+		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "FK", options)
+		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+		assemblies.append(assembly_chain)
 
 		prefs_tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
 		prefs_fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
@@ -56,14 +64,14 @@ def create_fk_assembly(context, chains: list[list[str]], options: FKAssemblyOpti
 			tweak_relationship=options.tweak_relationship,
 		)
 		tweak.edit_mode(armature_data, chain)
-		processed_chains.append(tweak)
+		assembly_chain.tools.append(tweak)
 
 		# ROTATION ISOLATION
 		if options.add_rotation_isolation and options.do_create_fk:
 			property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side)
 			rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
 			rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
-			rotation_isolation_chains.append(rotation_isolation)
+			assembly_chain.tools.append(rotation_isolation)
 
 		# ROTATION FOLLOW
 		if options.create_rotation_follow_setup and tweak.fk_bone_names:
@@ -71,16 +79,13 @@ def create_fk_assembly(context, chains: list[list[str]], options: FKAssemblyOpti
 			if follow_bones:
 				follow = RotationFollow(relationship=options.rotation_follow_relationship, mch_collection_name=mch_collection_name)
 				follow.edit_mode(context, follow_bones)
-				rotation_follow_chains.append(follow)
+				assembly_chain.tools.append(follow)
 
 	##############
 	# Pose mode
 	##############
-	for chain in processed_chains:
-		chain.pose_mode(context)
-
-	for rotation_isolation in rotation_isolation_chains:
-		rotation_isolation.pose_mode(context)
-
-	for follow in rotation_follow_chains:
-		follow.pose_mode(context)
+	for assembly_chain in assemblies:
+		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+		for tool in assembly_chain.tools:
+			tool.pose_mode(context)
+			assembly.apply_tool(tool)

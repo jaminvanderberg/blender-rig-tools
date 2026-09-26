@@ -29,6 +29,10 @@ class FKTweakChain:
 		self.terminal_tweak_name = ""
 		self.bone_lengths = {}
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, armature_data, org_bone_names):
 		self.org_bone_names = org_bone_names
 
@@ -121,6 +125,10 @@ class FKTweakChain:
 			child.use_connect = False
 			child.parent = term_bone
 			
+		self.mechanism_bone_names.extend(self.fk_bone_names)
+		self.mechanism_bone_names.extend([tweak_name for tweak_name in self.tweak_bone_names if tweak_name])
+		self.mechanism_bone_names.append(self.terminal_tweak_name)
+
 		return self
 
 	def pose_mode(self, context):
@@ -172,12 +180,16 @@ class FKTweakChain:
 				widget_name = generate_bone_name(fk_name, settings.widget_template)
 				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
 				fk_bone.custom_shape = wgt
-			
+
+				self.object_names.append(wgt.name)
+
 		if settings.do_create_widgets:
 			for tweak_name in tweakers:
 				tweak_bone = pose_bones[tweak_name]
 				widget_name = generate_bone_name(tweak_name, settings.widget_template)
 				wgt = create_sphere_widget(widget_name, coll)
 				tweak_bone.custom_shape = wgt
+
+				self.object_names.append(wgt.name)
 
 		return self

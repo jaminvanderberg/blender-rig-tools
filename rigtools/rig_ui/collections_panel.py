@@ -407,14 +407,14 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 			
 		col = layout.column(align=True)
 		header = col.row(align=True)
-		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
+		header.operator("rig.ui_collection_add_gap", text="Gap")
 		header.separator()
 		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP_BAR').direction = 'ROW_UP'
 		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP', emboss=False).direction = 'JOIN_UP'
 		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN', emboss=False).direction = 'JOIN_DOWN'
 		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN_BAR').direction = 'ROW_DOWN'
 		header.separator()
-		header.operator("rig.ui_collection_add_gap", text="Gap")
+		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 		return True
 
 	def draw(self, context):

@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
+from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.rig_ui.property_name import guess_assembly_name
 from rigtools.utils.bone import find_side
 from rigtools.utils.bone_collection import generate_bone_collection_name
 from rigtools.utils.property import generate_property_name
@@ -42,17 +44,19 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 	
 	armature_data = context.object.data
 
-	switch_chains = []
-	tweak_chains = []
-	ik_chains = []
-	ik_parents = []
-	rotation_isolation_chains = []
+	assemblies = []
 	##############
 	# Edit mode
 	##############
 	for chain in chains:
+
 		org_chain = chain
 		side = find_side(chain)
+
+		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "IK", options)
+		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+		assemblies.append(assembly_chain)
 
 		ik_collection_name = generate_bone_collection_name(prefs.ik_collection_template, options.limb_property_base_name, side)
 		tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
@@ -74,7 +78,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 			)
 			tweak_chain.edit_mode(armature_data, chain)
 			chain = tweak_chain.fk_bone_names
-			tweak_chains.append(tweak_chain)
+			assembly_chain.tools.append(tweak_chain)
 
 		# FK/IK SWITCH
 		switch_property_name = generate_property_name(prefs.fk_ik_switch_property_template, options.limb_property_base_name, side)
@@ -87,7 +91,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 		)
 		fk_ik_switch.edit_mode(context, chain, name_source = org_chain)
 		fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names
-		switch_chains.append(fk_ik_switch)
+		assembly_chain.tools.append(fk_ik_switch)
 
 		# ROTATION ISOLATION
 		if options.add_rotation_isolation:
@@ -100,7 +104,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 				disable_scale = False,
 			)
 			rotation_isolation.edit_mode(context, armature_data, [fk_bone_names[0]])
-			rotation_isolation_chains.append(rotation_isolation)
+			assembly_chain.tools.append(rotation_isolation)
 
 		# IK
 		if options.ik_type == 'IK':
@@ -112,7 +116,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)
 			ik.edit_mode(context, ik_bone_names, fk_bone_names, name_source=org_chain)
-			ik_chains.append(ik)
+			assembly_chain.tools.append(ik)
 
 			if options.enable_snapping:
 				ik.register_snap_chain(context, switch_property_name)
@@ -125,7 +129,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 				twist_type = options.twist_type,
 			)
 			spline_ik.edit_mode(context, ik_bone_names, name_source=org_chain)
-			ik_chains.append(spline_ik)
+			assembly_chain.tools.append(spline_ik)
 
 		# IK PARENT
 		if options.ik_parent:
@@ -133,7 +137,8 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 				property_name = generate_property_name(prefs.ik_parent_property_template, options.limb_property_base_name, side),
 				parents = options.ik_parents,
 				self_parent_label = options.ik_parent_self_parent_label,
-				mch_collection_name = mch_collection_name if options.override_collections else None
+				mch_collection_name = mch_collection_name if options.override_collections else None,
+				add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,
 			)
 			if options.ik_type == 'IK':
 				bones_to_parent = [ik.ik_control_name, ik.pole_name]
@@ -142,34 +147,22 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 				bones_to_parent = spline_ik.control_names
 				self_target = spline_ik.control_names[0]
 			ik_parent.edit_mode(context, bones_to_parent, self_target)
-			ik_parents.append(ik_parent)
+			assembly_chain.tools.append(ik_parent)
 
 	##############
 	# Object mode
 	##############
-	if options.ik_type == 'SPLINE':
-		for ik_chain in ik_chains:
-			ik_chain.object_mode(context)
+	for assembly_chain in assemblies:
+		for tool in assembly_chain.tools:
+			object_mode = getattr(tool, 'object_mode', None)
+			if callable(object_mode):
+				object_mode(context)
 
 	##############
 	# Pose mode
 	##############
-	for tweak_chain in tweak_chains:
-		tweak_chain.pose_mode(context)
-
-	for fk_ik_switch in switch_chains:
-		fk_ik_switch.pose_mode(context)
-
-	for rotation_isolation_chain in rotation_isolation_chains:
-		rotation_isolation_chain.pose_mode(context)
-
-	for ik_chain in ik_chains:
-		ik_chain.pose_mode(context)
-
-	for ik_parent in ik_parents:
-		self_parent_mch = (
-			ik_parent.parent_bone_names[1] # pole parent
-			if options.ik_type == 'IK' and options.add_ik_control_as_pole_parent 
-			else None
-		)
-		ik_parent.pose_mode(context, self_parent_mch)
+	for assembly_chain in assemblies:
+		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+		for tool in assembly_chain.tools:
+			tool.pose_mode(context)
+			assembly.apply_tool(tool)

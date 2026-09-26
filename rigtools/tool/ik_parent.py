@@ -16,7 +16,8 @@ class IKParent:
 		property_name: str,
 		parents: List[IKParentTarget],
 		self_parent_label: str = 'Foot',
-		mch_collection_name: str | None = None
+		mch_collection_name: str | None = None,
+		add_ik_control_as_pole_parent: bool = False
 	):
 		self.property_name = property_name
 		self.parents = parents
@@ -25,6 +26,11 @@ class IKParent:
 
 		self.self_parent_name = ""
 		self.parent_bone_names = None
+		self.add_ik_control_as_pole_parent = add_ik_control_as_pole_parent
+
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
 
 	def edit_mode(self, context, bone_names: list[str], self_parent_name: str = ""):
 		obj = context.object
@@ -47,10 +53,18 @@ class IKParent:
 				set_bone_collection(obj.data, parent_bone, prefs.mch_collection_name)
 
 			self.parent_bone_names.append(parent_bone.name)
-		
+
+		self.mechanism_bone_names.extend(self.parent_bone_names)
+		self.property_names.append(self.property_name)
+
+		if self.add_ik_control_as_pole_parent:
+			self.self_parent_mch = self.parent_bone_names[1]
+		else:
+			self.self_parent_mch = None
+
 		return self
 
-	def pose_mode(self, context, self_parent_mch = None):
+	def pose_mode(self, context):
 		obj = context.object
 		pose_bones = obj.pose.bones
 
@@ -58,7 +72,7 @@ class IKParent:
 		prop_bone = pose_bones.get(settings.property_bone_name)
 
 		parents = list(self.parents)
-		if self_parent_mch and self.self_parent_name:
+		if self.self_parent_mch and self.self_parent_name:
 			parents.append(IKParentTarget(label=self.self_parent_label, bone=self.self_parent_name))
 
 		labels = [parent.label for parent in parents]
@@ -83,7 +97,7 @@ class IKParent:
 				target = constraint.targets.new()
 				target.target = obj
 				target.subtarget = parent.bone 
-				if parent_bone_name != self_parent_mch and parent.bone == self.self_parent_name:
+				if parent_bone_name != self.self_parent_mch and parent.bone == self.self_parent_name:
 					target.subtarget = settings.root_bone_name
 				target.weight = 1.0
 

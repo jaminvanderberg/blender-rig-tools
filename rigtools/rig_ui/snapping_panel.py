@@ -37,6 +37,12 @@ def register_snap_chain(armature_data, *, switch_property, fk_bones, ik_mch_bone
 	item.label, item.group = guess_snapping_label(switch_property, context)
 	return item
 
+def delete_snap_chain(armature_data, switch_property):
+	for i, item in enumerate(armature_data.rig_ui_snap_chains):
+		if item.switch_property == switch_property:
+			armature_data.rig_ui_snap_chains.remove(i)
+			break
+
 def _find_snap_chain_item(armature_data, switch_property):
 	for item in armature_data.rig_ui_snap_chains:
 		if item.switch_property == switch_property:

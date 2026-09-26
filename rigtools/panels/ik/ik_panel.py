@@ -14,7 +14,7 @@ class RIG_PT_ik_panel(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 
-		layout.operator("rig.advanced_ik_setup", icon='CON_CHILDOF')
+		layout.operator("rig.advanced_ik_setup", icon='SETTINGS')
 
 		templates = layout.column()
 		templates.label(text="Templates")

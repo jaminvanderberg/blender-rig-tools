@@ -24,6 +24,10 @@ class FKIKSwitch:
 		self.fk_bone_names = None
 		self.ik_bone_names = None
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, context, switch_bone_names, name_source=None):
 		self.switch_bone_names = switch_bone_names
 
@@ -46,6 +50,10 @@ class FKIKSwitch:
 			for bone_name in self.ik_bone_names:
 				bone = edit_bones[bone_name]
 				set_bone_collection(obj.data, bone, self.mch_collection_name)
+
+		self.mechanism_bone_names.extend(self.ik_bone_names)
+		self.mechanism_bone_names.extend(self.fk_bone_names)
+		self.property_names.append(self.switch_property_name)
 
 		return self
 
@@ -114,6 +122,8 @@ class FKIKSwitch:
 				coll = get_widget_collection(context, settings.widget_collection)
 				widget_name = generate_bone_name(fk_bone_name, settings.widget_template)	
 				wgt = create_fk_widget(self.fk_widget_type, widget_name, coll)
-				fk_bone.custom_shape = wgt		
+				fk_bone.custom_shape = wgt
+
+				self.object_names.append(wgt.name)
 
 		return self

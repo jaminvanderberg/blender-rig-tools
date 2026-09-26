@@ -20,6 +20,10 @@ class RotationIsolation:
 
 		self.created_bones = None
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, context, armature_data, bone_names):
 		prefs = get_preferences()
 		settings = get_armature_settings(armature_data, context)
@@ -65,6 +69,12 @@ class RotationIsolation:
 			bone.parent = int_bone
 
 			self.created_bones.append((socket_bone.name, int_bone.name))
+
+			self.mechanism_bone_names.append(socket_bone.name)
+			self.mechanism_bone_names.append(int_bone.name)
+			
+		self.property_names.append(self.property_name)
+
 		return self
 
 	def pose_mode(self, context):

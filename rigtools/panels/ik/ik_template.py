@@ -111,7 +111,6 @@ IK_TEMPLATES = {
 			"spline_skip_first",
 			"twist_type",
 			"ik_parent",
-			"enable_snapping"
 		),
 	)
 }

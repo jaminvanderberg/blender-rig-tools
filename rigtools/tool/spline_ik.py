@@ -33,6 +33,10 @@ class SplineIK:
 		self.spline_object = None
 		self.twist_names = None
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, context, mch_bone_names, name_source=None):
 		self.mch_bone_names = mch_bone_names
 
@@ -129,6 +133,9 @@ class SplineIK:
 			mch = edit_bones[bones[0]]
 			mch.parent = first
 
+		self.mechanism_bone_names.extend(self.control_names)
+		self.mechanism_bone_names.extend(self.twist_names)
+
 		return self
 
 	def object_mode(self, context):
@@ -152,6 +159,7 @@ class SplineIK:
 			coll.objects.link(curve_obj)
 
 		self.spline_object = curve_obj
+		self.object_names.append(curve_obj.name)
 		curve_obj.parent = obj
 		curve_obj.matrix_parent_inverse.identity()
 		curve_obj.location = (0.0, 0.0, 0.0)
@@ -314,10 +322,14 @@ class SplineIK:
 				control_bone = pose_bones[control_name]
 				control_bone.custom_shape = wgt
 
+				self.object_names.append(wgt.name)
+
 			for twist_name in self.twist_names or []:
 				twist_widget_name = generate_bone_name(twist_name, settings.widget_template)
 				wgt = create_twist_widget(twist_widget_name, coll)
 				twist_bone = pose_bones[twist_name]
 				twist_bone.custom_shape = wgt
+
+				self.object_names.append(wgt.name)
 
 		return self

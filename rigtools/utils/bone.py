@@ -163,6 +163,39 @@ def is_bone_visible(bone):
 	
 	return True
 
+def select_bones(obj, bone_names, select_hidden=False) -> [int, int]: # Total selected, total hidden
+	count = 0
+	hidden = 0
+	for bone_name in bone_names:
+		if obj.mode == 'POSE':
+			bone = obj.pose.bones.get(bone_name)
+			if bone is None:
+				continue
+			visible = is_bone_visible(bone)
+			if not visible:
+				hidden += 1
+			if select_hidden or visible:
+				if hasattr(bone, "select"):
+					bone.select = True
+				else:
+					obj.data.bones[bone_name].select = True
+				count += 1
+
+		elif obj.mode == 'EDIT':
+			bone = obj.data.edit_bones.get(bone_name)
+			if bone is None:
+				continue
+			visible = is_bone_visible(bone)
+			if not visible:
+				hidden += 1
+			if select_hidden or visible:
+				bone.select = True
+				bone.select_head = True
+				bone.select_tail = True
+				count += 1
+
+	return count, hidden
+
 
 def is_collection_visible(collection, armature_data):
 	if collection:

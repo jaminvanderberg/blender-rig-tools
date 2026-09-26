@@ -28,6 +28,10 @@ class StandardIK:
 		self.snap_control_name = None
 		self.snap_pole_name = None
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, context, mch_bone_names, fk_bone_names, name_source=None):
 		obj = context.object
 		edit_bones = obj.data.edit_bones
@@ -103,6 +107,15 @@ class StandardIK:
 				if pole_vis_bone:
 					coll.assign(pole_vis_bone)
 
+		self.mechanism_bone_names.append(self.ik_control_name)
+		self.mechanism_bone_names.append(self.pole_name)
+		if pole_vis_bone:
+			self.mechanism_bone_names.append(self.pole_vis_name)
+		if self.snap_control_name:
+			self.mechanism_bone_names.append(self.snap_control_name)
+		if self.snap_pole_name:
+			self.mechanism_bone_names.append(self.snap_pole_name)
+
 		return self
 
 	def register_snap_chain(self, context, switch_property):
@@ -177,9 +190,13 @@ class StandardIK:
 			wgt = create_sphere_widget(pole_widget_name, coll)
 			pole_bone.custom_shape = wgt
 
+			self.object_names.append(wgt.name)
+
 			if pole_vis_bone:
 				pole_vis_widget_name = generate_bone_name(self.pole_vis_name, settings.widget_template)
 				wgt = create_line_widget(pole_vis_widget_name, coll)
 				pole_vis_bone.custom_shape = wgt
+
+				self.object_names.append(wgt.name)
 
 		return self

@@ -13,6 +13,10 @@ class RotationFollow:
 		self.master_name = None
 		self.mch_bone_names = None
 
+		self.mechanism_bone_names = []
+		self.property_names = []
+		self.object_names = []
+
 	def edit_mode(self, context, bone_names: list[str]):
 		obj = context.object
 		edit_bones = obj.data.edit_bones
@@ -36,6 +40,8 @@ class RotationFollow:
 			self.mch_bone_names.append(mch_bone.name)
 			bone.use_connect = False
 			bone.parent = mch_bone
+
+		self.mechanism_bone_names.extend(self.mch_bone_names)
 
 		return self
 

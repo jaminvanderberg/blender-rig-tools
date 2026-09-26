@@ -78,3 +78,34 @@ def guess_limb_name(bone_name, context=None):
 	if key in GROUP_REMAP:
 		return GROUP_REMAP[key].capitalize()
 	return key.capitalize()
+
+def guess_assembly_instance(bone_name, context=None):
+	base, _ = get_base_name(bone_name)
+	base = strip_bone_tags(base, context)
+	tokens = _tokens(base, context)
+	if len(tokens) < 2:
+		return ""
+
+	# last token is along-chain index — skip it
+	for token in tokens[:-1]:
+		if len(token) == 1 and token.isalpha():
+			return "." + token.upper()
+		if token.isdigit():
+			return "." + token
+	return ""
+
+
+def unique_assembly_name(armature_data, name):
+	existing = {a.name for a in armature_data.rigtools_assemblies}
+	if name not in existing:
+		return name
+	i = 2
+	while f"{name}.{i}" in existing:
+		i += 1
+	return f"{name}.{i}"
+
+
+def guess_assembly_name(armature_data, chain, property_base, side="", context=None):
+	instance = guess_assembly_instance(chain[0], context)
+	name = f"{property_base.capitalize()}{instance}{side}"
+	return unique_assembly_name(armature_data, name)

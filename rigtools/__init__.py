@@ -24,8 +24,10 @@ from rigtools import rename_chain
 from rigtools import parent_along_chain
 from rigtools import find_dependents
 from rigtools import weight_paint_proxy
+from rigtools.assemblies import assembly_data
 from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
+from rigtools.panels.assembly import assembly_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import property_panel
 from rigtools.rig_ui import visibility_panel
@@ -51,8 +53,12 @@ def register():
 
 	armature_settings.register()
 	selection_panel.register()
+
+	assembly_data.register()
 	ik_panel.register()
 	fk_panel.register()
+	assembly_panel.register()
+
 	rename_chain.register()
 	find_dependents.register()
 	weight_paint_proxy.register()
@@ -112,8 +118,11 @@ def unregister():
 	rename_chain.unregister()
 	selection_panel.unregister()
 	armature_settings.unregister()
+
+	assembly_panel.unregister()
 	ik_panel.unregister()
 	fk_panel.unregister()
+	assembly_data.unregister()
 	visibility_panel.unregister()
 	snapping_panel.unregister()
 
