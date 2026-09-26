@@ -62,7 +62,7 @@ def create_fk_assembly(context, chains: list[list[str]], options: FKAssemblyOpti
 		if options.add_rotation_isolation and options.do_create_fk:
 			property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side)
 			rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
-			rotation_isolation.edit_mode(context, armature_data, tweak.fk_bone_names)
+			rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
 			rotation_isolation_chains.append(rotation_isolation)
 
 		# ROTATION FOLLOW
