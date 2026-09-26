@@ -16,11 +16,11 @@ class RIG_PT_ik_panel(bpy.types.Panel):
 
 		layout.operator("rig.advanced_ik_setup", icon='SETTINGS')
 
-		templates = layout.column()
-		templates.label(text="Templates")
-		templates.operator_context = 'INVOKE_DEFAULT'
+		layout.label(text="Templates")
+		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+		grid.operator_context = 'INVOKE_DEFAULT'
 		for template_id, template in ik_template.IK_TEMPLATES.items():
-			operator = templates.operator(
+			operator = grid.operator(
 				"rig.create_ik_from_template",
 				text=template.label,
 				icon=template.icon or 'ARMATURE_DATA',

@@ -1,7 +1,7 @@
 bl_info = {
 	"name": "Rig Tools",
 	"author": "Jamin VanderBerg",
-	"version": (0, 90),
+	"version": (0, 97),
 	"blender": (4, 1, 0),
 	"location": "View3D > Sidebar > Rig Tools",
 	"description": "Helper functions for rig building",
@@ -12,7 +12,6 @@ import bpy
 
 from rigtools import generate_org_bones
 from rigtools import panel
-from rigtools import fk_tweak_chain
 from rigtools import selection_panel
 from rigtools import batch_rename
 from rigtools import create_mch_bones
@@ -39,7 +38,6 @@ classes = (
 	preferences_io.RIG_OT_import_preferences,
 	panel.RIG_PT_tools_npanel,
 	generate_org_bones.RIG_OT_generate_org_bones,
-	fk_tweak_chain.RIG_OT_create_fk_tweak_chain,
 	batch_rename.RIG_OT_batch_rename_bones,
 	create_mch_bones.RIG_OT_create_mch_bones,
 	create_mch_bones.RIG_PT_create_mch_bones,

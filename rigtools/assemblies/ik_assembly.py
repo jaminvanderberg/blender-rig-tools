@@ -35,9 +35,9 @@ class IKAssemblyOptions:
 	ik_parent: bool = True
 	ik_parents: List[IKParentTarget] = field(default_factory=list)
 	add_ik_control_as_pole_parent: bool = False
-	ik_parent_self_parent_label: str = 'Foot'
+	ik_parent_self_parent_label: str = 'Self'
 
-def create_ik_assembly(context, chains, options: IKAssemblyOptions):
+def create_ik_assembly(context, chains, template_name, options: IKAssemblyOptions):
 	"""find_side() throws an error if the side is not the same for all bones in the chain"""
 
 	prefs = get_preferences()
@@ -54,7 +54,7 @@ def create_ik_assembly(context, chains, options: IKAssemblyOptions):
 		side = find_side(chain)
 
 		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "IK", options)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_name, options)
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 		assemblies.append(assembly_chain)
 

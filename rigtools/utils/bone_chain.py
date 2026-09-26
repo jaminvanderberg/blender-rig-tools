@@ -1,3 +1,4 @@
+from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.utils.bone import get_selected_bones
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
@@ -148,7 +149,7 @@ def find_hierarchy_chains(context, connected_only=False):
 # Assembly
 ###############################################################################################
 
-def get_assembly_chains(context, check_property_bone = True) -> tuple[list[list[str]], str]:
+def get_assembly_chains(context, assembly_uid = None, check_property_bone = True) -> tuple[list[list[str]], str]:
 	""" Switches mode to edit mode
 		Returns: list of chains of bones names, original mode
 		Raises ValueError if the object is not an armature, or in object mode, or no edit bones are selected,
@@ -172,6 +173,13 @@ def get_assembly_chains(context, check_property_bone = True) -> tuple[list[list[
 	original_mode = obj.mode
 	if obj.mode != 'EDIT':
 		bpy.ops.object.mode_set(mode='EDIT')
+
+	if assembly_uid:
+		assembly = find_assembly(obj, assembly_uid)
+		if not assembly:
+			raise ValueError(f"Assembly '{assembly_uid}' not found.")
+		chains = assembly.get_chains()
+		return chains, original_mode
 		
 	if not context.selected_editable_bones:
 		bpy.ops.object.mode_set(mode=original_mode)

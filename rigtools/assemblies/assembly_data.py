@@ -30,6 +30,7 @@ class AssemblyData(PropertyGroup):
 		('FK', "FK", ""),
 		('IK', "IK", ""),
 	])
+	template_name: StringProperty()
 
 	org_states: CollectionProperty(type=OrgState)
 	org_children: CollectionProperty(type=OrgState)
@@ -63,12 +64,19 @@ class AssemblyData(PropertyGroup):
 
 		return self
 
-def create_assembly_data(obj, org_bones, name, assembly_type, options):
+	def get_options(self):
+		return json.loads(self.options_json)
+
+	def get_chains(self):
+		return [[bone.name for bone in self.org_states]]
+
+def create_assembly_data(obj, org_bones, name, assembly_type, template_name, options):
 	assembly_data = obj.data.rigtools_assemblies.add()
 	assembly_data.uid = str(uuid.uuid4())
 	assembly_data.name = name
 	assembly_data.assembly_type = assembly_type
 	assembly_data.options_json = _options_to_json(options)
+	assembly_data.template_name = template_name
 
 	bones = obj.data.edit_bones if obj.mode == 'EDIT' else obj.data.bones
 

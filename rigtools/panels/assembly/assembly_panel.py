@@ -79,7 +79,17 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 		for assembly in assemblies:
 			row = layout.row(align=True)
 			row.label(text=assembly.name)
-			op = row.operator("rig.select_assembly", text="", icon='RESTRICT_SELECT_OFF')
+			row.label(text=assembly.template_name)
+
+			match assembly.assembly_type:
+				case 'IK':
+					op_id = "rig.advanced_ik_setup"
+				case 'FK':
+					op_id = "rig.advanced_fk_setup"
+				case _:
+					op_id = ""
+
+			op = row.operator(op_id, text="", icon='SETTINGS')
 			op.assembly_uid = assembly.uid
 			op = row.operator("rig.delete_assembly", text="", icon='TRASH')
 			op.assembly_uid = assembly.uid

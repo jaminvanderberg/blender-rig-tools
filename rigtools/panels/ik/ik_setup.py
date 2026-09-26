@@ -1,12 +1,14 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.utils.widget import fk_widget_types
 from rigtools.tool.ik_parent import IKParentTarget
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
 from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
+from rigtools.assemblies.assembly_data import find_assembly
 
 class IKParentSlot(bpy.types.PropertyGroup):
 	label: bpy.props.StringProperty(name="Label", default="")
@@ -86,7 +88,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		min=0.0
 	)
 
-	control_count: IntProperty(
+	spline_control_count: IntProperty(
 		name="Control Count",
 		description="Number of controls to create for the spline IK",
 		default=3,
@@ -94,7 +96,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		max=10
 	)
 
-	skip_first: BoolProperty(
+	spline_skip_first: BoolProperty(
 		name="Skip First Bone",
 		description="Skip the first bone in the chain for the IK spline",
 		default=False
@@ -153,65 +155,24 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		description="Add rotation isolation to the start of the FK chain.",
 		default=True
 	)
+
+	assembly_uid: StringProperty(
+		name="Assembly UID",
+		description="UID of the assembly to load",
+		default="",
+		options={'HIDDEN'}
+	)
+
+	template_name: StringProperty(
+		name="Template Name",
+		description="Name of the template to use for the IK/FK switch chain",
+		default="",
+		options={'HIDDEN'}
+	)
 	
 	##################################################################################################
-	# execute
-	
-	def execute(self, context):
-		if not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required.")
-			return {'CANCELLED'}
-
-		try:
-			chains, original_mode = get_assembly_chains(context)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
-			return {'CANCELLED'}
-
-		for chain in chains:
-			if len(chain) == 1:
-				self.report({'ERROR'}, "All chains must have at least 2 bones.")
-				bpy.ops.object.mode_set(mode=original_mode)
-				return {'CANCELLED'}
-
-		options = IKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
-			add_tweak_bones=self.add_tweak_bones,
-			switch_property_type=self.switch_property_type,
-			add_rotation_isolation=self.add_rotation_isolation,
-			override_collections=self.override_collections,
-			ik_type=self.ik_type,
-			enable_ik_stretch=self.enable_ik_stretch,
-			pole_distance=self.pole_distance,
-			spline_control_count=self.control_count,
-			spline_skip_first=self.skip_first,
-			twist_type=self.twist_type,
-			tweak_relationship=self.tweak_relationship,
-			fk_widget=self.fk_widget,
-			enable_snapping=self.enable_snapping,
-			ik_parent=self.ik_parent,
-			ik_parents=[
-				IKParentTarget(label=s.label, bone=s.bone)
-				for s in context.window_manager.rig_ik_parents
-				if s.bone
-			],
-			add_ik_control_as_pole_parent=self.add_ik_control_as_pole_parent,
-			ik_parent_self_parent_label=self.ik_parent_self_parent_label,
-		)
-
-		try:
-			create_ik_assembly(context, chains, options)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			return {'CANCELLED'}
-
-		# If everything succeeds, we leave it in Pose mode so the user can see the result
-
-		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
-		return {'FINISHED'}
-
-	def invoke(self, context, event):
+	# invoke
+	def _invoke_from_selection(self, context):
 		wm = context.window_manager
 		if len(wm.rig_ik_parents) == 0:
 			settings = get_armature_settings(context.object.data, context)
@@ -232,9 +193,40 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		limb_name = guess_limb_name(chains[0][0], context)
 		self.limb_property_base_name = limb_name
+		self.template_name = "Advanced"
+
+	def _invoke_from_assembly(self, context):
+		assembly = find_assembly(context.object, self.assembly_uid)
+		if not assembly:
+			self.report({'ERROR'}, "Assembly not found.")
+			return {'CANCELLED'}
+
+		options = assembly.get_options()
+		for key, value in options.items():
+			setattr(self, key, value)
+
+		wm = context.window_manager
+		wm.rig_ik_parents.clear()
+		for parent in assembly.ik_parents:
+			slot = wm.rig_ik_parents.add()
+			slot.label = parent.label
+			slot.bone = parent.bone
+
+		self.template_name = assembly.template_name
+
+	def invoke(self, context, event):
+		if self.assembly_uid:
+			result = self._invoke_from_assembly(context)
+		else:
+			result = self._invoke_from_selection(context)
+
+		if result == {'CANCELLED'}:
+			return result
 
 		return context.window_manager.invoke_props_dialog(self, width=350)
 
+	##################################################################################################
+	# draw
 	def draw(self, context):
 		layout = self.layout
 		split_size = 0.4
@@ -284,7 +276,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		if self.ik_type == 'SPLINE':
 			box.label(text="Spline IK Settings:", icon='CON_SPLINEIK')
 			col = box.column()
-			col.prop(self, "control_count")
+			col.prop(self, "spline_control_count")
 
 			split = col.split(align=True, factor=split_size)
 			row = split.row(align=True)
@@ -292,7 +284,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			row = split.row(align=True)
 			row.prop(self, "twist_type", text="")
 
-			col.prop(self, "skip_first")
+			col.prop(self, "spline_skip_first")
 		elif self.ik_type == 'IK':
 			box.label(text="IK Settings:", icon='CON_KINEMATIC')
 			col = box.column()
@@ -325,6 +317,74 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				if self.add_ik_control_as_pole_parent:
 					row = split.row(align=True)
 					row.prop(self, "ik_parent_self_parent_label", text="")
+
+
+	##################################################################################################
+	# execute
+	
+	def execute(self, context):
+		if not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required.")
+			self.assembly_uid = ""
+			return {'CANCELLED'}
+
+		try:
+			chains, original_mode = get_assembly_chains(context, self.assembly_uid)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			self.assembly_uid = ""
+			return {'CANCELLED'}
+
+		for chain in chains:
+			if len(chain) == 1:
+				self.report({'ERROR'}, "All chains must have at least 2 bones.")
+				bpy.ops.object.mode_set(mode=original_mode)
+				self.assembly_uid = ""
+				return {'CANCELLED'}
+
+		if self.assembly_uid:
+			delete_assembly(context, self.assembly_uid)
+		self.assembly_uid = ""
+
+		options = IKAssemblyOptions(
+			limb_property_base_name=self.limb_property_base_name,
+			add_tweak_bones=self.add_tweak_bones,
+			switch_property_type=self.switch_property_type,
+			add_rotation_isolation=self.add_rotation_isolation,
+			override_collections=self.override_collections,
+			ik_type=self.ik_type,
+			enable_ik_stretch=self.enable_ik_stretch,
+			pole_distance=self.pole_distance,
+			spline_control_count=self.spline_control_count,
+			spline_skip_first=self.spline_skip_first,
+			twist_type=self.twist_type,
+			tweak_relationship=self.tweak_relationship,
+			fk_widget=self.fk_widget,
+			enable_snapping=self.enable_snapping,
+			ik_parent=self.ik_parent,
+			ik_parents=[
+				IKParentTarget(label=s.label, bone=s.bone)
+				for s in context.window_manager.rig_ik_parents
+				if s.bone
+			],
+			add_ik_control_as_pole_parent=self.add_ik_control_as_pole_parent,
+			ik_parent_self_parent_label=self.ik_parent_self_parent_label,
+		)
+
+		try:
+			create_ik_assembly(context, chains, self.template_name, options)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			bpy.ops.object.mode_set(mode=original_mode)
+			return {'CANCELLED'}
+
+		# If everything succeeds, we leave it in Pose mode so the user can see the result
+
+		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
+		return {'FINISHED'}
+
+##################################################################################################
+# registration
 
 classes = (
 	IKParentSlot,

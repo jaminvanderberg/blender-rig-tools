@@ -1,5 +1,7 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty
+from rigtools.assemblies.delete_assembly import delete_assembly
+from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.utils.widget import fk_widget_types
 from rigtools.preferences import get_preferences
@@ -101,48 +103,25 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		],
 		default='STRETCH_TO'
 	)
+
+	assembly_uid: StringProperty(
+		name="Assembly UID",
+		description="UID of the assembly to use for the FK/Tweak chain",
+		default="",
+		options={'HIDDEN'}
+	)
+
+	template_name: StringProperty(
+		name="Template Name",
+		description="Name of the template to use for the FK/Tweak chain",
+		default="",
+		options={'HIDDEN'}
+	)
+
 	##################################################################################################
-	# execute
-	
-	def execute(self, context):
-		if self.add_rotation_isolation and not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
-			return {'CANCELLED'}
+	# invoke
 
-		try:
-			chains, original_mode = get_assembly_chains(context, check_property_bone=self.add_rotation_isolation)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
-			return {'CANCELLED'}
-
-		options = FKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
-			do_create_fk=self.do_create_fk,
-			fk_bone_template=self.fk_bone_template,
-			skip_first_tweak=self.skip_first_tweak,
-			fk_widget=self.fk_widget,
-			create_rotation_follow_setup=self.create_rotation_follow_setup,
-			rotation_follow_skip=self.rotation_follow_skip,
-			rotation_follow_relationship=self.rotation_follow_relationship,
-			fk_collection_name=self.fk_collection_name,
-			tweak_collection_name=self.tweak_collection_name,
-			tweak_relationship=self.tweak_relationship,
-			add_rotation_isolation=self.add_rotation_isolation,
-			override_collections=self.override_collections,
-		)
-
-		try:
-			create_fk_assembly(context, chains, options)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			return {'CANCELLED'}
-
-		chain_count = len(chains)
-		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
-		return {'FINISHED'}
-
-	def invoke(self, context, event):
+	def _invoke_from_selection(self, context):
 		prefs = get_preferences()
 		props = self.properties		
 
@@ -161,9 +140,33 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 		limb_name = guess_limb_name(chains[0][0], context)
 		self.limb_property_base_name = limb_name
+		self.template_name = "Advanced"
+
+	def _invoke_from_assembly(self, context):
+		assembly = find_assembly(context.object, self.assembly_uid)
+		if not assembly:
+			self.report({'ERROR'}, "Assembly not found.")
+			return {'CANCELLED'}
+
+		options = assembly.get_options()
+		for key, value in options.items():
+			setattr(self, key, value)
+
+		self.template_name = assembly.template_name
+
+	def invoke(self, context, event):
+		if self.assembly_uid:
+			result = self._invoke_from_assembly(context)
+		else:
+			result = self._invoke_from_selection(context)
+		
+		if result == {'CANCELLED'}:
+			return result
 
 		return context.window_manager.invoke_props_dialog(self, width=350)
 
+	##################################################################################################
+	# draw
 	def draw(self, context):
 		layout = self.layout
 		box = layout.box()
@@ -214,7 +217,53 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				col.prop(self, "rotation_follow_skip")
 				col.prop(self, "rotation_follow_relationship")
 
+	##################################################################################################
+	# execute
+	
+	def execute(self, context):
+		if self.add_rotation_isolation and not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
+			return {'CANCELLED'}
 
+		try:
+			chains, original_mode = get_assembly_chains(context, self.assembly_uid, check_property_bone=self.add_rotation_isolation)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			return {'CANCELLED'}
+
+		if self.assembly_uid:
+			delete_assembly(context, self.assembly_uid)
+			self.assembly_uid = ""
+
+		options = FKAssemblyOptions(
+			limb_property_base_name=self.limb_property_base_name,
+			do_create_fk=self.do_create_fk,
+			fk_bone_template=self.fk_bone_template,
+			skip_first_tweak=self.skip_first_tweak,
+			fk_widget=self.fk_widget,
+			create_rotation_follow_setup=self.create_rotation_follow_setup,
+			rotation_follow_skip=self.rotation_follow_skip,
+			rotation_follow_relationship=self.rotation_follow_relationship,
+			fk_collection_name=self.fk_collection_name,
+			tweak_collection_name=self.tweak_collection_name,
+			tweak_relationship=self.tweak_relationship,
+			add_rotation_isolation=self.add_rotation_isolation,
+			override_collections=self.override_collections,
+		)
+
+		try:
+			create_fk_assembly(context, chains, self.template_name, options)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			bpy.ops.object.mode_set(mode=original_mode)
+			return {'CANCELLED'}
+
+		chain_count = len(chains)
+		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
+		return {'FINISHED'}
+
+##################################################################################################
+# registration
 classes = (
 	RIG_OT_advanced_fk_tweak_setup,
 )

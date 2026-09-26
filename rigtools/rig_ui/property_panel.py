@@ -205,7 +205,7 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 		prop_bone = obj.pose.bones[prop_bone_name]
 		
 		layout = self.layout
-		split_size = 0.7
+		split_size = 0.6
 
 		wm = context.window_manager
 

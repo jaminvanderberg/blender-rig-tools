@@ -371,7 +371,6 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 			parents, include_self = resolve_ik_parents(context, parent_names)
 			option_values["ik_parents"] = parents
 			option_values["add_ik_control_as_pole_parent"] = include_self
-			option_values["ik_parent_self_parent_label"] = "Self"
 			options = IKAssemblyOptions(**option_values)
 		except (KeyError, TypeError, ValueError) as error:
 			self.report({'ERROR'}, f"Invalid IK template '{self.template_id}': {error}")
@@ -390,7 +389,7 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 				return {'CANCELLED'}
 
 		try:
-			create_ik_assembly(context, chains, options)
+			create_ik_assembly(context, chains, template.label, options)
 		except Exception as error:
 			self.report({'ERROR'}, str(error))
 			bpy.ops.object.mode_set(mode=original_mode)

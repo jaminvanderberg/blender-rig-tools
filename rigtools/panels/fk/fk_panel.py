@@ -16,7 +16,18 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 
 		layout.operator("rig.advanced_fk_setup", icon='CON_STRETCHTO')
 
-from rigtools.panels.fk import fk_setup
+		layout.label(text="Templates")
+		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+		grid.operator_context = 'INVOKE_DEFAULT'
+		for template_id, template in fk_template.FK_TEMPLATES.items():
+			operator = grid.operator(
+				"rig.create_fk_from_template",
+				text=template.label,
+				icon=template.icon or 'ARMATURE_DATA',
+			)
+			operator.template_id = template_id
+
+from rigtools.panels.fk import fk_setup, fk_template
 
 classes = (
 	RIG_PT_fk_panel,
@@ -27,8 +38,10 @@ def register():
 		bpy.utils.register_class(cls)
 
 	fk_setup.register()
+	fk_template.register()
 
 def unregister():
+	fk_template.unregister()
 	fk_setup.unregister()
 
 	for cls in classes:
