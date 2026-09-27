@@ -1,0 +1,195 @@
+from dataclasses import dataclass
+from typing import Any
+
+from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.ik_assembly import IKAssemblyOptions
+from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.assemblies.template_validation import validate_assembly_templates
+from rigtools.tool.ik_parent import IKParentTarget
+
+
+@dataclass(frozen=True)
+class IKTemplate:
+	label: str
+	description: str
+	icon: str
+	options: dict[str, Any]
+	redo_fields: tuple[str, ...] = ()
+
+
+IK_TEMPLATES = {
+	"arm": IKTemplate(
+		label="Arm",
+		description="Humanoid arm. Works best with 3 bones.",
+		icon="CON_CHILDOF",
+		options={
+			"limb_property_base_name": "arm",
+			"add_tweak_bones": True,
+			"switch_property_type": "ENUM",
+			"add_rotation_isolation": True,
+			"override_collections": True,
+			"ik_type": "IK",
+			"enable_ik_stretch": True,
+			"pole_distance": 0.5,
+			"tweak_relationship": "STRETCH_TO",
+			"fk_widget": "FK",
+			"enable_snapping": True,
+			"ik_parent": True,
+			"ik_parents": ("root", "torso", "hips", "chest", "head"),
+		},
+		redo_fields=(
+			"add_tweak_bones",
+			"tweak_relationship",
+			"switch_property_type",
+			"fk_widget",
+			"enable_ik_stretch",
+		),
+	),
+	"leg": IKTemplate(
+		label="Leg",
+		description="Humanoid leg. Works best with 3 bones.",
+		icon="CON_KINEMATIC",
+		options={
+			"limb_property_base_name": "leg",
+			"add_tweak_bones": True,
+			"switch_property_type": "ENUM",
+			"add_rotation_isolation": True,
+			"override_collections": True,
+			"ik_type": "IK",
+			"enable_ik_stretch": True,
+			"pole_distance": 0.5,
+			"tweak_relationship": "STRETCH_TO",
+			"fk_widget": "FK",
+			"enable_snapping": True,
+			"ik_parent": True,
+			"ik_parents": ("root", "torso", "self"),
+			"ik_parent_self_parent_label": "Foot",
+		},
+		redo_fields=(
+			"add_tweak_bones",
+			"tweak_relationship",
+			"switch_property_type",
+			"fk_widget",
+			"enable_ik_stretch",
+		),
+	),
+	"skirt.spline": IKTemplate(
+		label="Skirt - Spline",
+		description="Long skirt with a spline IK setup.",
+		icon="CURVE_DATA",
+		options={
+			"limb_property_base_name": "",
+			"add_tweak_bones": True,
+			"switch_property_type": "ENUM",
+			"add_rotation_isolation": True,
+			"override_collections": True,
+			"ik_parent": True,
+			"ik_parents": ("root", "torso"),
+			"ik_type": "SPLINE",
+			"spline_control_count": 3,
+			"spline_skip_first": True,
+			"twist_type": "START_END",
+			"tweak_relationship": "STRETCH_TO",
+			"fk_widget": "RECTANGLE",
+			"enable_snapping": False,
+		},
+		redo_fields=(
+			"limb_property_base_name",
+			"switch_property_type",
+			"fk_widget",
+			"add_rotation_isolation",
+			"spline_control_count",
+			"spline_skip_first",
+			"twist_type",
+			"ik_parent",
+		),
+	),
+}
+
+
+IK_PARENT_SETTINGS = {
+	"root": ("Root", "root_bone_name"),
+	"torso": ("Torso", "torso_bone_name"),
+	"hips": ("Hips", "hips_bone_name"),
+	"chest": ("Chest", "chest_bone_name"),
+	"head": ("Head", "head_bone_name"),
+}
+
+# Fields the template redo panel / operator may expose.
+REDO_PROPERTIES = {
+	"limb_property_base_name",
+	"add_tweak_bones",
+	"switch_property_type",
+	"add_rotation_isolation",
+	"override_collections",
+	"ik_type",
+	"enable_ik_stretch",
+	"pole_distance",
+	"spline_control_count",
+	"spline_skip_first",
+	"twist_type",
+	"tweak_relationship",
+	"fk_widget",
+	"enable_snapping",
+	"ik_parent",
+}
+
+
+def get_ik_template(template_id: str) -> IKTemplate:
+	try:
+		return IK_TEMPLATES[template_id]
+	except KeyError:
+		raise ValueError(f"Unknown IK template: '{template_id}'") from None
+
+
+def _validate_ik_template_rules(template_id: str, template: IKTemplate):
+	options = resolve_template_options(IKAssemblyOptions, template.options)
+	valid_parent_names = set(IK_PARENT_SETTINGS) | {"self"}
+	parent_names = options["ik_parents"]
+	if not isinstance(parent_names, (tuple, list)) or not all(
+		isinstance(parent_name, str) for parent_name in parent_names
+	):
+		raise ValueError(f"IK template '{template_id}' parents must be a list of special names")
+
+	invalid_parent_names = set(parent_names) - valid_parent_names
+	if invalid_parent_names:
+		raise ValueError(
+			f"IK template '{template_id}' has unknown IK parents: {sorted(invalid_parent_names)}"
+		)
+	if options["ik_parent"] and not parent_names:
+		raise ValueError(f"IK template '{template_id}' enables IK parents without defining any")
+	if "self" in parent_names and options["ik_type"] != "IK":
+		raise ValueError(f"IK template '{template_id}' can only use the self parent with standard IK")
+
+
+def validate_ik_templates():
+	validate_assembly_templates(
+		IK_TEMPLATES,
+		IKAssemblyOptions,
+		kind="IK",
+		redo_properties=REDO_PROPERTIES,
+		extra_check=_validate_ik_template_rules,
+	)
+
+
+def resolve_ik_parents(context, parent_names):
+	if len(parent_names) != len(set(parent_names)):
+		raise ValueError("IK template parent names must be unique.")
+
+	settings = get_armature_settings(context.object.data, context)
+	parents = []
+
+	for parent_name in parent_names:
+		if parent_name == "self":
+			continue
+
+		label, setting_name = IK_PARENT_SETTINGS[parent_name]
+		bone_name = getattr(settings, setting_name)
+		if not bone_name:
+			raise ValueError(f"{label} bone is not configured in the armature settings.")
+		if bone_name not in context.object.data.bones:
+			raise ValueError(f"{label} bone '{bone_name}' was not found.")
+
+		parents.append(IKParentTarget(label=label, bone=bone_name))
+
+	return parents, "self" in parent_names

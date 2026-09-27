@@ -1,10 +1,9 @@
-from dataclasses import MISSING, dataclass, fields
-from typing import Any
-
 import bpy
 from bpy.props import BoolProperty, EnumProperty, IntProperty, StringProperty
 
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
+from rigtools.assemblies.fk_templates import FK_TEMPLATES, get_fk_template, validate_fk_templates
+from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.utils.bone_chain import (
@@ -13,210 +12,6 @@ from rigtools.utils.bone_chain import (
 	get_assembly_chains,
 )
 from rigtools.utils.widget import fk_widget_types
-
-
-@dataclass(frozen=True)
-class FKTemplate:
-	label: str
-	description: str
-	icon: str
-	options: dict[str, Any]
-	redo_fields: tuple[str, ...] = ()
-
-
-FK_TEMPLATES = {
-	"simple": FKTemplate(
-		label="Simple FK",
-		description="Simple FK with rotation follow along the chain.",
-		icon="BONE_DATA",
-		options={
-			"limb_property_base_name": "",
-			"do_create_fk": True,
-			"skip_first_tweak": False,
-			"fk_widget": "CIRCLE",
-			"create_rotation_follow_setup": True,
-			"rotation_follow_skip": 1,
-			"rotation_follow_relationship": "COPY_ROTATION",
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": False,
-			"override_collections": True,
-		},
-		redo_fields=(
-			"limb_property_base_name",
-			"fk_widget",
-			"skip_first_tweak",
-			"tweak_relationship",
-			"add_rotation_isolation",
-			"create_rotation_follow_setup",
-			"rotation_follow_skip",
-		),
-	),
-	"skirt": FKTemplate(
-		label="Skirt FK",
-		description="FK skirt with rotation follow along the chain.",
-		icon="CON_GEOMETRYATTRIBUTE",
-		options={
-			"limb_property_base_name": "",
-			"do_create_fk": True,
-			"skip_first_tweak": False,
-			"fk_widget": "RECTANGLE",
-			"create_rotation_follow_setup": True,
-			"rotation_follow_skip": 1,
-			"rotation_follow_relationship": "COPY_ROTATION",
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": True,
-			"override_collections": True,
-		},
-		redo_fields=(
-			"fk_widget",
-			"skip_first_tweak",
-			"tweak_relationship",
-			"add_rotation_isolation",
-			"create_rotation_follow_setup",
-			"rotation_follow_skip",
-		),
-	),	
-	"tail": FKTemplate(
-		label="Tail",
-		description="FK tail with rotation follow along the chain.",
-		icon="CURVE_PATH",
-		options={
-			"limb_property_base_name": "tail",
-			"do_create_fk": True,
-			"skip_first_tweak": False,
-			"fk_widget": "CIRCLE",
-			"create_rotation_follow_setup": True,
-			"rotation_follow_skip": 1,
-			"rotation_follow_relationship": "COPY_ROTATION",
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": True,
-			"override_collections": True,
-		},
-		redo_fields=(
-			"fk_widget",
-			"skip_first_tweak",
-			"tweak_relationship",
-			"add_rotation_isolation",
-			"create_rotation_follow_setup",
-			"rotation_follow_skip",
-		),
-	),
-	"finger": FKTemplate(
-		label="Finger",
-		description="Compact FK finger chain. Skips the first tweak.",
-		icon="VIEW_PAN",
-		options={
-			"limb_property_base_name": "finger",
-			"do_create_fk": True,
-			"skip_first_tweak": True,
-			"fk_widget": "CIRCLE",
-			"create_rotation_follow_setup": True,
-			"rotation_follow_skip": 1,
-			"rotation_follow_relationship": "COPY_ROTATION",
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": False,
-			"override_collections": True,
-		},
-		redo_fields=(
-			"fk_widget",
-			"skip_first_tweak",
-			"tweak_relationship",
-			"add_rotation_isolation",
-		),
-	),
-	"tweak": FKTemplate(
-		label="Tweak Only",
-		description="Tweak bones parented in a chain, without FK controls.",
-		icon="PARTICLE_POINT",
-		options={
-			"limb_property_base_name": "",
-			"do_create_fk": False,
-			"skip_first_tweak": False,
-			"fk_widget": "None",
-			"create_rotation_follow_setup": False,
-			"rotation_follow_skip": 1,
-			"rotation_follow_relationship": "COPY_ROTATION",
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": False,
-			"override_collections": False,
-		},
-		redo_fields=(
-			"limb_property_base_name",
-			"tweak_relationship",
-			"override_collections",
-		),
-	),
-}
-
-
-REDO_PROPERTIES = {
-	"limb_property_base_name",
-	"do_create_fk",
-	"fk_bone_template",
-	"skip_first_tweak",
-	"fk_widget",
-	"create_rotation_follow_setup",
-	"rotation_follow_skip",
-	"rotation_follow_relationship",
-	"tweak_relationship",
-	"add_rotation_isolation",
-	"override_collections",
-}
-
-
-def get_fk_template(template_id: str) -> FKTemplate:
-	try:
-		return FK_TEMPLATES[template_id]
-	except KeyError:
-		raise ValueError(f"Unknown FK template: '{template_id}'") from None
-
-
-def validate_fk_templates():
-	option_fields = {field.name for field in fields(FKAssemblyOptions)}
-	required_fields = {
-		field.name
-		for field in fields(FKAssemblyOptions)
-		if field.default is MISSING and field.default_factory is MISSING
-	} - {"limb_property_base_name"}
-	managed_fields = {
-		"fk_collection_name",
-		"tweak_collection_name",
-		"fk_bone_template",
-	}
-
-	for template_id, template in FK_TEMPLATES.items():
-		option_names = set(template.options)
-		missing = required_fields - option_names
-		unknown = option_names - option_fields
-		managed = option_names & managed_fields
-		invalid_redo_fields = set(template.redo_fields) - REDO_PROPERTIES
-		missing_redo_fields = set(template.redo_fields) - option_names - {"limb_property_base_name"}
-
-		if missing:
-			raise ValueError(f"FK template '{template_id}' is missing options: {sorted(missing)}")
-		if unknown:
-			raise ValueError(f"FK template '{template_id}' has unknown options: {sorted(unknown)}")
-		if managed:
-			raise ValueError(
-				f"FK template '{template_id}' cannot directly set: {sorted(managed)}"
-			)
-		if invalid_redo_fields:
-			raise ValueError(
-				f"FK template '{template_id}' has unsupported redo fields: {sorted(invalid_redo_fields)}"
-			)
-		if missing_redo_fields:
-			raise ValueError(
-				f"FK template '{template_id}' has redo fields without template values: "
-				f"{sorted(missing_redo_fields)}"
-			)
-		if template.options.get("create_rotation_follow_setup") and not template.options.get("do_create_fk"):
-			raise ValueError(
-				f"FK template '{template_id}' enables rotation follow without FK bones"
-			)
-		if template.options.get("add_rotation_isolation") and not template.options.get("do_create_fk"):
-			raise ValueError(
-				f"FK template '{template_id}' enables rotation isolation without FK bones"
-			)
 
 
 class RIG_OT_create_fk_from_template(bpy.types.Operator):
@@ -285,8 +80,10 @@ class RIG_OT_create_fk_from_template(bpy.types.Operator):
 			self.report({'ERROR'}, str(error))
 			return {'CANCELLED'}
 
-		if template.options.get("limb_property_base_name"):
-			self.limb_property_base_name = template.options["limb_property_base_name"]
+		option_values = resolve_template_options(FKAssemblyOptions, template.options)
+
+		if option_values.get("limb_property_base_name"):
+			self.limb_property_base_name = option_values["limb_property_base_name"]
 		else:
 			try:
 				chains = find_chains_from_selection(context)
@@ -302,7 +99,7 @@ class RIG_OT_create_fk_from_template(bpy.types.Operator):
 
 		for property_name in template.redo_fields:
 			if property_name != "limb_property_base_name":
-				setattr(self, property_name, template.options[property_name])
+				setattr(self, property_name, option_values[property_name])
 
 		return self.execute(context)
 
@@ -313,7 +110,7 @@ class RIG_OT_create_fk_from_template(bpy.types.Operator):
 			self.report({'ERROR'}, str(error))
 			return {'CANCELLED'}
 
-		option_values = dict(template.options)
+		option_values = resolve_template_options(FKAssemblyOptions, template.options)
 		if not option_values.get("limb_property_base_name"):
 			if self.properties.is_property_set("limb_property_base_name"):
 				option_values["limb_property_base_name"] = self.limb_property_base_name
@@ -343,9 +140,8 @@ class RIG_OT_create_fk_from_template(bpy.types.Operator):
 			self.report({'ERROR'}, "Active object must be an armature.")
 			return {'CANCELLED'}
 
-		option_values.setdefault("fk_bone_template", get_preferences().fk_template)
-		option_values.setdefault("fk_collection_name", "")
-		option_values.setdefault("tweak_collection_name", "")
+		if "fk_bone_template" not in template.options:
+			option_values["fk_bone_template"] = get_preferences().fk_template
 
 		try:
 			options = FKAssemblyOptions(**option_values)

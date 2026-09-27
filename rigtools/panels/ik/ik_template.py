@@ -1,13 +1,15 @@
-from dataclasses import MISSING, dataclass, fields
-from typing import Any
-
 import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty, StringProperty
 
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
+from rigtools.assemblies.ik_templates import (
+	IK_TEMPLATES,
+	get_ik_template,
+	resolve_ik_parents,
+	validate_ik_templates,
+)
+from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.rig_ui.property_name import guess_limb_name
-from rigtools.tool.ik_parent import IKParentTarget
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.utils.bone_chain import (
 	ChainBranchingError,
@@ -15,218 +17,6 @@ from rigtools.utils.bone_chain import (
 	get_assembly_chains,
 )
 from rigtools.utils.widget import fk_widget_types
-
-
-@dataclass(frozen=True)
-class IKTemplate:
-	label: str
-	description: str
-	icon: str
-	options: dict[str, Any]
-	redo_fields: tuple[str, ...] = ()
-
-
-IK_TEMPLATES = {
-	"arm": IKTemplate(
-		label="Arm",
-		description="Humanoid arm. Works best with 3 bones.",
-		icon="CON_CHILDOF",
-		options={
-			"limb_property_base_name": "arm",
-			"add_tweak_bones": True,
-			"switch_property_type": "ENUM",
-			"add_rotation_isolation": True,
-			"override_collections": True,
-			"ik_type": "IK",
-			"enable_ik_stretch": True,
-			"pole_distance": 0.5,
-			"tweak_relationship": "STRETCH_TO",
-			"fk_widget": "FK",
-			"enable_snapping": True,
-			"ik_parent": True,
-			"ik_parents": ("root", "torso", "hips", "chest", "head"),
-		},
-		redo_fields=(
-			"add_tweak_bones",
-			"tweak_relationship",
-			"switch_property_type",
-			"fk_widget",
-			"enable_ik_stretch",
-		),
-	),
-	"leg": IKTemplate(
-		label="Leg",
-		description="Humanoid leg. Works best with 3 bones.",
-		icon="CON_KINEMATIC",
-		options={
-			"limb_property_base_name": "leg",
-			"add_tweak_bones": True,
-			"switch_property_type": "ENUM",
-			"add_rotation_isolation": True,
-			"override_collections": True,
-			"ik_type": "IK",
-			"enable_ik_stretch": True,
-			"pole_distance": 0.5,
-			"tweak_relationship": "STRETCH_TO",
-			"fk_widget": "FK",
-			"enable_snapping": True,
-			"ik_parent": True,
-			"ik_parents": ("root", "torso", "self"),
-			"ik_parent_self_parent_label": "Foot",
-		},
-		redo_fields=(
-			"add_tweak_bones",
-			"tweak_relationship",
-			"switch_property_type",
-			"fk_widget",
-			"enable_ik_stretch",
-		),
-	),
-	"skirt.spline": IKTemplate(
-		label="Skirt - Spline",
-		description="Long skirt with a spline IK setup.",
-		icon="CURVE_DATA",
-		options={
-			"limb_property_base_name": "",
-			"add_tweak_bones": True,
-			"switch_property_type": "ENUM",
-			"add_rotation_isolation": True,
-			"override_collections": True,
-			"ik_parent": True,
-			"ik_parents": ("root", "torso"),
-			"ik_type": "SPLINE",
-			"spline_control_count": 3,
-			"spline_skip_first": True,
-			"twist_type": "START_END",
-			"tweak_relationship": "STRETCH_TO",
-			"fk_widget": "RECTANGLE",
-			"enable_snapping": False,
-		},
-		redo_fields=(
-			"limb_property_base_name",
-			"switch_property_type",
-			"fk_widget",
-			"add_rotation_isolation",
-			"spline_control_count",
-			"spline_skip_first",
-			"twist_type",
-			"ik_parent",
-		),
-	)
-}
-
-
-
-IK_PARENT_SETTINGS = {
-	"root": ("Root", "root_bone_name"),
-	"torso": ("Torso", "torso_bone_name"),
-	"hips": ("Hips", "hips_bone_name"),
-	"chest": ("Chest", "chest_bone_name"),
-	"head": ("Head", "head_bone_name"),
-}
-
-REDO_PROPERTIES = {
-	"limb_property_base_name",
-	"add_tweak_bones",
-	"switch_property_type",
-	"add_rotation_isolation",
-	"override_collections",
-	"ik_type",
-	"enable_ik_stretch",
-	"pole_distance",
-	"spline_control_count",
-	"spline_skip_first",
-	"twist_type",
-	"tweak_relationship",
-	"fk_widget",
-	"enable_snapping",
-	"ik_parent",
-}
-
-
-def get_ik_template(template_id: str) -> IKTemplate:
-	try:
-		return IK_TEMPLATES[template_id]
-	except KeyError:
-		raise ValueError(f"Unknown IK template: '{template_id}'") from None
-
-
-def validate_ik_templates():
-	option_fields = {field.name for field in fields(IKAssemblyOptions)}
-	required_fields = {
-		field.name
-		for field in fields(IKAssemblyOptions)
-		if field.default is MISSING and field.default_factory is MISSING
-	} - {"limb_property_base_name"}
-	managed_fields = {
-		"add_ik_control_as_pole_parent",
-	}
-	valid_parent_names = set(IK_PARENT_SETTINGS) | {"self"}
-
-	for template_id, template in IK_TEMPLATES.items():
-		option_names = set(template.options)
-		missing = required_fields - option_names
-		unknown = option_names - option_fields
-		managed = option_names & managed_fields
-		invalid_redo_fields = set(template.redo_fields) - REDO_PROPERTIES
-		missing_redo_fields = set(template.redo_fields) - option_names - {"limb_property_base_name"}
-		parent_names = template.options.get("ik_parents", ())
-		if not isinstance(parent_names, (tuple, list)) or not all(
-			isinstance(parent_name, str) for parent_name in parent_names
-		):
-			raise ValueError(f"IK template '{template_id}' parents must be a list of special names")
-		invalid_parent_names = set(parent_names) - valid_parent_names
-
-		if missing:
-			raise ValueError(f"IK template '{template_id}' is missing options: {sorted(missing)}")
-		if unknown:
-			raise ValueError(f"IK template '{template_id}' has unknown options: {sorted(unknown)}")
-		if managed:
-			raise ValueError(
-				f"IK template '{template_id}' cannot directly set parent options: {sorted(managed)}"
-			)
-		if invalid_redo_fields:
-			raise ValueError(
-				f"IK template '{template_id}' has unsupported redo fields: {sorted(invalid_redo_fields)}"
-			)
-		if missing_redo_fields:
-			raise ValueError(
-				f"IK template '{template_id}' has redo fields without template values: "
-				f"{sorted(missing_redo_fields)}"
-			)
-		if invalid_parent_names:
-			raise ValueError(
-				f"IK template '{template_id}' has unknown IK parents: {sorted(invalid_parent_names)}"
-			)
-		if template.options.get("ik_parent", True) and not parent_names:
-			raise ValueError(f"IK template '{template_id}' enables IK parents without defining any")
-		if not template.options.get("ik_parent", True) and parent_names:
-			raise ValueError(f"IK template '{template_id}' defines IK parents while they are disabled")
-		if "self" in parent_names and template.options.get("ik_type", "IK") != "IK":
-			raise ValueError(f"IK template '{template_id}' can only use the self parent with standard IK")
-
-
-def resolve_ik_parents(context, parent_names):
-	if len(parent_names) != len(set(parent_names)):
-		raise ValueError("IK template parent names must be unique.")
-
-	settings = get_armature_settings(context.object.data, context)
-	parents = []
-
-	for parent_name in parent_names:
-		if parent_name == "self":
-			continue
-
-		label, setting_name = IK_PARENT_SETTINGS[parent_name]
-		bone_name = getattr(settings, setting_name)
-		if not bone_name:
-			raise ValueError(f"{label} bone is not configured in the armature settings.")
-		if bone_name not in context.object.data.bones:
-			raise ValueError(f"{label} bone '{bone_name}' was not found.")
-
-		parents.append(IKParentTarget(label=label, bone=bone_name))
-
-	return parents, "self" in parent_names
 
 
 class RIG_OT_create_ik_from_template(bpy.types.Operator):
@@ -308,8 +98,10 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 			self.report({'ERROR'}, str(error))
 			return {'CANCELLED'}
 
-		if "limb_property_base_name" in template.options and template.options["limb_property_base_name"]:
-			self.limb_property_base_name = template.options["limb_property_base_name"]
+		option_values = resolve_template_options(IKAssemblyOptions, template.options)
+
+		if option_values.get("limb_property_base_name"):
+			self.limb_property_base_name = option_values["limb_property_base_name"]
 		else:
 			try:
 				chains = find_chains_from_selection(context)
@@ -325,7 +117,7 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 
 		for property_name in template.redo_fields:
 			if property_name != "limb_property_base_name":
-				setattr(self, property_name, template.options[property_name])
+				setattr(self, property_name, option_values[property_name])
 
 		return self.execute(context)
 
@@ -336,8 +128,8 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 			self.report({'ERROR'}, str(error))
 			return {'CANCELLED'}
 
-		option_values = dict(template.options)
-		if "limb_property_base_name" not in option_values:
+		option_values = resolve_template_options(IKAssemblyOptions, template.options)
+		if not option_values.get("limb_property_base_name"):
 			if self.properties.is_property_set("limb_property_base_name"):
 				option_values["limb_property_base_name"] = self.limb_property_base_name
 			else:
@@ -411,7 +203,7 @@ class RIG_OT_create_ik_from_template(bpy.types.Operator):
 			if prop.type == 'BOOLEAN':
 				self.layout.prop(self, property_name)
 				continue
-			
+
 			split = self.layout.split(factor=split_size, align=True)
 			split.label(text=f"{prop.name}:")
 			split.prop(self, property_name, text="")
