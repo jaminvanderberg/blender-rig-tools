@@ -15,6 +15,7 @@ class IKTemplate:
 	icon: str
 	options: dict[str, Any]
 	redo_fields: tuple[str, ...] = ()
+	show_dialog: bool = False
 
 
 IK_TEMPLATES = {
@@ -30,7 +31,7 @@ IK_TEMPLATES = {
 			"override_collections": True,
 			"ik_type": "IK",
 			"enable_ik_stretch": True,
-			"pole_distance": 0.5,
+			"pole_distance": 0.25,
 			"tweak_relationship": "STRETCH_TO",
 			"fk_widget": "FK",
 			"enable_snapping": True,
@@ -102,7 +103,9 @@ IK_TEMPLATES = {
 			"spline_skip_first",
 			"twist_type",
 			"ik_parent",
+			"ik_parents",
 		),
+		show_dialog=False,
 	),
 }
 
@@ -132,14 +135,12 @@ REDO_PROPERTIES = {
 	"fk_widget",
 	"enable_snapping",
 	"ik_parent",
+	"ik_parents",
 }
 
 
-def get_ik_template(template_id: str) -> IKTemplate:
-	try:
-		return IK_TEMPLATES[template_id]
-	except KeyError:
-		raise ValueError(f"Unknown IK template: '{template_id}'") from None
+def get_ik_template(template_id: str) -> IKTemplate | None:
+	return IK_TEMPLATES.get(template_id)
 
 
 def _validate_ik_template_rules(template_id: str, template: IKTemplate):

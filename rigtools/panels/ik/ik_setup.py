@@ -2,6 +2,8 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.delete_assembly import delete_assembly
+from rigtools.assemblies.ik_templates import get_ik_template, resolve_ik_parents, validate_ik_templates
+from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.utils.widget import fk_widget_types
@@ -32,7 +34,7 @@ class RIG_OT_remove_ik_parent(bpy.types.Operator):
 class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	"""Create a FK/IK switching setup with advanced options."""
 	bl_idname = "rig.advanced_ik_setup"
-	bl_label = "Advanced IK Setup"
+	bl_label = "IK Setup"
 	bl_options = {'REGISTER', 'UNDO'}
 	bl_property = "limb_property_base_name"
 
@@ -163,12 +165,27 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	template_id: StringProperty(
+		name="Template ID",
+		description="IK template to apply on invoke",
+		default="",
+		options={'HIDDEN'}
+	)
+
 	template_name: StringProperty(
 		name="Template Name",
 		description="Name of the template to use for the IK/FK switch chain",
 		default="",
 		options={'HIDDEN'}
 	)
+
+	@classmethod
+	def description(cls, context, properties):
+		if properties.template_id:
+			template = get_ik_template(properties.template_id)
+			if template:
+				return template.description
+		return "Create a FK/IK switching setup with advanced options."
 	
 	##################################################################################################
 	# invoke
@@ -194,6 +211,49 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		limb_name = guess_limb_name(chains[0][0], context)
 		self.limb_property_base_name = limb_name
 		self.template_name = "Advanced"
+		self.bl_label = "Advanced IK Setup"
+
+	def _invoke_from_template(self, context):
+		template = get_ik_template(self.template_id)
+		if not template:
+			self.report({'ERROR'}, f"Unknown IK template: '{self.template_id}'")
+			return {'CANCELLED'}
+
+		option_values = resolve_template_options(IKAssemblyOptions, template.options)
+		parent_names = option_values.pop("ik_parents", ())
+
+		try:
+			parents, include_self = resolve_ik_parents(context, parent_names)
+		except ValueError as error:
+			self.report({'ERROR'}, str(error))
+			return {'CANCELLED'}
+
+		for key, value in option_values.items():
+			setattr(self, key, value)
+
+		self.add_ik_control_as_pole_parent = include_self
+
+		if not self.limb_property_base_name:
+			try:
+				chains = find_chains_from_selection(context)
+			except ChainBranchingError as error:
+				self.report({'ERROR'}, str(error))
+				return {'CANCELLED'}
+
+			if not chains:
+				self.report({'ERROR'}, "No chains selected.")
+				return {'CANCELLED'}
+
+			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
+
+		wm = context.window_manager
+		wm.rig_ik_parents.clear()
+		for parent in parents:
+			slot = wm.rig_ik_parents.add()
+			slot.label = parent.label
+			slot.bone = parent.bone
+
+		self.template_name = template.label
 
 	def _invoke_from_assembly(self, context):
 		assembly = find_assembly(context.object, self.assembly_uid)
@@ -213,20 +273,42 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.bone = parent.bone
 
 		self.template_name = assembly.template_name
+		self.bl_label = assembly.template_name or "Advanced IK Setup"
 
 	def invoke(self, context, event):
+		show_dialog = True
+
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
+		elif self.template_id:
+			result = self._invoke_from_template(context)
+			template = get_ik_template(self.template_id)
+			if template:
+				show_dialog = template.show_dialog
 		else:
 			result = self._invoke_from_selection(context)
 
 		if result == {'CANCELLED'}:
 			return result
 
-		return context.window_manager.invoke_props_dialog(self, width=350)
+		if show_dialog:
+			return context.window_manager.invoke_props_dialog(self, width=350, 
+				title=self.template_name if self.template_name else "Advanced IK Setup"
+			)
+		return self.execute(context)
 
 	##################################################################################################
 	# draw
+	def do_show_field(self, field_name, template):
+		if not template: return True
+		redo_fields = template.redo_fields
+		return field_name in redo_fields
+
+	def do_show_any_field(self, field_names, template):
+		if not template: return True
+		redo_fields = template.redo_fields
+		return any(field in redo_fields for field in field_names)
+	
 	def draw(self, context):
 		layout = self.layout
 		split_size = 0.4
@@ -234,68 +316,98 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		box = layout.box()
 		box.label(text="IK/FK Switch Settings:", icon='SETTINGS')
 
+		template = None
+		if self.template_id:
+			template = get_ik_template(self.template_id)
+
 		col = box.column()
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="Limb Property Base Name:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "limb_property_base_name", text="")
+		if self.do_show_field("limb_property_base_name", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Limb Property Base Name:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "limb_property_base_name", text="")
 
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="Switch Property Type:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "switch_property_type", text="")
+		if self.do_show_field("switch_property_type", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Switch Property Type:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "switch_property_type", text="")
 
-		col.separator()
+		if self.do_show_any_field(["limb_property_base_name", "switch_property_type"], template):
+			layout.separator()
 
-		col = layout.column()
-		col.prop(self, "add_rotation_isolation")
+		if self.do_show_field("add_rotation_isolation", template):
+			col = layout.column()
+			col.prop(self, "add_rotation_isolation")
 
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="FK Widget:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "fk_widget", text="")
+		if self.do_show_field("fk_widget", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="FK Widget:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "fk_widget", text="")
 
-		col.separator()
-		col.prop(self, "add_tweak_bones")
+		if self.do_show_any_field(["add_rotation_isolation", "fk_widget"], template):
+			col.separator()
 
-		if self.add_tweak_bones:
+		if self.do_show_field("add_tweak_bones", template):
+			col.prop(self, "add_tweak_bones")
+
+		if self.add_tweak_bones and self.do_show_field("tweak_relationship", template):
 			split = col.split(align=True, factor=split_size)
 			row = split.row(align=True)
 			row.label(text="Tweak Relationship:", translate=False)
 			row = split.row(align=True)
 			row.prop(self, "tweak_relationship", text="")
 
-		layout.separator()
+		if self.do_show_any_field(["add_tweak_bones", "tweak_relationship"], template):
+			layout.separator()
 		
-		col = layout.column()
-		col.prop(self, "ik_type")
-		box = layout.box()
-		if self.ik_type == 'SPLINE':
-			box.label(text="Spline IK Settings:", icon='CON_SPLINEIK')
-			col = box.column()
-			col.prop(self, "spline_control_count")
+		if self.do_show_field("ik_type", template):
+			col = layout.column()
+			col.prop(self, "ik_type")
 
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Twist Controllers:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "twist_type", text="")
+		if self.do_show_any_field(["spline_control_count", "twist_type", "spline_skip_first", "enable_snapping", "enable_ik_stretch", "pole_distance"], template):
+			box = layout.box()
+			if self.ik_type == 'SPLINE':
+				box.label(text="Spline IK Settings:", icon='CON_SPLINEIK')
+				col = box.column()
 
-			col.prop(self, "spline_skip_first")
-		elif self.ik_type == 'IK':
-			box.label(text="IK Settings:", icon='CON_KINEMATIC')
-			col = box.column()
-			col.prop(self, "enable_snapping")
-			col.prop(self, "enable_ik_stretch")
-			col.prop(self, "pole_distance")
+				if self.do_show_field("spline_control_count", template):
+					col.prop(self, "spline_control_count")
 
-		layout.separator()
-		col = layout.column(align=True)
-		col.prop(self, "ik_parent")
-		if self.ik_parent:
+				if self.do_show_field("twist_type", template):
+					split = col.split(align=True, factor=split_size)
+					row = split.row(align=True)
+					row.label(text="Twist Controllers:", translate=False)
+					row = split.row(align=True)
+					row.prop(self, "twist_type", text="")
+
+				if self.do_show_field("spline_skip_first", template):
+					col.prop(self, "spline_skip_first")
+
+			elif self.ik_type == 'IK':
+				box.label(text="IK Settings:", icon='CON_KINEMATIC')
+				col = box.column()
+
+				if self.do_show_field("enable_snapping", template):
+					col.prop(self, "enable_snapping")
+
+				if self.do_show_field("enable_ik_stretch", template):
+					col.prop(self, "enable_ik_stretch")
+
+				if self.do_show_field("pole_distance", template):
+					col.prop(self, "pole_distance")
+
+		if self.do_show_any_field(["ik_type", "spline_control_count", "twist_type", "spline_skip_first", "enable_snapping", "enable_ik_stretch", "pole_distance"], template):
+			layout.separator()
+		
+		if self.do_show_field("ik_parent", template):
+			col = layout.column(align=True)
+			col.prop(self, "ik_parent")
+		if self.ik_parent and self.do_show_field("ik_parents", template):
 			col = layout.column()
 			box = col.box()
 			box.label(text="IK Parents:", icon='CON_ARMATURE')
@@ -394,6 +506,7 @@ classes = (
 )
 
 def register():
+	validate_ik_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
 
