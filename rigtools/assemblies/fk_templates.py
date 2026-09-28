@@ -12,6 +12,7 @@ class FKTemplate:
 	icon: str
 	options: dict[str, Any]
 	redo_fields: tuple[str, ...] = ()
+	show_dialog: bool = False
 
 
 FK_TEMPLATES = {
@@ -122,7 +123,7 @@ FK_TEMPLATES = {
 			"limb_property_base_name": "",
 			"do_create_fk": False,
 			"skip_first_tweak": False,
-			"fk_widget": "None",
+			"fk_widget": "NONE",
 			"create_rotation_follow_setup": False,
 			"rotation_follow_skip": 1,
 			"rotation_follow_relationship": "COPY_ROTATION",
@@ -139,7 +140,6 @@ FK_TEMPLATES = {
 }
 
 
-# Fields the template redo panel / operator may expose.
 REDO_PROPERTIES = {
 	"limb_property_base_name",
 	"do_create_fk",
@@ -155,11 +155,8 @@ REDO_PROPERTIES = {
 }
 
 
-def get_fk_template(template_id: str) -> FKTemplate:
-	try:
-		return FK_TEMPLATES[template_id]
-	except KeyError:
-		raise ValueError(f"Unknown FK template: '{template_id}'") from None
+def get_fk_template(template_id: str) -> FKTemplate | None:
+	return FK_TEMPLATES.get(template_id)
 
 
 def validate_fk_templates():

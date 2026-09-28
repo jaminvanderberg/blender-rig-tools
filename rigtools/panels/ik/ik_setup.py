@@ -292,9 +292,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return result
 
 		if show_dialog:
-			return context.window_manager.invoke_props_dialog(self, width=350, 
-				title=self.template_name if self.template_name else "Advanced IK Setup"
-			)
+			return context.window_manager.invoke_props_dialog(self, width=350)
 		return self.execute(context)
 
 	##################################################################################################

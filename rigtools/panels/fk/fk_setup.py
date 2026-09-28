@@ -1,20 +1,22 @@
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly
-from rigtools.rig_ui.property_name import guess_limb_name
-from rigtools.utils.widget import fk_widget_types
-from rigtools.preferences import get_preferences
-from rigtools.utils.bone_chain import find_chains_from_selection, find_hierarchy_chains, ChainBranchingError, get_assembly_chains
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
+from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
+from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.armature_settings import get_armature_settings
+from rigtools.preferences import get_preferences
+from rigtools.rig_ui.property_name import guess_limb_name
+from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
+from rigtools.utils.widget import fk_widget_types
 
-###########################################################################################################        
 
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	"""Setup FK/Tweak setup with advanced options"""
 	bl_idname = "rig.advanced_fk_setup"
-	bl_label = "Advanced FK Setup"
+	bl_label = "FK Setup"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	limb_property_base_name: StringProperty(
@@ -30,18 +32,18 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	)
 
 	fk_bone_template: StringProperty(
-		name="FK bone name", 
+		name="FK bone name",
 		description="Template using {name} as a placeholder (e.g., 'FK-{name}' or '{name}_FK'). L/R suffixes will be preserved.",
 		default="FK-{name}"
 	)
-	
-	skip_first_tweak: bpy.props.BoolProperty(
+
+	skip_first_tweak: BoolProperty(
 		name="Skip First Tweak",
 		description="Skip the first tweak bone",
 		default=False
 	)
 
-	fk_widget: bpy.props.EnumProperty(
+	fk_widget: EnumProperty(
 		name="FK Widget",
 		description="Create widgets for the FK bones",
 		items=fk_widget_types,
@@ -60,19 +62,20 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default=False
 	)
 
-	create_rotation_follow_setup: bpy.props.BoolProperty(
+	create_rotation_follow_setup: BoolProperty(
 		name="Create Rotation Follow Setup",
 		description="Create a rotation follow setup along the FK chain.",
 		default=True
 	)
 
-	rotation_follow_skip: bpy.props.IntProperty(
+	rotation_follow_skip: IntProperty(
 		name="Rotation Follow Skip",
 		description="Number of bones to skip before creating a rotation follow setup.",
-		default=1
+		default=1,
+		min=0,
 	)
 
-	rotation_follow_relationship: bpy.props.EnumProperty(
+	rotation_follow_relationship: EnumProperty(
 		name="Rotation Follow Relationship",
 		description="Type of relationship for the rotation follow setup.",
 		items=[
@@ -111,6 +114,13 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	template_id: StringProperty(
+		name="Template ID",
+		description="FK template to apply on invoke",
+		default="",
+		options={'HIDDEN'}
+	)
+
 	template_name: StringProperty(
 		name="Template Name",
 		description="Name of the template to use for the FK/Tweak chain",
@@ -118,14 +128,20 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	@classmethod
+	def description(cls, context, properties):
+		if properties.template_id:
+			template = get_fk_template(properties.template_id)
+			if template:
+				return template.description
+		return "Setup FK/Tweak setup with advanced options"
+
 	##################################################################################################
 	# invoke
 
 	def _invoke_from_selection(self, context):
 		prefs = get_preferences()
-		props = self.properties		
-
-		if not props.is_property_set("fk_bone_template"):
+		if not self.properties.is_property_set("fk_bone_template"):
 			self.fk_bone_template = prefs.fk_template
 
 		try:
@@ -138,9 +154,36 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			self.report({'ERROR'}, "No chains selected.")
 			return {'CANCELLED'}
 
-		limb_name = guess_limb_name(chains[0][0], context)
-		self.limb_property_base_name = limb_name
+		self.limb_property_base_name = guess_limb_name(chains[0][0], context)
 		self.template_name = "Advanced"
+
+	def _invoke_from_template(self, context):
+		template = get_fk_template(self.template_id)
+		if not template:
+			self.report({'ERROR'}, f"Unknown FK template: '{self.template_id}'")
+			return {'CANCELLED'}
+
+		option_values = resolve_template_options(FKAssemblyOptions, template.options)
+		for key, value in option_values.items():
+			setattr(self, key, value)
+
+		if "fk_bone_template" not in template.options:
+			self.fk_bone_template = get_preferences().fk_template
+
+		if not self.limb_property_base_name:
+			try:
+				chains = find_chains_from_selection(context)
+			except ChainBranchingError as error:
+				self.report({'ERROR'}, str(error))
+				return {'CANCELLED'}
+
+			if not chains:
+				self.report({'ERROR'}, "No chains selected.")
+				return {'CANCELLED'}
+
+			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
+
+		self.template_name = template.label
 
 	def _invoke_from_assembly(self, context):
 		assembly = find_assembly(context.object, self.assembly_uid)
@@ -155,78 +198,124 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		self.template_name = assembly.template_name
 
 	def invoke(self, context, event):
+		show_dialog = True
+
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
+		elif self.template_id:
+			result = self._invoke_from_template(context)
+			template = get_fk_template(self.template_id)
+			if template:
+				show_dialog = template.show_dialog
 		else:
 			result = self._invoke_from_selection(context)
-		
+
 		if result == {'CANCELLED'}:
 			return result
 
-		return context.window_manager.invoke_props_dialog(self, width=350)
+		if show_dialog:
+			return context.window_manager.invoke_props_dialog(self, width=350)
+		return self.execute(context)
 
 	##################################################################################################
 	# draw
+
+	def do_show_field(self, field_name, template):
+		if not template:
+			return True
+		return field_name in template.redo_fields
+
+	def do_show_any_field(self, field_names, template):
+		if not template:
+			return True
+		return any(field in template.redo_fields for field in field_names)
+
 	def draw(self, context):
 		layout = self.layout
 		box = layout.box()
 		box.label(text="FK Tweak Chain Settings:", icon='SETTINGS')
 		settings = get_armature_settings(context.object.data, context)
 
+		template = get_fk_template(self.template_id) if self.template_id else None
 		split_size = 0.4
 
 		col = box.column()
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="Limb Property Base Name:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "limb_property_base_name", text="")
+		if self.do_show_field("limb_property_base_name", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Limb Property Base Name:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "limb_property_base_name", text="")
 
-		col.prop(self, "do_create_fk")
+		if self.do_show_field("do_create_fk", template):
+			col.prop(self, "do_create_fk")
+
 		if self.do_create_fk:
-			if settings.do_create_widgets:
+			if settings.do_create_widgets and self.do_show_field("fk_widget", template):
 				split = col.split(align=True, factor=split_size)
 				row = split.row(align=True)
 				row.label(text="FK Widget:", translate=False)
 				row = split.row(align=True)
-				row.prop(self, "fk_widget", text="")	
+				row.prop(self, "fk_widget", text="")
+
+			if self.do_show_field("fk_bone_template", template):
+				split = col.split(align=True, factor=split_size)
+				row = split.row(align=True)
+				row.label(text="FK Bone Template:", translate=False)
+				row = split.row(align=True)
+				row.prop(self, "fk_bone_template", text="")
+
+		if self.do_show_any_field(
+			["limb_property_base_name", "do_create_fk", "fk_widget", "fk_bone_template"],
+			template,
+		):
+			col.separator()
+
+		col = box.column(align=True)
+		if self.do_show_field("tweak_relationship", template):
 			split = col.split(align=True, factor=split_size)
 			row = split.row(align=True)
-			row.label(text="FK Bone Template:", translate=False)
+			row.label(text="Tweak Relationship:", translate=False)
 			row = split.row(align=True)
-			row.prop(self, "fk_bone_template", text="")
+			row.prop(self, "tweak_relationship", text="")
 
-		col.separator()
-		col = box.column(align=True)
-		split = col.split(align=True, factor=split_size)
-		row = split.row(align=True)
-		row.label(text="Tweak Relationship:", translate=False)
-		row = split.row(align=True)
-		row.prop(self, "tweak_relationship", text="")
-		col.prop(self, "skip_first_tweak")
+		if self.do_show_field("skip_first_tweak", template):
+			col.prop(self, "skip_first_tweak")
 
-		if self.do_create_fk:
-			layout.separator()
-			col = layout.column()
+		if self.do_show_field("override_collections", template):
+			col.prop(self, "override_collections")
+
+		col = layout.column()
+		if self.do_show_field("add_rotation_isolation", template):
 			col.prop(self, "add_rotation_isolation")
+		if self.do_show_field("create_rotation_follow_setup", template):
 			col.prop(self, "create_rotation_follow_setup")
-			if self.create_rotation_follow_setup:
-				box = layout.box()
-				box.label(text="Rotation Follow Setup:", icon='CONSTRAINT')
-				col = box.column()
+		if self.create_rotation_follow_setup and self.do_show_any_field(
+			["rotation_follow_skip", "rotation_follow_relationship"],
+			template,
+		):
+			box = layout.box()
+			box.label(text="Rotation Follow Setup:", icon='CONSTRAINT')
+			col = box.column()
+			if self.do_show_field("rotation_follow_skip", template):
 				col.prop(self, "rotation_follow_skip")
+			if self.do_show_field("rotation_follow_relationship", template):
 				col.prop(self, "rotation_follow_relationship")
 
 	##################################################################################################
 	# execute
-	
+
 	def execute(self, context):
 		if self.add_rotation_isolation and not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
 			return {'CANCELLED'}
 
 		try:
-			chains, original_mode = get_assembly_chains(context, self.assembly_uid, check_property_bone=self.add_rotation_isolation)
+			chains, original_mode = get_assembly_chains(
+				context,
+				self.assembly_uid,
+				check_property_bone=self.add_rotation_isolation,
+			)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			return {'CANCELLED'}
@@ -262,23 +351,28 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
 		return {'FINISHED'}
 
-##################################################################################################
-# registration
+
 classes = (
 	RIG_OT_advanced_fk_tweak_setup,
 )
 
+
 def register():
+	validate_fk_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
+
+
 def unregister():
 	for cls in classes:
 		bpy.utils.unregister_class(cls)
+
+
 if __name__ == "__main__":
 	try:
 		unregister()
 	except Exception:
 		pass
 	register()
-	
-	bpy.ops.rig.advanced_fk_tweak_setup('INVOKE_DEFAULT')
+
+	bpy.ops.rig.advanced_fk_setup('INVOKE_DEFAULT')
