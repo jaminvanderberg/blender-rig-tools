@@ -19,6 +19,7 @@ from rigtools import create_rotation_isolation
 from rigtools import preferences
 from rigtools import preferences_io
 from rigtools import armature_settings
+from rigtools import twist_bones
 from rigtools import rename_chain
 from rigtools import parent_along_chain
 from rigtools import find_dependents
@@ -50,6 +51,7 @@ addon_keymaps = []
 def register():
 
 	armature_settings.register()
+	twist_bones.register()
 	selection_panel.register()
 
 	assembly_data.register()
@@ -115,6 +117,7 @@ def unregister():
 	weight_paint_proxy.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()
+	twist_bones.unregister()
 	armature_settings.unregister()
 
 	assembly_panel.unregister()

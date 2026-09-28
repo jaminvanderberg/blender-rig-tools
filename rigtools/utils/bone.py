@@ -1,3 +1,4 @@
+import string
 import bpy
 import re
 from rigtools.preferences import get_separators, get_strip_tags
@@ -21,6 +22,27 @@ def get_base_name(bone_name) -> tuple[str, str]:
 		extension = ""
 
 	return base_name, extension
+
+
+def flip_side_name(bone_name):
+	"""Return the L/R flipped bone name, or None if there is no side suffix."""
+	base_name, extension = get_base_name(bone_name)
+	if not extension:
+		return None
+	flipped = extension.replace('L', '\0').replace('R', 'L').replace('\0', 'R')
+	flipped = flipped.replace('l', '\0').replace('r', 'l').replace('\0', 'r')
+	if flipped == extension:
+		return None
+	return base_name + flipped
+
+
+def same_side_names(name_a, name_b):
+	"""True if both lack a side, or both are L, or both are R."""
+	_, side_a = get_base_name(name_a)
+	_, side_b = get_base_name(name_b)
+	if not side_a or not side_b:
+		return True
+	return ('L' in side_a.upper()) == ('L' in side_b.upper())
 
 def bone_name_matches(bone_name, prefix, suffix):
 	base_name, extension = get_base_name(bone_name)
@@ -69,7 +91,7 @@ def strip_bone_tags(base_name, context=None):
 				break
 	return base_name
 
-def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False):
+def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False, index=None):
 	name = org_name
 	base_name, extension = get_base_name(name)
 
@@ -90,8 +112,14 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False)
 			# empty string template will just return the same bone name,
 			# which is probably fine
 			template = f"{template}{{name}}"
+
+	kwargs = {"name": base_name}
+	if index:
+		kwargs["i"] = index
+		kwargs["a"] = string.ascii_lowercase[index - 1]
+		kwargs["A"] = string.ascii_uppercase[index - 1]
 			
-	formatted_base = template.format(name=base_name)
+	formatted_base = template.format(**kwargs)
 	
 	return f"{formatted_base}{extension}"
 
@@ -118,6 +146,38 @@ def duplicate_bone(armature_data, bone, name, scale):
 		coll.assign(new_bone)
 
 	return new_bone
+
+
+def duplicate_bone_subdivided(context, org_bone, count, name_template):
+	"""Duplicate a bone and subdivide it into count bones.
+	New bones are created in the same bone collection as the original bone.
+
+	Returns a list of the new bone names in chain order.
+	"""
+	obj = context.object
+
+	direction = (org_bone.tail - org_bone.head).normalized()
+	twist_length = org_bone.length / count
+
+	twist_bones = []
+	parent = org_bone
+	for i in range(count):
+		name = generate_bone_name(org_bone.name, name_template, index=i+1)
+		bone = obj.data.edit_bones.new(name)
+		bone.head = org_bone.head + direction * i * twist_length
+		bone.tail = bone.head + direction * twist_length
+		bone.length = twist_length
+		bone.parent = parent
+		bone.roll = parent.roll
+
+		for coll in parent.collections:
+			coll.assign(bone)
+
+		parent = bone
+
+		twist_bones.append(bone.name)
+
+	return twist_bones	
 
 def set_bone_collection(armature_data, bone, collection_name):
 	if not collection_name:

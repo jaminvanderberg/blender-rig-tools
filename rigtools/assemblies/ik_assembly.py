@@ -3,6 +3,7 @@ from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.rig_ui.property_name import guess_assembly_name
+from rigtools.tool.twist_bones import TwistBones, TwistSegment
 from rigtools.utils.bone import find_side
 from rigtools.utils.bone_collection import generate_bone_collection_name
 from rigtools.utils.property import generate_property_name
@@ -32,10 +33,16 @@ class IKAssemblyOptions:
 	tweak_relationship: str = 'STRETCH_TO' # 'STRETCH_TO' or 'DAMPED_TRACK'
 	fk_widget: str = 'FK' # 'widget.fk_widget_types
 	enable_snapping: bool = True
+
 	ik_parent: bool = True
 	ik_parents: List[IKParentTarget] = field(default_factory=list)
 	add_ik_control_as_pole_parent: bool = False
 	ik_parent_self_parent_label: str = 'Self'
+
+	use_twist_bones: bool = False
+	twist_segments: List[TwistSegment] = field(default_factory=list)
+	twist_bone_count: int = 4
+
 
 def create_ik_assembly(context, chains, template_name, options: IKAssemblyOptions):
 	"""find_side() throws an error if the side is not the same for all bones in the chain"""
@@ -108,6 +115,16 @@ def create_ik_assembly(context, chains, template_name, options: IKAssemblyOption
 
 		# IK
 		if options.ik_type == 'IK':
+			if options.use_twist_bones:
+				twist_bones = TwistBones(
+					segments = options.twist_segments,
+					twist_bone_count = options.twist_bone_count,
+					tweak_collection_name = tweak_collection_name if options.override_collections else None,
+					tweak_relationship = options.tweak_relationship,
+				)
+				twist_bones.edit_mode(context, org_chain, fk_ik_switch.switch_bone_names)
+				assembly_chain.tools.append(twist_bones)
+
 			ik = StandardIK(
 				enable_ik_stretch = options.enable_ik_stretch,
 				pole_distance = options.pole_distance,

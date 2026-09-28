@@ -37,6 +37,12 @@ IK_TEMPLATES = {
 			"enable_snapping": True,
 			"ik_parent": True,
 			"ik_parents": ("root", "torso", "hips", "chest", "head"),
+			"use_twist_bones": True,
+			"twist_segments": [
+				{"index": 0, "source": 'SELF', "falloff": 'ROOT'},
+				{"index": 1, "source": 'CHILD', "falloff": 'LINEAR'},
+			],
+			"twist_bone_count": 4,
 		},
 		redo_fields=(
 			"add_tweak_bones",
@@ -44,6 +50,8 @@ IK_TEMPLATES = {
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",
+			"use_twist_bones",
+			"twist_bone_count",
 		),
 	),
 	"leg": IKTemplate(
@@ -65,6 +73,12 @@ IK_TEMPLATES = {
 			"ik_parent": True,
 			"ik_parents": ("root", "torso", "self"),
 			"ik_parent_self_parent_label": "Foot",
+			"use_twist_bones": True,
+			"twist_segments": [
+				{"index": 0, "source": 'SELF', "falloff": 'SHARP'},
+				{"index": 1, "source": 'NONE'},
+			],
+			"twist_bone_count": 4,
 		},
 		redo_fields=(
 			"add_tweak_bones",
@@ -72,6 +86,8 @@ IK_TEMPLATES = {
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",
+			"use_twist_bones",
+			"twist_bone_count",
 		),
 	),
 	"skirt.spline": IKTemplate(

@@ -103,6 +103,11 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for the IK MCH bones.",
 		default="MCH-IK-{name}"
 	)
+	twist_template: StringProperty(
+		name="Twist Bone",
+		description="Template for the twist bone.",
+		default="ORG-{name}.{i}"
+	)
 	fk_ik_snap_template: StringProperty(
 		name="IK > FK Snap Bone",
 		description="Template for the IK > FK snapping bones. Note: will be combined with the IK and pole templates.",
@@ -302,6 +307,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "ik_pole_vis_template")
 		box.prop(self, "mch_template")
 		box.prop(self, "ik_mch_template")
+		box.prop(self, "twist_template")
 		box.prop(self, "fk_ik_snap_template")
 		box.prop(self, "ik_parent_template")
 		box.prop(self, "ik_spline_template")
