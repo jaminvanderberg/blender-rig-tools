@@ -6,8 +6,8 @@ import bpy
 
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
-from rigtools.twist_bones import get_twist_chain, set_twist_parent
-from rigtools.utils.bone import duplicate_bone_subdivided
+from rigtools.twist_bones import get_twist_chain, set_twist_parent, prune_twist_map
+from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_bone_name
 
 def _linear(t):  return 1.0 - t
 def _smooth(t): return 1.0 - (3.0 * t*t - 2.0 * t*t*t)
@@ -24,11 +24,11 @@ FALLOFF = {
 }
 
 falloff_presets = [
-	('LINEAR', "Linear", "Linear falloff"),
-	('SMOOTH', "Smooth", "Smooth falloff"),
-	('ROUND', "Round", "Round falloff"),
-	('ROOT', "Root", "Root falloff"),
-	('SHARP', "Sharp", "Sharp falloff"),
+	('LINEAR', "Linear", "Linear falloff", 'IPO_LINEAR', 0),
+	('SMOOTH', "Smooth", "Smooth falloff", 'SMOOTHCURVE', 1),
+	('ROUND', "Round", "Round falloff", 'SPHERECURVE', 2),
+	('ROOT', "Root", "Root falloff", 'ROOTCURVE', 3),
+	('SHARP', "Sharp", "Sharp falloff", 'SHARPCURVE', 4),
 ]
 
 twist_source_types = [
@@ -49,6 +49,7 @@ class TwistSegment:
 	index: int
 	source: str
 	falloff: str = 'LINEAR'
+	name: str = ''
 
 def consecutive_index_groups(indexes):
 	indexes = sorted(indexes)
@@ -64,6 +65,7 @@ class TwistBones:
 	def __init__(self, *,
 		segments: List[TwistSegment],
 		twist_bone_count: int,
+		twist_parent_name: str = "",
 		tweak_collection_name: str = "",
 		tweak_relationship: str = 'STRETCH_TO'
 	):
@@ -74,6 +76,7 @@ class TwistBones:
 		self.twist_bone_count = twist_bone_count
 		self.tweak_collection_name = tweak_collection_name
 		self.tweak_relationship = tweak_relationship
+		self.twist_parent_name = twist_parent_name
 
 		self.driver_bone_names = None
 
@@ -83,6 +86,8 @@ class TwistBones:
 
 		self.twist_bones = {}
 		self.tweak_chains = []
+		self.isolator_names = {}
+		self.twist_states = []
 
 	def edit_mode(self, context, org_bone_names, driver_bone_names):
 		obj = context.object
@@ -93,6 +98,8 @@ class TwistBones:
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
+
+		prune_twist_map(obj.data, use_edit_bones=True)
 
 		self.twist_bones = {}
 		for segment in self.segments:
@@ -113,6 +120,32 @@ class TwistBones:
 				)
 
 			self.twist_bones[segment.index] = twist_names
+
+			for twist_name in twist_names:
+				b = edit_bones[twist_name]
+				self.twist_states.append({
+					"name": b.name,
+					"parent": b.parent.name if b.parent else "",
+					"use_connect": b.use_connect
+				})
+
+			# Isolate twist for self-parented segments
+			if segment.source != 'SELF': continue
+			switch_bone = edit_bones[driver_bone_names[segment.index]]
+
+			isolator_name = generate_bone_name(org_bone.name, prefs.twist_isolator_template)
+			isolator = duplicate_bone(obj.data, switch_bone, isolator_name, scale=0.31)
+			isolator.parent = (
+				edit_bones[self.twist_parent_name] if segment.index == 0 and self.twist_parent_name
+				else switch_bone.parent
+			)
+
+			# Parent the first BIG tweak bone (org parent) to the isolator
+			first_tweak = org_bone.parent
+			first_tweak.parent = isolator
+
+			self.isolator_names[segment.index] = isolator.name
+			self.mechanism_bone_names.append(isolator.name)
 
 		n = self.twist_bone_count
 		for group in consecutive_index_groups(self.twist_bones.keys()):
@@ -138,8 +171,18 @@ class TwistBones:
 					tweak_bone = edit_bones[tweak_bone_name]
 					tweak_bone.parent = parent_bone
 
-			# Tip tweak follows the last segment's org bone
-			edit_bones[tweak.terminal_tweak_name].parent = edit_bones[org_bone_names[group[-1]]]
+			# Set the proper parent for the terminal tweak bone
+			last_idx = group[-1]
+			next_idx = last_idx + 1
+			if next_idx < len(org_bone_names):
+				next_org = edit_bones[org_bone_names[next_idx]] # hand/foot, etc.
+				big_tweak = next_org.parent
+				tiny_tip = edit_bones[tweak.terminal_tweak_name]
+				tiny_tip.parent = big_tweak
+				next_org.parent = tiny_tip
+			else:
+				# parent to the last org bone
+				edit_bones[tweak.terminal_tweak_name].parent = edit_bones[org_bone_names[group[-1]]]
 
 			self.mechanism_bone_names.extend(tweak.mechanism_bone_names)
 			self.property_names.extend(tweak.property_names)
@@ -152,6 +195,20 @@ class TwistBones:
 			self.object_names.extend(tweak.object_names)
 
 		pose_bones = context.object.pose.bones
+
+		# Twist isolators
+		for index, isolator_name in self.isolator_names.items():
+			isolator = pose_bones[isolator_name]
+			switch_name = self.driver_bone_names[index]
+
+			loc = isolator.constraints.new('COPY_LOCATION')
+			loc.target = context.object
+			loc.subtarget = switch_name
+
+			track = isolator.constraints.new('DAMPED_TRACK')
+			track.target = context.object
+			track.subtarget = switch_name
+			track.head_tail = 1.0 # Aim at tail of switch bone
 
 		# Rotation falloff
 		for segment in self.segments:

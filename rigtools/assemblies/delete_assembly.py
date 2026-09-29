@@ -26,7 +26,9 @@ def delete_assembly(context, assembly_uid):
 		if other_assembly.uid == assembly_uid:
 			continue
 		protected_names = {b.name for b in other_assembly.org_states}
+		protected_names.update(b.name for b in other_assembly.twist_states)
 		protected_names.update(b.parent for b in other_assembly.org_states)
+		protected_names.update(b.parent for b in other_assembly.twist_states)
 		protected_names.update(b.name for b in other_assembly.mechanism_bones)
 		protected_names.update(b.name for b in other_assembly.org_children)
 		protected_names.update(b.parent for b in other_assembly.org_children)
@@ -71,9 +73,16 @@ def delete_assembly(context, assembly_uid):
 				if sub in owned_names:
 					bone.constraints.remove(c)
 
+		# Remove all constraints from twist bones
+		for twist_state in assembly.twist_states:
+			bone = obj.pose.bones.get(twist_state.name)
+			if not bone: continue
+			for c in list(bone.constraints):
+				bone.constraints.remove(c)
+
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
-
+	
 		# Reparent the original bones
 		for org_child in (assembly.org_children):
 			bone = obj.data.edit_bones.get(org_child.name)
@@ -84,6 +93,15 @@ def delete_assembly(context, assembly_uid):
 				continue # don't clear parent if bone can't be found
 			bone.parent = parent
 			bone.use_connect = org_child.use_connect
+
+		for twist_state in assembly.twist_states:
+			bone = obj.data.edit_bones.get(twist_state.name)
+			if not bone: continue
+			parent = obj.data.edit_bones.get(twist_state.parent) if twist_state.parent else None
+			if not parent and twist_state.parent:
+				continue # don't clear parent if bone can't be found
+			bone.parent = parent
+			bone.use_connect = twist_state.use_connect
 		
 		for org_state in reversed(assembly.org_states):
 			bone = obj.data.edit_bones.get(org_state.name)

@@ -23,6 +23,7 @@ class IKAssemblyOptions:
 	add_tweak_bones: bool
 	switch_property_type: str
 	add_rotation_isolation: bool = True
+	inherit_scale_from_root: bool = False
 	override_collections: bool = True
 	ik_type: str = 'IK' # 'IK' or 'SPLINE'
 	enable_ik_stretch: bool = True
@@ -50,136 +51,152 @@ def create_ik_assembly(context, chains, template_name, options: IKAssemblyOption
 	prefs = get_preferences()
 	
 	armature_data = context.object.data
+	original_mirror = armature_data.use_mirror_x
+	armature_data.use_mirror_x = False
 
 	assemblies = []
-	##############
-	# Edit mode
-	##############
-	for chain in chains:
+	tip_controls = []
+	try:
+		##############
+		# Edit mode
+		##############
+		for chain in chains:
 
-		org_chain = chain
-		side = find_side(chain)
+			org_chain = chain
+			side = find_side(chain)
 
-		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_name, options)
-		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
-		assemblies.append(assembly_chain)
+			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_name, options)
+			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+			assemblies.append(assembly_chain)
 
-		ik_collection_name = generate_bone_collection_name(prefs.ik_collection_template, options.limb_property_base_name, side)
-		tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
-		fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
-		mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
+			ik_collection_name = generate_bone_collection_name(prefs.ik_collection_template, options.limb_property_base_name, side)
+			tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
+			fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
+			mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
 
-		# TWEAK CHAIN
-		if options.add_tweak_bones:
-			tweak_chain = FKTweakChain(
-				tweak_relationship = options.tweak_relationship,
-				tweak_collection_name = tweak_collection_name if options.override_collections else None,
-				fk_collection_name = mch_collection_name if options.override_collections else None,
-
-				# Hard-coded options
-				fk_bone_template = prefs.switch_template,
-				fk_widget = "NONE",  # this is an intermediate chain, no widget
-				skip_first_tweak = False,
-				do_create_fk = True,
-			)
-			tweak_chain.edit_mode(armature_data, chain)
-			chain = tweak_chain.fk_bone_names
-			assembly_chain.tools.append(tweak_chain)
-
-		# FK/IK SWITCH
-		switch_property_name = generate_property_name(prefs.fk_ik_switch_property_template, options.limb_property_base_name, side)
-		fk_ik_switch = FKIKSwitch(
-			switch_property_name = switch_property_name,
-			switch_property_type = options.switch_property_type,
-			fk_widget_type = options.fk_widget,
-			fk_collection_name = fk_collection_name if options.override_collections else None,
-			mch_collection_name = mch_collection_name if options.override_collections else None,
-		)
-		fk_ik_switch.edit_mode(context, chain, name_source = org_chain)
-		fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names
-		assembly_chain.tools.append(fk_ik_switch)
-
-		# ROTATION ISOLATION
-		if options.add_rotation_isolation:
-			rotation_isolation = RotationIsolation(
-				property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side),
-				mch_collection_name = mch_collection_name if options.override_collections else None,
-
-				# Hard-coded options
-				include_scale = True,
-				disable_scale = False,
-			)
-			rotation_isolation.edit_mode(context, armature_data, [fk_bone_names[0]])
-			assembly_chain.tools.append(rotation_isolation)
-
-		# IK
-		if options.ik_type == 'IK':
-			if options.use_twist_bones:
-				twist_bones = TwistBones(
-					segments = options.twist_segments,
-					twist_bone_count = options.twist_bone_count,
-					tweak_collection_name = tweak_collection_name if options.override_collections else None,
+			# TWEAK CHAIN
+			if options.add_tweak_bones:
+				tweak_chain = FKTweakChain(
 					tweak_relationship = options.tweak_relationship,
+					tweak_collection_name = tweak_collection_name if options.override_collections else None,
+					fk_collection_name = mch_collection_name if options.override_collections else None,
+
+					# Hard-coded options
+					fk_bone_template = prefs.switch_template,
+					fk_widget = "NONE",  # this is an intermediate chain, no widget
+					skip_first_tweak = False,
+					do_create_fk = True,
 				)
-				twist_bones.edit_mode(context, org_chain, fk_ik_switch.switch_bone_names)
-				assembly_chain.tools.append(twist_bones)
+				tweak_chain.edit_mode(armature_data, chain)
+				chain = tweak_chain.fk_bone_names
+				assembly_chain.tools.append(tweak_chain)
 
-			ik = StandardIK(
-				enable_ik_stretch = options.enable_ik_stretch,
-				pole_distance = options.pole_distance,
-				ik_collection_name = ik_collection_name if options.override_collections else None,
-				enable_snapping = options.enable_snapping,
+			# FK/IK SWITCH
+			switch_property_name = generate_property_name(prefs.fk_ik_switch_property_template, options.limb_property_base_name, side)
+			fk_ik_switch = FKIKSwitch(
+				switch_property_name = switch_property_name,
+				switch_property_type = options.switch_property_type,
+				fk_widget_type = options.fk_widget,
+				fk_collection_name = fk_collection_name if options.override_collections else None,
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)
-			ik.edit_mode(context, ik_bone_names, fk_bone_names, name_source=org_chain)
-			assembly_chain.tools.append(ik)
+			fk_ik_switch.edit_mode(context, chain, name_source = org_chain)
+			fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names
+			assembly_chain.tools.append(fk_ik_switch)
 
-			if options.enable_snapping:
-				ik.register_snap_chain(context, switch_property_name)
-		# SPLINE IK
-		elif options.ik_type == 'SPLINE':
-			spline_ik = SplineIK(
-				control_count = options.spline_control_count,
-				skip_first = options.spline_skip_first,
-				ik_collection_name = ik_collection_name if options.override_collections else None,
-				twist_type = options.twist_type,
-			)
-			spline_ik.edit_mode(context, ik_bone_names, name_source=org_chain)
-			assembly_chain.tools.append(spline_ik)
+			# ROTATION ISOLATION
+			if options.add_rotation_isolation:
+				rotation_isolation = RotationIsolation(
+					property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side),
+					mch_collection_name = mch_collection_name if options.override_collections else None,
+					inherit_scale_from_root = options.inherit_scale_from_root,
 
-		# IK PARENT
-		if options.ik_parent:
-			ik_parent = IKParent(
-				property_name = generate_property_name(prefs.ik_parent_property_template, options.limb_property_base_name, side),
-				parents = options.ik_parents,
-				self_parent_label = options.ik_parent_self_parent_label,
-				mch_collection_name = mch_collection_name if options.override_collections else None,
-				add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,
-			)
+					# Hard-coded options
+					include_scale = True,
+					disable_scale = False,
+				)
+				rotation_isolation.edit_mode(context, armature_data, [fk_bone_names[0]])
+				assembly_chain.tools.append(rotation_isolation)
+				twist_parent_name = rotation_isolation.created_bones[0][0] # SOCKET
+			else:
+				twist_parent_name = None # will inherit ORG parent
+
+			# IK
 			if options.ik_type == 'IK':
-				bones_to_parent = [ik.ik_control_name, ik.pole_name]
-				self_target = ik.ik_control_name
-			else: #SPLINE
-				bones_to_parent = spline_ik.control_names
-				self_target = spline_ik.control_names[0]
-			ik_parent.edit_mode(context, bones_to_parent, self_target)
-			assembly_chain.tools.append(ik_parent)
+				if options.use_twist_bones:
+					twist_bones = TwistBones(
+						segments = options.twist_segments,
+						twist_bone_count = options.twist_bone_count,
+						twist_parent_name = twist_parent_name,
+						tweak_collection_name = tweak_collection_name if options.override_collections else None,
+						tweak_relationship = options.tweak_relationship,
+					)
+					twist_bones.edit_mode(context, org_chain, fk_ik_switch.switch_bone_names)
+					assembly_chain.tools.append(twist_bones)
 
-	##############
-	# Object mode
-	##############
-	for assembly_chain in assemblies:
-		for tool in assembly_chain.tools:
-			object_mode = getattr(tool, 'object_mode', None)
-			if callable(object_mode):
-				object_mode(context)
+				ik = StandardIK(
+					enable_ik_stretch = options.enable_ik_stretch,
+					pole_distance = options.pole_distance,
+					ik_collection_name = ik_collection_name if options.override_collections else None,
+					enable_snapping = options.enable_snapping,
+					mch_collection_name = mch_collection_name if options.override_collections else None,
+				)
+				tweak_bone_names = tweak_chain.tweak_bone_names if options.add_tweak_bones else None
+				ik.edit_mode(context, ik_bone_names, fk_bone_names, tweak_bone_names, name_source=org_chain)
+				assembly_chain.tools.append(ik)
+				tip_controls.append(ik.ik_control_name)
 
-	##############
-	# Pose mode
-	##############
-	for assembly_chain in assemblies:
-		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
-		for tool in assembly_chain.tools:
-			tool.pose_mode(context)
-			assembly.apply_tool(tool)
+				if options.enable_snapping:
+					ik.register_snap_chain(context, switch_property_name)
+			# SPLINE IK
+			elif options.ik_type == 'SPLINE':
+				spline_ik = SplineIK(
+					control_count = options.spline_control_count,
+					skip_first = options.spline_skip_first,
+					ik_collection_name = ik_collection_name if options.override_collections else None,
+					twist_type = options.twist_type,
+				)
+				spline_ik.edit_mode(context, ik_bone_names, name_source=org_chain)
+				assembly_chain.tools.append(spline_ik)
+				tip_controls.append(spline_ik.control_names[-1])
+
+			# IK PARENT
+			if options.ik_parent:
+				ik_parent = IKParent(
+					property_name = generate_property_name(prefs.ik_parent_property_template, options.limb_property_base_name, side),
+					parents = options.ik_parents,
+					self_parent_label = options.ik_parent_self_parent_label,
+					mch_collection_name = mch_collection_name if options.override_collections else None,
+					add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,
+				)
+				if options.ik_type == 'IK':
+					bones_to_parent = [ik.ik_control_name, ik.pole_name]
+					self_target = ik.ik_control_name
+				else: #SPLINE
+					bones_to_parent = spline_ik.control_names
+					self_target = spline_ik.control_names[0]
+				ik_parent.edit_mode(context, bones_to_parent, self_target)
+				assembly_chain.tools.append(ik_parent)
+
+		##############
+		# Object mode
+		##############
+		for assembly_chain in assemblies:
+			for tool in assembly_chain.tools:
+				object_mode = getattr(tool, 'object_mode', None)
+				if callable(object_mode):
+					object_mode(context)
+
+		##############
+		# Pose mode
+		##############
+		for assembly_chain in assemblies:
+			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+			for tool in assembly_chain.tools:
+				tool.pose_mode(context)
+				assembly.apply_tool(tool)
+	finally:
+		armature_data.use_mirror_x = original_mirror
+
+	return tip_controls

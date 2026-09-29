@@ -17,12 +17,14 @@ from rigtools.tool.ik_parent import IKParentTarget
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
 from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
 from rigtools.assemblies.assembly_data import find_assembly
+from rigtools.utils.bone import select_bones
 
 class IKParentSlot(bpy.types.PropertyGroup):
 	label: bpy.props.StringProperty(name="Label", default="")
 	bone: bpy.props.StringProperty(name="Bone", default="")
 
 class TwistSegmentSlot(bpy.types.PropertyGroup):
+	name: StringProperty(name="Name", default="")
 	index: IntProperty(name="Bone Index", default=0, min=0)
 	source: EnumProperty(name="Source", items=twist_source_types, default='SELF')
 	falloff: EnumProperty(name="Falloff", items=falloff_presets, default='LINEAR')
@@ -60,7 +62,7 @@ class RIG_OT_remove_twist_segment(bpy.types.Operator):
 class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	"""Create a FK/IK switching setup with advanced options."""
 	bl_idname = "rig.advanced_ik_setup"
-	bl_label = "IK Setup"
+	bl_label = "Geenrate IK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 	bl_property = "limb_property_base_name"
 
@@ -184,6 +186,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=True
 	)
 
+	inherit_scale_from_root: BoolProperty(
+		name="Inherit Scale From Root",
+		description="Socket inherits scale from the root bone instead of its parent.",
+		default=False
+	)
+
 	use_twist_bones: BoolProperty(
 		name="Twist Bones",
 		description="Create deform twist bones along limb segments",
@@ -300,6 +308,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		wm.rig_twist_segments.clear()
 		for segment in resolve_twist_segments(twist_segments_raw):
 			slot = wm.rig_twist_segments.add()
+			slot.name = segment.name
 			slot.index = segment.index
 			slot.source = segment.source
 			slot.falloff = segment.falloff
@@ -328,6 +337,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		wm.rig_twist_segments.clear()
 		for segment in resolve_twist_segments(twist_segments_raw):
 			slot = wm.rig_twist_segments.add()
+			slot.name = segment.name
 			slot.index = segment.index
 			slot.source = segment.source
 			slot.falloff = segment.falloff
@@ -399,6 +409,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		if self.do_show_field("add_rotation_isolation", template):
 			col = layout.column()
 			col.prop(self, "add_rotation_isolation")
+			if self.add_rotation_isolation and self.do_show_field("inherit_scale_from_root", template):
+				col.prop(self, "inherit_scale_from_root")
 
 		if self.do_show_field("fk_widget", template):
 			split = col.split(align=True, factor=split_size)
@@ -407,7 +419,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			row = split.row(align=True)
 			row.prop(self, "fk_widget", text="")
 
-		if self.do_show_any_field(["add_rotation_isolation", "fk_widget"], template):
+		if self.do_show_any_field(["add_rotation_isolation", "inherit_scale_from_root", "fk_widget"], template):
 			col.separator()
 
 		if self.do_show_field("add_tweak_bones", template):
@@ -510,13 +522,19 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 					segments = context.window_manager.rig_twist_segments
 					seg_col = box.column(align=True)
 					header = seg_col.row(align=True)
-					header.label(text="Index")
+					header.label(text="Name")
+					idx_header = header.row(align=True)
+					idx_header.ui_units_x = 2.5
+					idx_header.label(text="Index")
 					header.label(text="Source")
 					header.label(text="Falloff")
 					header.label(text="", icon='BLANK1')
 					for i, segment in enumerate(segments):
 						row = seg_col.row(align=True)
-						row.prop(segment, "index", text="")
+						row.prop(segment, "name", text="")
+						idx = row.row(align=True)
+						idx.ui_units_x = 2.5
+						idx.prop(segment, "index", text="")
 						row.prop(segment, "source", text="")
 						sub = row.row(align=True)
 						sub.enabled = segment.source != 'NONE'
@@ -536,7 +554,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		try:
-			chains, original_mode = get_assembly_chains(context, self.assembly_uid)
+			chains, original_mode, original_mirror = get_assembly_chains(context, self.assembly_uid)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			self.assembly_uid = ""
@@ -547,6 +565,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				self.report({'ERROR'}, "All chains must have at least 2 bones.")
 				bpy.ops.object.mode_set(mode=original_mode)
 				self.assembly_uid = ""
+				context.object.data.use_mirror_x = original_mirror
 				return {'CANCELLED'}
 
 		if self.assembly_uid:
@@ -558,6 +577,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			add_tweak_bones=self.add_tweak_bones,
 			switch_property_type=self.switch_property_type,
 			add_rotation_isolation=self.add_rotation_isolation,
+			inherit_scale_from_root=self.inherit_scale_from_root,
 			override_collections=self.override_collections,
 			ik_type=self.ik_type,
 			enable_ik_stretch=self.enable_ik_stretch,
@@ -580,22 +600,34 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			twist_bone_count=self.twist_bone_count,
 			twist_segments=resolve_twist_segments(
 				[
-					{"index": s.index, "source": s.source, "falloff": s.falloff}
+					{
+						"name": s.name,
+						"index": s.index,
+						"source": s.source,
+						"falloff": s.falloff,
+					}
 					for s in context.window_manager.rig_twist_segments
 				]
 			) if self.use_twist_bones else [],
 		)
 
 		try:
-			create_ik_assembly(context, chains, self.template_name, options)
+			tip_controls = create_ik_assembly(context, chains, self.template_name, options)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
+			context.object.data.use_mirror_x = original_mirror
 			return {'CANCELLED'}
 
 		# If everything succeeds, we leave it in Pose mode so the user can see the result
+		if tip_controls:
+			if context.object.mode != 'POSE':
+				bpy.ops.object.mode_set(mode='POSE')
+			bpy.ops.pose.select_all(action='DESELECT')
+			select_bones(context.object, tip_controls)
 
 		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
+		context.object.data.use_mirror_x = original_mirror
 		return {'FINISHED'}
 
 ##################################################################################################

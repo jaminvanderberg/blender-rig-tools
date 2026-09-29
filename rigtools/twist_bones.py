@@ -20,12 +20,32 @@ def _write_twist_map(armature, mapping):
 	armature[TWIST_MAP_KEY] = mapping
 
 
+def _bone_collection(armature, use_edit_bones=False):
+	return armature.edit_bones if use_edit_bones else armature.bones
+
+
+def _live_twist_map(armature, *, use_edit_bones=False):
+	"""Map entries whose twist bones still exist. Draw-safe (no ID writes)."""
+	coll = _bone_collection(armature, use_edit_bones)
+	return {name: parent for name, parent in _twist_map(armature).items() if name in coll}
+
+
+def prune_twist_map(armature, *, use_edit_bones=False):
+	"""Persist a cleaned map by dropping entries for deleted twist bones."""
+	mapping = _twist_map(armature)
+	cleaned = _live_twist_map(armature, use_edit_bones=use_edit_bones)
+	if cleaned != mapping:
+		_write_twist_map(armature, cleaned)
+	return cleaned
+
+
 def get_twist_parent(armature, bone_name):
 	return _twist_map(armature).get(bone_name, "")
 
 
 def set_twist_parent(armature, bone_name, parent_name):
-	mapping = _twist_map(armature)
+	use_edit_bones = len(armature.edit_bones) > 0
+	mapping = prune_twist_map(armature, use_edit_bones=use_edit_bones)
 	if parent_name:
 		mapping[bone_name] = parent_name
 	else:
@@ -33,13 +53,14 @@ def set_twist_parent(armature, bone_name, parent_name):
 	_write_twist_map(armature, mapping)
 
 
-def get_twist_bones(armature, parent_name):
+def get_twist_bones(armature, parent_name, *, use_edit_bones=False):
 	"""Return bones registered as twists of parent_name. Order is undefined."""
-	mapping = _twist_map(armature)
+	coll = _bone_collection(armature, use_edit_bones)
+	mapping = _live_twist_map(armature, use_edit_bones=use_edit_bones)
 	return [
-		armature.bones[name]
+		coll[name]
 		for name, twist_parent in mapping.items()
-		if twist_parent == parent_name and name in armature.bones
+		if twist_parent == parent_name
 	]
 
 
@@ -49,12 +70,12 @@ def get_twist_chain(armature, parent_name, *, use_edit_bones=False):
 	Raises ValueError if the registered twists are not a single linear chain.
 	use_edit_bones=True reads parenting from edit_bones (needed in edit mode).
 	"""
-	twists = get_twist_bones(armature, parent_name)
+	twists = get_twist_bones(armature, parent_name, use_edit_bones=use_edit_bones)
 	if not twists:
 		return []
 
 	names = {b.name for b in twists}
-	coll = armature.edit_bones if use_edit_bones else armature.bones
+	coll = _bone_collection(armature, use_edit_bones)
 
 	def parent_of(name):
 		bone = coll.get(name)
@@ -161,7 +182,7 @@ class RIG_OT_set_twist_parent(Operator):
 		missing = []
 
 		# Batch into one map write so we don't thrash ID properties
-		mapping = _twist_map(armature)
+		mapping = prune_twist_map(armature, use_edit_bones=True)
 
 		for edit_bone in context.selected_editable_bones:
 			if edit_bone.name in handled:
@@ -222,7 +243,7 @@ class RIG_OT_clear_twist_parent(Operator):
 
 	def execute(self, context):
 		armature = context.object.data
-		mapping = _twist_map(armature)
+		mapping = prune_twist_map(armature, use_edit_bones=True)
 		cleared = 0
 		for edit_bone in context.selected_editable_bones:
 			if mapping.pop(edit_bone.name, None) is not None:
@@ -256,7 +277,11 @@ class RIG_PT_bone(Panel):
 			text="Twist Parent",
 		)
 
-		twists = get_twist_bones(armature, bone.name)
+		twists = get_twist_bones(
+			armature,
+			bone.name,
+			use_edit_bones=(context.mode == 'EDIT_ARMATURE'),
+		)
 		if not twists:
 			return
 

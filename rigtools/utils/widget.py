@@ -74,6 +74,30 @@ def create_line_widget(widget_name, collection):
 	collection.objects.link(wgt)
 	return wgt
 
+def create_box_widget(widget_name, collection, size_x=0.85, size_y=1.0, size_z=0.4):
+	hx, hz = size_x * 0.5, size_z * 0.5
+	verts = [
+		(-hx, 0, -hz),
+		( hx, 0, -hz),
+		( hx, size_y, -hz),
+		(-hx, size_y, -hz),
+		(-hx, 0,  hz),
+		( hx, 0,  hz),
+		( hx, size_y,  hz),
+		(-hx, size_y,  hz),
+	]
+	edges = [
+		(0, 1), (1, 2), (2, 3), (3, 0),
+		(4, 5), (5, 6), (6, 7), (7, 4),
+		(0, 4), (1, 5), (2, 6), (3, 7),
+	]
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
+	collection.objects.link(wgt)
+	return wgt
+
 def create_rectangle_widget(widget_name, collection, width = 0.15, height = 0.90):
 	verts = [
 		(0.0, (1.0 - height)/2, -width/2),

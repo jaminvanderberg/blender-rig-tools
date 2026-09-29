@@ -33,6 +33,7 @@ class AssemblyData(PropertyGroup):
 	template_name: StringProperty()
 
 	org_states: CollectionProperty(type=OrgState)
+	twist_states: CollectionProperty(type=OrgState)
 	org_children: CollectionProperty(type=OrgState)
 
 	mechanism_bones: CollectionProperty(type=BoneRef)
@@ -61,6 +62,13 @@ class AssemblyData(PropertyGroup):
 				continue
 			row = self.objects.add()
 			row.name = obj
+
+		if hasattr(tool, 'twist_states'):
+			for state in tool.twist_states:
+				row = self.twist_states.add()
+				row.name = state['name']
+				row.parent = state['parent']
+				row.use_connect = state['use_connect']
 
 		return self
 

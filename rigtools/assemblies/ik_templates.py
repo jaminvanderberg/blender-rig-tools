@@ -29,6 +29,7 @@ IK_TEMPLATES = {
 			"add_tweak_bones": True,
 			"switch_property_type": "ENUM",
 			"add_rotation_isolation": True,
+			"inherit_scale_from_root": True,
 			"override_collections": True,
 			"ik_type": "IK",
 			"enable_ik_stretch": True,
@@ -40,8 +41,8 @@ IK_TEMPLATES = {
 			"ik_parents": ("root", "torso", "hips", "chest", "head"),
 			"use_twist_bones": True,
 			"twist_segments": (
-				{"index": 0, "source": "SELF", "falloff": "ROOT"},
-				{"index": 1, "source": "CHILD", "falloff": "LINEAR"},
+				{"name": "Arm", "index": 0, "source": "SELF", "falloff": "ROOT"},
+				{"name": "Forearm", "index": 1, "source": "CHILD", "falloff": "LINEAR"},
 			),
 			"twist_bone_count": 4,
 		},
@@ -51,6 +52,8 @@ IK_TEMPLATES = {
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",
+			"add_rotation_isolation",
+			"inherit_scale_from_root",
 			"use_twist_bones",
 			"twist_bone_count",
 			"twist_segments",
@@ -65,6 +68,7 @@ IK_TEMPLATES = {
 			"add_tweak_bones": True,
 			"switch_property_type": "ENUM",
 			"add_rotation_isolation": True,
+			"inherit_scale_from_root": False,
 			"override_collections": True,
 			"ik_type": "IK",
 			"enable_ik_stretch": True,
@@ -77,8 +81,8 @@ IK_TEMPLATES = {
 			"ik_parent_self_parent_label": "Foot",
 			"use_twist_bones": True,
 			"twist_segments": (
-				{"index": 0, "source": "SELF", "falloff": "SHARP"},
-				{"index": 1, "source": "NONE", "falloff": "LINEAR"},
+				{"name": "Thigh", "index": 0, "source": "SELF", "falloff": "SHARP"},
+				{"name": "Shin", "index": 1, "source": "NONE", "falloff": "LINEAR"},
 			),
 			"twist_bone_count": 4,
 		},
@@ -143,6 +147,7 @@ REDO_PROPERTIES = {
 	"add_tweak_bones",
 	"switch_property_type",
 	"add_rotation_isolation",
+	"inherit_scale_from_root",
 	"override_collections",
 	"ik_type",
 	"enable_ik_stretch",
@@ -181,6 +186,7 @@ def resolve_twist_segments(raw_segments) -> list[TwistSegment]:
 				index=int(entry["index"]),
 				source=entry["source"],
 				falloff=entry.get("falloff", "LINEAR"),
+				name=entry.get("name", ""),
 			)
 		)
 	return segments

@@ -30,62 +30,68 @@ def create_fk_assembly(context, chains: list[list[str]], template_name, options:
 	prefs = get_preferences()
 	
 	armature_data = context.object.data
+	original_mirror = armature_data.use_mirror_x
+	armature_data.use_mirror_x = False
 
 	assemblies = []
-	##############
-	# Edit mode
-	##############
-	for chain in chains:
-		side = find_side(chain)
-		
-		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_name, options)
-		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
-		assemblies.append(assembly_chain)
 
-		prefs_tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
-		prefs_fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
-		mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
+	try:
+		##############
+		# Edit mode
+		##############
+		for chain in chains:
+			side = find_side(chain)
+			
+			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_name, options)
+			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+			assemblies.append(assembly_chain)
 
-		fk_collection_name = options.fk_collection_name or prefs_fk_collection_name
-		tweak_collection_name = options.tweak_collection_name or prefs_tweak_collection_name
-		if not options.override_collections:
-			fk_collection_name = None
-			tweak_collection_name = None
+			prefs_tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
+			prefs_fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
+			mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
 
-		# TWEAK CHAIN
-		tweak = FKTweakChain(
-			fk_bone_template=options.fk_bone_template,
-			skip_first_tweak=options.skip_first_tweak,
-			do_create_fk=options.do_create_fk,
-			fk_widget=options.fk_widget,
-			fk_collection_name=fk_collection_name,
-			tweak_collection_name=tweak_collection_name,
-			tweak_relationship=options.tweak_relationship,
-		)
-		tweak.edit_mode(armature_data, chain)
-		assembly_chain.tools.append(tweak)
+			fk_collection_name = options.fk_collection_name or prefs_fk_collection_name
+			tweak_collection_name = options.tweak_collection_name or prefs_tweak_collection_name
+			if not options.override_collections:
+				fk_collection_name = None
+				tweak_collection_name = None
 
-		# ROTATION ISOLATION
-		if options.add_rotation_isolation and options.do_create_fk:
-			property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side)
-			rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
-			rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
-			assembly_chain.tools.append(rotation_isolation)
+			# TWEAK CHAIN
+			tweak = FKTweakChain(
+				fk_bone_template=options.fk_bone_template,
+				skip_first_tweak=options.skip_first_tweak,
+				do_create_fk=options.do_create_fk,
+				fk_widget=options.fk_widget,
+				fk_collection_name=fk_collection_name,
+				tweak_collection_name=tweak_collection_name,
+				tweak_relationship=options.tweak_relationship,
+			)
+			tweak.edit_mode(armature_data, chain)
+			assembly_chain.tools.append(tweak)
 
-		# ROTATION FOLLOW
-		if options.create_rotation_follow_setup and tweak.fk_bone_names:
-			follow_bones = tweak.fk_bone_names[options.rotation_follow_skip:]
-			if follow_bones:
-				follow = RotationFollow(relationship=options.rotation_follow_relationship, mch_collection_name=mch_collection_name)
-				follow.edit_mode(context, follow_bones)
-				assembly_chain.tools.append(follow)
+			# ROTATION ISOLATION
+			if options.add_rotation_isolation and options.do_create_fk:
+				property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side)
+				rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
+				rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
+				assembly_chain.tools.append(rotation_isolation)
 
-	##############
-	# Pose mode
-	##############
-	for assembly_chain in assemblies:
-		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
-		for tool in assembly_chain.tools:
-			tool.pose_mode(context)
-			assembly.apply_tool(tool)
+			# ROTATION FOLLOW
+			if options.create_rotation_follow_setup and tweak.fk_bone_names:
+				follow_bones = tweak.fk_bone_names[options.rotation_follow_skip:]
+				if follow_bones:
+					follow = RotationFollow(relationship=options.rotation_follow_relationship, mch_collection_name=mch_collection_name)
+					follow.edit_mode(context, follow_bones)
+					assembly_chain.tools.append(follow)
+
+		##############
+		# Pose mode
+		##############
+		for assembly_chain in assemblies:
+			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+			for tool in assembly_chain.tools:
+				tool.pose_mode(context)
+				assembly.apply_tool(tool)
+	finally:
+		armature_data.use_mirror_x = original_mirror

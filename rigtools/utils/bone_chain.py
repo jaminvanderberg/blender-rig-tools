@@ -149,9 +149,9 @@ def find_hierarchy_chains(context, connected_only=False):
 # Assembly
 ###############################################################################################
 
-def get_assembly_chains(context, assembly_uid = None, check_property_bone = True) -> tuple[list[list[str]], str]:
+def get_assembly_chains(context, assembly_uid = None, check_property_bone = True) -> tuple[list[list[str]], str, bool]:
 	""" Switches mode to edit mode
-		Returns: list of chains of bones names, original mode
+		Returns: list of chains of bones names, original mode, original mirror_x
 		Raises ValueError if the object is not an armature, or in object mode, or no edit bones are selected,
 		or the property bone is not found.
 	"""
@@ -174,15 +174,20 @@ def get_assembly_chains(context, assembly_uid = None, check_property_bone = True
 	if obj.mode != 'EDIT':
 		bpy.ops.object.mode_set(mode='EDIT')
 
+	original_mirror = armature_data.use_mirror_x
+	armature_data.use_mirror_x = False
+
 	if assembly_uid:
 		assembly = find_assembly(obj, assembly_uid)
 		if not assembly:
+			armature_data.use_mirror_x = original_mirror
 			raise ValueError(f"Assembly '{assembly_uid}' not found.")
 		chains = assembly.get_chains()
-		return chains, original_mode
+		return chains, original_mode, original_mirror
 		
 	if not context.selected_editable_bones:
 		bpy.ops.object.mode_set(mode=original_mode)
+		armature_data.use_mirror_x = original_mirror
 		raise ValueError("No edit bones selected. Select at least one bone.")
 	
 	# Find all of the indivual bone chains
@@ -190,6 +195,7 @@ def get_assembly_chains(context, assembly_uid = None, check_property_bone = True
 		chains = find_chains_from_selection(context)
 	except Exception as e:
 		bpy.ops.object.mode_set(mode=original_mode)
+		armature_data.use_mirror_x = original_mirror
 		raise ValueError(str(e))
 
-	return chains, original_mode
+	return chains, original_mode, original_mirror

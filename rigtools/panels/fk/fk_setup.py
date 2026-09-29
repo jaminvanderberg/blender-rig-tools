@@ -16,7 +16,7 @@ from rigtools.utils.widget import fk_widget_types
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	"""Setup FK/Tweak setup with advanced options"""
 	bl_idname = "rig.advanced_fk_setup"
-	bl_label = "FK Setup"
+	bl_label = "Generate FK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	limb_property_base_name: StringProperty(
@@ -311,7 +311,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		try:
-			chains, original_mode = get_assembly_chains(
+			chains, original_mode, original_mirror = get_assembly_chains(
 				context,
 				self.assembly_uid,
 				check_property_bone=self.add_rotation_isolation,
@@ -345,10 +345,12 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
+			context.object.data.use_mirror_x = original_mirror
 			return {'CANCELLED'}
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
+		context.object.data.use_mirror_x = original_mirror
 		return {'FINISHED'}
 
 

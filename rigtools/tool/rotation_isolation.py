@@ -11,14 +11,17 @@ class RotationIsolation:
 		property_name: str,
 		mch_collection_name: str | None = None,
 		include_scale: bool = True,
-		disable_scale: bool = False
+		disable_scale: bool = False,
+		inherit_scale_from_root: bool = False,
 	):
 		self.property_name = property_name
 		self.mch_collection_name = mch_collection_name
 		self.include_scale = include_scale
 		self.disable_scale = disable_scale
+		self.inherit_scale_from_root = inherit_scale_from_root
 
 		self.created_bones = None
+		self.root_bone_name = None
 
 		self.mechanism_bone_names = []
 		self.property_names = []
@@ -29,6 +32,7 @@ class RotationIsolation:
 		settings = get_armature_settings(armature_data, context)
 
 		root_bone = armature_data.edit_bones.get(settings.root_bone_name)
+		self.root_bone_name = settings.root_bone_name
 
 		bpy.ops.armature.select_all(action='DESELECT')
 
@@ -43,6 +47,8 @@ class RotationIsolation:
 			socket_bone.tail = socket_bone.head + mathutils.Vector((0.0, 0.0, bone.length * 0.5))
 			socket_bone.roll = 0.0
 			socket_bone.parent = bone.parent
+			if self.inherit_scale_from_root:
+				socket_bone.inherit_scale = 'NONE'
 
 			int_name = generate_bone_name(bone.name, prefs.int_template)
 			int_bone = armature_data.edit_bones.new(int_name)
@@ -95,8 +101,16 @@ class RotationIsolation:
 			)
 			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)
 
+		root_name = self.root_bone_name or settings.root_bone_name
+
 		for socket_name, int_name in self.created_bones:
+			socket_bone = obj.pose.bones[socket_name]
 			int_bone = obj.pose.bones[int_name]
+
+			if self.inherit_scale_from_root:
+				root_scale = socket_bone.constraints.new('COPY_SCALE')
+				root_scale.target = obj
+				root_scale.subtarget = root_name
 
 			loc_constraint = int_bone.constraints.new('COPY_LOCATION')
 			loc_constraint.target = obj

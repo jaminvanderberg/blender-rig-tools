@@ -24,8 +24,13 @@ class RIG_OT_create_rotation_isolation(bpy.types.Operator):
 		name = "Disable Scale",
 		default = False,
 		description = "Leave the copy scale constraint disabled."
-	)    
-	
+	)
+	inherit_scale_from_root: BoolProperty(
+		name = "Inherit Scale From Root",
+		default = False,
+		description = "Socket inherits scale from the root bone instead of its parent."
+	)
+
 
 	##################################################################################################
 	# execute
@@ -69,6 +74,7 @@ class RIG_OT_create_rotation_isolation(bpy.types.Operator):
 			property_name=self.property_name,
 			include_scale=self.include_scale,
 			disable_scale=self.disable_scale,
+			inherit_scale_from_root=self.inherit_scale_from_root,
 		)
 		isolation.edit_mode(context, bone_data, [bone.name for bone in context.selected_editable_bones])
 
@@ -93,6 +99,7 @@ class RIG_OT_create_rotation_isolation(bpy.types.Operator):
 		row = layout.row()
 		row.prop(self, "include_scale")
 		row.prop(self, "disable_scale")
+		layout.prop(self, "inherit_scale_from_root")
 
 classes = (
 	RIG_OT_create_rotation_isolation,
