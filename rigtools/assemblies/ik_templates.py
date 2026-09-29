@@ -6,6 +6,7 @@ from rigtools.assemblies.ik_assembly import IKAssemblyOptions
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.template_validation import validate_assembly_templates
 from rigtools.tool.ik_parent import IKParentTarget
+from rigtools.tool.twist_bones import TwistSegment, FALLOFF, twist_source_types
 
 
 @dataclass(frozen=True)
@@ -38,10 +39,10 @@ IK_TEMPLATES = {
 			"ik_parent": True,
 			"ik_parents": ("root", "torso", "hips", "chest", "head"),
 			"use_twist_bones": True,
-			"twist_segments": [
-				{"index": 0, "source": 'SELF', "falloff": 'ROOT'},
-				{"index": 1, "source": 'CHILD', "falloff": 'LINEAR'},
-			],
+			"twist_segments": (
+				{"index": 0, "source": "SELF", "falloff": "ROOT"},
+				{"index": 1, "source": "CHILD", "falloff": "LINEAR"},
+			),
 			"twist_bone_count": 4,
 		},
 		redo_fields=(
@@ -52,6 +53,7 @@ IK_TEMPLATES = {
 			"enable_ik_stretch",
 			"use_twist_bones",
 			"twist_bone_count",
+			"twist_segments",
 		),
 	),
 	"leg": IKTemplate(
@@ -74,10 +76,10 @@ IK_TEMPLATES = {
 			"ik_parents": ("root", "torso", "self"),
 			"ik_parent_self_parent_label": "Foot",
 			"use_twist_bones": True,
-			"twist_segments": [
-				{"index": 0, "source": 'SELF', "falloff": 'SHARP'},
-				{"index": 1, "source": 'NONE'},
-			],
+			"twist_segments": (
+				{"index": 0, "source": "SELF", "falloff": "SHARP"},
+				{"index": 1, "source": "NONE", "falloff": "LINEAR"},
+			),
 			"twist_bone_count": 4,
 		},
 		redo_fields=(
@@ -88,6 +90,7 @@ IK_TEMPLATES = {
 			"enable_ik_stretch",
 			"use_twist_bones",
 			"twist_bone_count",
+			"twist_segments",
 		),
 	),
 	"skirt.spline": IKTemplate(
@@ -152,11 +155,35 @@ REDO_PROPERTIES = {
 	"enable_snapping",
 	"ik_parent",
 	"ik_parents",
+	"use_twist_bones",
+	"twist_bone_count",
+	"twist_segments",
 }
 
 
 def get_ik_template(template_id: str) -> IKTemplate | None:
 	return IK_TEMPLATES.get(template_id)
+
+
+_VALID_TWIST_SOURCES = {item[0] for item in twist_source_types}
+_VALID_TWIST_FALLOFFS = set(FALLOFF)
+
+
+def resolve_twist_segments(raw_segments) -> list[TwistSegment]:
+	"""Convert template/JSON segment dicts into TwistSegment values."""
+	segments = []
+	for entry in raw_segments or []:
+		if isinstance(entry, TwistSegment):
+			segments.append(entry)
+			continue
+		segments.append(
+			TwistSegment(
+				index=int(entry["index"]),
+				source=entry["source"],
+				falloff=entry.get("falloff", "LINEAR"),
+			)
+		)
+	return segments
 
 
 def _validate_ik_template_rules(template_id: str, template: IKTemplate):
@@ -177,6 +204,27 @@ def _validate_ik_template_rules(template_id: str, template: IKTemplate):
 		raise ValueError(f"IK template '{template_id}' enables IK parents without defining any")
 	if "self" in parent_names and options["ik_type"] != "IK":
 		raise ValueError(f"IK template '{template_id}' can only use the self parent with standard IK")
+
+	if options["use_twist_bones"]:
+		if options["ik_type"] != "IK":
+			raise ValueError(f"IK template '{template_id}' can only use twist bones with standard IK")
+		if options["twist_bone_count"] < 2:
+			raise ValueError(f"IK template '{template_id}' twist_bone_count must be >= 2")
+		segments = resolve_twist_segments(options["twist_segments"])
+		if not segments:
+			raise ValueError(f"IK template '{template_id}' enables twist bones without segments")
+		indexes = [segment.index for segment in segments]
+		if len(indexes) != len(set(indexes)):
+			raise ValueError(f"IK template '{template_id}' twist segment indexes must be unique")
+		for segment in segments:
+			if segment.source not in _VALID_TWIST_SOURCES:
+				raise ValueError(
+					f"IK template '{template_id}' has unknown twist source '{segment.source}'"
+				)
+			if segment.falloff not in _VALID_TWIST_FALLOFFS:
+				raise ValueError(
+					f"IK template '{template_id}' has unknown twist falloff '{segment.falloff}'"
+				)
 
 
 def validate_ik_templates():

@@ -2,10 +2,16 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.delete_assembly import delete_assembly
-from rigtools.assemblies.ik_templates import get_ik_template, resolve_ik_parents, validate_ik_templates
+from rigtools.assemblies.ik_templates import (
+	get_ik_template,
+	resolve_ik_parents,
+	resolve_twist_segments,
+	validate_ik_templates,
+)
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
+from rigtools.tool.twist_bones import falloff_presets, twist_source_types
 from rigtools.utils.widget import fk_widget_types
 from rigtools.tool.ik_parent import IKParentTarget
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
@@ -15,6 +21,11 @@ from rigtools.assemblies.assembly_data import find_assembly
 class IKParentSlot(bpy.types.PropertyGroup):
 	label: bpy.props.StringProperty(name="Label", default="")
 	bone: bpy.props.StringProperty(name="Bone", default="")
+
+class TwistSegmentSlot(bpy.types.PropertyGroup):
+	index: IntProperty(name="Bone Index", default=0, min=0)
+	source: EnumProperty(name="Source", items=twist_source_types, default='SELF')
+	falloff: EnumProperty(name="Falloff", items=falloff_presets, default='LINEAR')
 
 class RIG_OT_add_ik_parent(bpy.types.Operator):
 	bl_idname = "rig.add_ik_parent"
@@ -29,6 +40,21 @@ class RIG_OT_remove_ik_parent(bpy.types.Operator):
 	index: IntProperty()
 	def execute(self, context):
 		context.window_manager.rig_ik_parents.remove(self.index)
+		return {'FINISHED'}
+
+class RIG_OT_add_twist_segment(bpy.types.Operator):
+	bl_idname = "rig.add_twist_segment"
+	bl_label = "Add Twist Segment"
+	def execute(self, context):
+		context.window_manager.rig_twist_segments.add()
+		return {'FINISHED'}
+
+class RIG_OT_remove_twist_segment(bpy.types.Operator):
+	bl_idname = "rig.remove_twist_segment"
+	bl_label = "Remove Twist Segment"
+	index: IntProperty()
+	def execute(self, context):
+		context.window_manager.rig_twist_segments.remove(self.index)
 		return {'FINISHED'}
 
 class RIG_OT_advanced_ik_setup(bpy.types.Operator):
@@ -158,6 +184,20 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=True
 	)
 
+	use_twist_bones: BoolProperty(
+		name="Twist Bones",
+		description="Create deform twist bones along limb segments",
+		default=False
+	)
+
+	twist_bone_count: IntProperty(
+		name="Twist Bone Count",
+		description="Number of twist bones per segment",
+		default=4,
+		min=2,
+		max=16
+	)
+
 	assembly_uid: StringProperty(
 		name="Assembly UID",
 		description="UID of the assembly to load",
@@ -198,6 +238,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			torso = wm.rig_ik_parents.add()
 			torso.label, torso.bone = "Torso", settings.torso_bone_name
 
+		wm.rig_twist_segments.clear()
+
 		try:
 			chains = find_chains_from_selection(context)
 		except ChainBranchingError as e:
@@ -221,6 +263,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		option_values = resolve_template_options(IKAssemblyOptions, template.options)
 		parent_names = option_values.pop("ik_parents", ())
+		twist_segments_raw = option_values.pop("twist_segments", ())
 
 		try:
 			parents, include_self = resolve_ik_parents(context, parent_names)
@@ -229,7 +272,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		for key, value in option_values.items():
-			setattr(self, key, value)
+			if hasattr(self, key):
+				setattr(self, key, value)
 
 		self.add_ik_control_as_pole_parent = include_self
 
@@ -253,6 +297,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.label = parent.label
 			slot.bone = parent.bone
 
+		wm.rig_twist_segments.clear()
+		for segment in resolve_twist_segments(twist_segments_raw):
+			slot = wm.rig_twist_segments.add()
+			slot.index = segment.index
+			slot.source = segment.source
+			slot.falloff = segment.falloff
+
 		self.template_name = template.label
 
 	def _invoke_from_assembly(self, context):
@@ -262,8 +313,10 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		options = assembly.get_options()
+		twist_segments_raw = options.pop("twist_segments", [])
 		for key, value in options.items():
-			setattr(self, key, value)
+			if hasattr(self, key):
+				setattr(self, key, value)
 
 		wm = context.window_manager
 		wm.rig_ik_parents.clear()
@@ -271,6 +324,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot = wm.rig_ik_parents.add()
 			slot.label = parent.label
 			slot.bone = parent.bone
+
+		wm.rig_twist_segments.clear()
+		for segment in resolve_twist_segments(twist_segments_raw):
+			slot = wm.rig_twist_segments.add()
+			slot.index = segment.index
+			slot.source = segment.source
+			slot.falloff = segment.falloff
 
 		self.template_name = assembly.template_name
 		self.bl_label = assembly.template_name or "Advanced IK Setup"
@@ -428,6 +488,43 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 					row = split.row(align=True)
 					row.prop(self, "ik_parent_self_parent_label", text="")
 
+		if self.ik_type == 'IK' and self.do_show_any_field(
+			["use_twist_bones", "twist_bone_count", "twist_segments"], template
+		):
+			layout.separator()
+			col = layout.column(align=True)
+			if self.do_show_field("use_twist_bones", template):
+				col.prop(self, "use_twist_bones")
+
+			if self.use_twist_bones:
+				if self.do_show_field("twist_bone_count", template):
+					split = col.split(align=True, factor=split_size)
+					row = split.row(align=True)
+					row.label(text="Twist Count:", translate=False)
+					row = split.row(align=True)
+					row.prop(self, "twist_bone_count", text="")
+
+				if self.do_show_field("twist_segments", template):
+					box = col.box()
+					box.label(text="Twist Segments:", icon='BONE_DATA')
+					segments = context.window_manager.rig_twist_segments
+					seg_col = box.column(align=True)
+					header = seg_col.row(align=True)
+					header.label(text="Index")
+					header.label(text="Source")
+					header.label(text="Falloff")
+					header.label(text="", icon='BLANK1')
+					for i, segment in enumerate(segments):
+						row = seg_col.row(align=True)
+						row.prop(segment, "index", text="")
+						row.prop(segment, "source", text="")
+						sub = row.row(align=True)
+						sub.enabled = segment.source != 'NONE'
+						sub.prop(segment, "falloff", text="")
+						op = row.operator("rig.remove_twist_segment", text="", icon='REMOVE')
+						op.index = i
+					box.operator("rig.add_twist_segment", text="Add Segment", icon='ADD')
+
 
 	##################################################################################################
 	# execute
@@ -479,6 +576,14 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			],
 			add_ik_control_as_pole_parent=self.add_ik_control_as_pole_parent,
 			ik_parent_self_parent_label=self.ik_parent_self_parent_label,
+			use_twist_bones=self.use_twist_bones,
+			twist_bone_count=self.twist_bone_count,
+			twist_segments=resolve_twist_segments(
+				[
+					{"index": s.index, "source": s.source, "falloff": s.falloff}
+					for s in context.window_manager.rig_twist_segments
+				]
+			) if self.use_twist_bones else [],
 		)
 
 		try:
@@ -498,8 +603,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 classes = (
 	IKParentSlot,
+	TwistSegmentSlot,
 	RIG_OT_add_ik_parent,
 	RIG_OT_remove_ik_parent,
+	RIG_OT_add_twist_segment,
+	RIG_OT_remove_twist_segment,
 	RIG_OT_advanced_ik_setup,
 )
 
@@ -510,10 +618,12 @@ def register():
 
 	bpy.types.WindowManager.rig_ik_parents = CollectionProperty(type=IKParentSlot)
 	bpy.types.WindowManager.rig_ik_parent_index = IntProperty()
+	bpy.types.WindowManager.rig_twist_segments = CollectionProperty(type=TwistSegmentSlot)
 
 def unregister():
 	del bpy.types.WindowManager.rig_ik_parents
 	del bpy.types.WindowManager.rig_ik_parent_index
+	del bpy.types.WindowManager.rig_twist_segments
 
 	for cls in classes:
 		bpy.utils.unregister_class(cls)

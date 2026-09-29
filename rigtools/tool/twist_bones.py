@@ -34,6 +34,7 @@ falloff_presets = [
 twist_source_types = [
 	('SELF', "Self", "Inherit twist from own control bone (like upper arm/thigh)"),
 	('CHILD', "Child", "Inherit twist from child bone (like hand > forearm)"),
+	('NONE', "None", "Twist deform bones only; no copy-rotation falloff"),
 ]
 
 def twist_influence(preset: str, index: int, count: int, reverse: bool = True) -> float:
@@ -47,7 +48,7 @@ def twist_influence(preset: str, index: int, count: int, reverse: bool = True) -
 class TwistSegment:
 	index: int
 	source: str
-	falloff: str
+	falloff: str = 'LINEAR'
 
 def consecutive_index_groups(indexes):
 	indexes = sorted(indexes)
@@ -97,7 +98,9 @@ class TwistBones:
 		for segment in self.segments:
 			org_bone = edit_bones[org_bone_names[segment.index]]
 
+			print(f"Checking twist chain for {org_bone.name}")
 			twist_names = get_twist_chain(obj.data, org_bone.name, use_edit_bones=True)
+			print(f"Twist names: {twist_names}")
 			if not twist_names:
 				twist_names = duplicate_bone_subdivided(
 					context, org_bone, self.twist_bone_count, prefs.twist_template
@@ -156,10 +159,14 @@ class TwistBones:
 				twist_bone_name = self.twist_bones[segment.index][i]
 				twist_bone = pose_bones[twist_bone_name]
 
-				if segment.source == 'SELF':
+				if segment.source == 'NONE':
+					continue
+				elif segment.source == 'SELF':
 					driver_bone_name = self.driver_bone_names[segment.index]
 				elif segment.source == 'CHILD':
 					driver_bone_name = self.driver_bone_names[segment.index + 1]
+				else:
+					raise ValueError(f"Unknown twist source '{segment.source}'")
 
 				copyrot_constraint = twist_bone.constraints.new('COPY_ROTATION')
 				copyrot_constraint.target = context.object
