@@ -6,6 +6,7 @@ import gpu
 import blf
 from bpy_extras.view3d_utils import location_3d_to_region_2d
 from rigtools.utils.chain_order_overlay import _draw_order_overlay, _remove_preview
+from rigtools.utils import chain_order_overlay
 
 class RIG_OT_rename_chain(bpy.types.Operator):
 		"""Rename one or more chains using advancing numbers or letters for each bone in the chain."""
@@ -91,11 +92,10 @@ class RIG_OT_rename_chain(bpy.types.Operator):
 			return {'FINISHED'}
 		
 		def invoke(self, context, event):
-			global _preview
 			handler = bpy.types.SpaceView3D.draw_handler_add(
 				_draw_order_overlay, (), 'WINDOW', 'POST_PIXEL'
 			)
-			_preview = {"op": self, "handler": handler}
+			chain_order_overlay._preview = {"op": self, "handler": handler}
 			context.area.tag_redraw()
 			return context.window_manager.invoke_props_dialog(self, width=300)			
 		

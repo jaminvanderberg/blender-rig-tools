@@ -41,9 +41,9 @@ def seed_weight_map(chains, grid):
 	weights = defaultdict(dict)
 	for col_idx, chain in enumerate(chains):
 		col = grid[col_idx]
+		weights[col[0]][chain[0]] = 1.0
 		for row, bone_name in enumerate(chain):
-			weights[col[row]][bone_name] = 1.0
-		weights[col[-1]][chain[-1]] = 1.0
+			weights[col[row + 1]][bone_name] = 1.0
 	return weights
 
 def normalize_vert(wmap):
@@ -384,7 +384,7 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 				col.prop(self, "spread_weights")
 			if self.seed_weights and self.spread_weights:
 				col.prop(self, "carry_v")
-				if self.sitch_chain:
+				if self.stitch_chain:
 					col.prop(self, "carry_h")
 				col.prop(self, "iterations")
 				col.separator()

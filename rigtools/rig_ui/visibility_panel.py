@@ -44,6 +44,35 @@ def _draw_masks(layout, obj, context):
 		row.label(text=_mask_label(mod.name), translate=False)
 		row.prop(mod, "show_viewport", text="", icon='HIDE_ON', invert_checkbox=True, emboss=False)
 
+def _draw_visibility_toggle(layout, obj, context):
+	hidden = obj.hide_get(view_layer=context.view_layer)
+	op = layout.operator(
+		"rig.ui_toggle_object_visibility",
+		text="",
+		icon='HIDE_ON' if hidden else 'HIDE_OFF',
+		emboss=False,
+	)
+	op.obj_name = obj.name
+	op.hidden = not hidden
+
+class RIG_OT_toggle_object_visibility(bpy.types.Operator):
+	bl_idname = "rig.ui_toggle_object_visibility"
+	bl_label = "Toggle Object Visibility"
+	bl_description = "Toggle the object's visibility in the active view layer"
+	bl_options = {'INTERNAL'}
+
+	obj_name: StringProperty()
+	hidden: BoolProperty()
+
+	def execute(self, context):
+		obj = context.view_layer.objects.get(self.obj_name)
+		if not obj:
+			self.report({'ERROR'}, f"Object '{self.obj_name}' is not in the active view layer.")
+			return {'CANCELLED'}
+
+		obj.hide_set(self.hidden, view_layer=context.view_layer)
+		return {'FINISHED'}
+
 class RIG_OT_toggle_solidify(bpy.types.Operator):
 	bl_idname = "rig.ui_toggle_solidify"
 	bl_label = "Toggle Solidify"
@@ -109,8 +138,9 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 					continue
 				box = self.layout.box()
 				header = box.row(align=True)
-				header.label(text=mesh.name, translate=False)
-				header.prop(mesh, "hide_viewport", text="", icon='HIDE_ON', invert_checkbox=True, emboss=False)
+				header.scale_y = 1.2
+				header.label(text=mesh.name, icon='OUTLINER_OB_MESH', translate=False)
+				_draw_visibility_toggle(header, mesh, context)
 				_draw_masks(box, mesh, context)
 				masked_count += 1
 			if masked_count < len(related):
@@ -121,7 +151,7 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 						continue
 					row = col.row(align=True)
 					row.label(text=mesh.name, translate=False)
-					row.prop(mesh, "hide_viewport", text="", icon='HIDE_ON', invert_checkbox=True, emboss=False)	
+					_draw_visibility_toggle(row, mesh, context)
 		else:
 			_draw_masks(self.layout, obj, context)
 			solidify = _solidify_modifiers(obj)
@@ -136,8 +166,9 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 			op.enabled = not all_solidify_enabled
 
 classes = (
-	RIG_PT_visibility_ui,
+	RIG_OT_toggle_object_visibility,
 	RIG_OT_toggle_solidify,
+	RIG_PT_visibility_ui,
 )
 
 def register():
