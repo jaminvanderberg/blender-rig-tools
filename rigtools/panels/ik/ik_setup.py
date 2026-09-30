@@ -62,7 +62,7 @@ class RIG_OT_remove_twist_segment(bpy.types.Operator):
 class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	"""Create a FK/IK switching setup with advanced options."""
 	bl_idname = "rig.advanced_ik_setup"
-	bl_label = "Geenrate IK Assembly"
+	bl_label = "Generate IK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 	bl_property = "limb_property_base_name"
 

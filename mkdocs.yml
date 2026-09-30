@@ -1,0 +1,15 @@
+site_name: Rig Tools
+docs_dir: docs
+
+theme:
+  name: material
+
+nav:
+  - Assemblies: assemblies.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - attr_list
+  - md_in_html
