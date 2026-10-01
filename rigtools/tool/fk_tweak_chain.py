@@ -191,5 +191,3 @@ class FKTweakChain:
 				tweak_bone.custom_shape = wgt
 
 				self.object_names.append(wgt.name)
-
-		return self
