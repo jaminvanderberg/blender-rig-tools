@@ -86,6 +86,8 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 					op_id = "rig.advanced_ik_setup"
 				case 'FK':
 					op_id = "rig.advanced_fk_setup"
+				case 'TORSO':
+					op_id = "rig.advanced_torso_setup"
 				case _:
 					op_id = ""
 

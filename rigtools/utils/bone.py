@@ -205,7 +205,31 @@ def duplicate_chain(armature_data, bone_names, name_template, scale, name_source
 		prev_bone = new_bone
 		new_bones.append(new_bone.name)
 	return new_bones
-			
+
+def generate_mch_bones(armature_data, bones, name_template, collection_name, scale=0.35):
+	mch_bone_names = []
+	for bone in bones:
+		bone_name = generate_bone_name(bone.name, name_template)
+		mch_bone = duplicate_bone(armature_data, bone, bone_name, scale)
+
+		if collection_name:
+			set_bone_collection(armature_data, mch_bone, collection_name)
+
+		mch_bone.parent = bone.parent
+		bone.use_connect = False
+		bone.parent = mch_bone
+
+		mch_bone.color.palette = 'DEFAULT'
+		
+		mch_bone_names.append(mch_bone.name)
+	return mch_bone_names
+
+def match_orientation(bone, reference):
+	length = bone.length
+	direction = (reference.tail - reference.head).normalized()
+	bone.tail = bone.head + direction * length
+	bone.roll = reference.roll	
+
 def is_bone_visible(bone):
 	if bone.hide:
 		return False

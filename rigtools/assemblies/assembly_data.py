@@ -29,6 +29,7 @@ class AssemblyData(PropertyGroup):
 	assembly_type: EnumProperty(items=[
 		('FK', "FK", ""),
 		('IK', "IK", ""),
+		('TORSO', "TORSO", ""),
 	])
 	template_name: StringProperty()
 

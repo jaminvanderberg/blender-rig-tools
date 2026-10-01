@@ -1,7 +1,7 @@
 import bpy
 
 from rigtools.assemblies.fk_templates import FK_TEMPLATES
-from rigtools.panels.fk import fk_setup
+from rigtools.panels.fk import fk_setup, torso_setup
 
 
 class RIG_PT_fk_panel(bpy.types.Panel):
@@ -19,6 +19,10 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 		layout = self.layout
 
 		op = layout.operator("rig.advanced_fk_setup", icon='CON_STRETCHTO')
+		op.template_id = ""
+		op.assembly_uid = ""
+
+		op = layout.operator("rig.advanced_torso_setup", icon='MOD_CLOTH')
 		op.template_id = ""
 		op.assembly_uid = ""
 
@@ -45,10 +49,12 @@ def register():
 		bpy.utils.register_class(cls)
 
 	fk_setup.register()
+	torso_setup.register()
 
 
 def unregister():
 	fk_setup.unregister()
+	torso_setup.unregister()
 
 	for cls in classes:
 		bpy.utils.unregister_class(cls)

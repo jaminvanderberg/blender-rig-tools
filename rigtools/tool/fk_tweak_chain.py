@@ -13,7 +13,8 @@ class FKTweakChain:
 		fk_widget: str = "CIRCLE",
 		tweak_collection_name: str = "",
 		fk_collection_name: str = "",
-		tweak_relationship: str = "STRETCH_TO"
+		tweak_relationship: str = "STRETCH_TO",
+		tweak_scale: float = 0.25
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
@@ -22,6 +23,7 @@ class FKTweakChain:
 		self.tweak_collection_name = tweak_collection_name
 		self.fk_collection_name = fk_collection_name
 		self.tweak_relationship = tweak_relationship
+		self.tweak_scale = tweak_scale
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -43,7 +45,7 @@ class FKTweakChain:
 		
 		total_length = sum(edit_bones[name].length for name in self.org_bone_names)
 		avg_length = total_length / len(self.org_bone_names)
-		tweak_length = avg_length * 0.25
+		tweak_length = avg_length * self.tweak_scale
 		
 		last_parent = edit_bones[self.org_bone_names[0]].parent
 

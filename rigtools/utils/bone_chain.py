@@ -3,6 +3,7 @@ from rigtools.utils.bone import get_selected_bones
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 import bpy
+from mathutils import Vector
 
 class ChainBranchingError(Exception):
 	"""Creates FK/Tweak chain from an existing bone chain."""
@@ -105,6 +106,17 @@ def rename_chains(context, chains, name_template, chain_name_type, bone_name_typ
 
 	for i, chain in enumerate(chains):
 		rename_chain(context, chain, name_template.replace('{chain}', get_name_segment(i, chain_name_type)), bone_name_type)
+
+def get_length_weighted_midpoint(context, chain):
+	edit_bones = context.object.data.edit_bones
+	center = Vector()
+	length = 0.0
+	for bone_name in chain:
+		bone = edit_bones[bone_name]
+		mid = (bone.head + bone.tail) / 2
+		center += mid * bone.length
+		length += bone.length
+	return center / length
 
 ###############################################################################################
 # Hierarchy

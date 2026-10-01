@@ -161,6 +161,12 @@ class RigToolsPreferences(AddonPreferences):
 		default="{Name}.FK{side}"
 	)
 
+	control_collection_template: StringProperty(
+		name="Master Control Collection",
+		description="Template for the control collection name.",
+		default="{Name}{side}"
+	)
+
 	tweak_collection_template: StringProperty(
 		name="Tweak Collection",
 		description="Template for the tweak collection name.",
@@ -337,6 +343,7 @@ class RigToolsPreferences(AddonPreferences):
 		col.label(text="{side} -> .L / .R / (blank)")
 		box.prop(self, "ik_collection_template")
 		box.prop(self, "fk_collection_template")
+		box.prop(self, "control_collection_template")
 		box.prop(self, "tweak_collection_template")
 		box.prop(self, "mch_collection_template")
 		box.separator()
