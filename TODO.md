@@ -1,3 +1,5 @@
+NEXT: Fix generate ORG bones so it can use collections
+
 Twist bones generate ORG bones, but not DEF bones
 We don't show in the dialog whether twist bone connections exist yet.
     Ideally:

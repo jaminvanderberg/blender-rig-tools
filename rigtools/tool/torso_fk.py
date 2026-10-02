@@ -7,7 +7,7 @@ from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.twist_bones import get_twist_chain, set_twist_parent
 from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_bone_name, generate_mch_bones, match_orientation, set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
-from rigtools.utils.widget import create_chest_widget, create_fk_widget, get_widget_collection
+from rigtools.utils.widget import create_box_widget, create_chest_widget, create_fk_widget, get_widget_collection
     
 class TorsoFK:
 	def __init__(self, *,
@@ -18,8 +18,6 @@ class TorsoFK:
 		tweak_relationship: str = "STRETCH_TO",
 		neck_twist_bone_count: int,
 		chest_twist_bone_count: int,
-		add_neck_rotation_isolation: bool = True,
-		add_chest_rotation_isolation: bool = True,
 		tweak_collection_name: str = "",
 		control_collection_name: str = "",
 		fk_collection_name: str = "",
@@ -36,8 +34,6 @@ class TorsoFK:
 		self.tweak_collection_name = tweak_collection_name
 		self.fk_collection_name = fk_collection_name
 		self.mch_collection_name = mch_collection_name
-		self.add_neck_rotation_isolation = add_neck_rotation_isolation
-		self.add_chest_rotation_isolation = add_chest_rotation_isolation
 
 		self.tweak_chain = None
 		self.fk_bone_names = []
@@ -311,14 +307,31 @@ class TorsoFK:
 				constraint.owner_space = 'LOCAL'
 				constraint.influence = influence
 
+		avg_size = sum(pose_bones[name].length for name in self.fk_bone_names) / len(self.fk_bone_names)
+		
 		# Create widgets
 		coll = get_widget_collection(context, settings.widget_collection)
 		if settings.do_create_widgets and self.fk_widget != "NONE":
-			for fk_name in self.fk_bone_names:
+			for i, fk_name in enumerate(self.fk_bone_names):
 				fk_bone = pose_bones[fk_name]
 				widget_name = generate_bone_name(fk_name, settings.widget_template)
 				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
 				fk_bone.custom_shape = wgt
+
+				# make all torso widgets the same size
+				scale = avg_size / fk_bone.length * 1.5 # but scaled up a little
+				if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
+					scale = 1.5 # Keep neck size, but scale up as well
+				if i == len(self.fk_bone_names) - 1:
+					scale = 1.0 # Head bone is already the right size
+				fk_bone.custom_shape_scale_xyz = (scale, 1.0, scale)
+
+				if i < self.lower_torso_bone_count:
+					# Move the lower torso widgets down to their original bone position
+					fk_bone.custom_shape_translation = (0.0, -fk_bone.length, 0.0)
+				if i == len(self.fk_bone_names) - 1:
+					# Move the head widget up just past the end of the bone
+					fk_bone.custom_shape_translation = (0.0, fk_bone.length * 0.6, 0.0)
 
 				self.object_names.append(wgt.name)
 
@@ -331,8 +344,6 @@ class TorsoFK:
 			hip_bone.custom_shape_translation = (0.0, 0.0, -hip_bone.length * 0.25)  # toward head = down
 			self.object_names.append(hips_wgt.name)
 
-
-
 			chest_widget_name = generate_bone_name(self.chest_bone_name, settings.widget_template)
 			chest_wgt = create_chest_widget(chest_widget_name, coll)
 			chest_bone = pose_bones[self.chest_bone_name]
@@ -340,5 +351,20 @@ class TorsoFK:
 			chest_bone.custom_shape_translation = (0.0, 0.0, chest_bone.length)  # toward tip = up
 			self.object_names.append(chest_wgt.name)
 
+			torso_widget_name = generate_bone_name(self.torso_bone_name, settings.widget_template)
+			torso_wgt = create_box_widget(torso_widget_name, coll)
+			torso_bone = pose_bones[self.torso_bone_name]
+			torso_bone.custom_shape = torso_wgt
+			torso_bone.custom_shape_translation = (0.0, -torso_bone.length * 0.5, 0.0) # center on the head
+			self.object_names.append(torso_wgt.name)
+
+		# Bone Colors
+		for fk_name in self.fk_bone_names:
+			fk_bone = pose_bones[fk_name]
+			fk_bone.color.palette = prefs.fk_bone_color
+
+		pose_bones[self.torso_bone_name].color.palette = prefs.control_bone_color
+		pose_bones[self.hip_bone_name].color.palette = prefs.control_bone_color
+		pose_bones[self.chest_bone_name].color.palette = prefs.control_bone_color
 
 		return self

@@ -268,6 +268,12 @@ class RigToolsPreferences(AddonPreferences):
 		items=BONE_COLOR_ITEMS,
 		default='THEME01'
 	)
+	control_bone_color: EnumProperty(
+		name="Master Control Color",
+		description="Default theme color set for master control bones",
+		items=BONE_COLOR_ITEMS,
+		default='THEME02'
+	)
 	tweak_bone_color: EnumProperty(
 		name="Tweak Color",
 		description="Default theme color set for tweak controls",
@@ -385,4 +391,5 @@ class RigToolsPreferences(AddonPreferences):
 		box.label(text="Control Colors", icon='COLOR')
 		box.prop(self, "fk_bone_color")
 		box.prop(self, "ik_bone_color")
+		box.prop(self, "control_bone_color")
 		box.prop(self, "tweak_bone_color")

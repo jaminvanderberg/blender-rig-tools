@@ -52,8 +52,6 @@ def create_torso_assembly(context, chains: list[list[str]], template_name, optio
 			add_tweak_bones = options.add_tweak_bones,
 			tweak_relationship = options.tweak_relationship,
 			fk_widget = options.fk_widget,
-			add_neck_rotation_isolation = options.add_neck_rotation_isolation,
-			add_chest_rotation_isolation = options.add_chest_rotation_isolation,
 			tweak_collection_name = tweak_collection_name if options.override_collections else None,
 			fk_collection_name = fk_collection_name if options.override_collections else None,
 			mch_collection_name = mch_collection_name if options.override_collections else None,

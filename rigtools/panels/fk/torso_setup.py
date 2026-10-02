@@ -1,12 +1,13 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
-from rigtools.assemblies import delete_assembly
+from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.rig_ui.property_name import guess_limb_name
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
+from rigtools.utils.widget import fk_widget_types
 
 
 class RIG_OT_advanced_torso_setup(bpy.types.Operator):
@@ -26,7 +27,14 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		description="Number of bones in the lower torso",
 		default=2
 	)
-	
+
+	fk_widget: EnumProperty(
+		name="FK Widget",
+		description="Type of widget to use for the FK bones",
+		items=fk_widget_types,
+		default='CIRCLE'
+	)
+
 	neck_bone_count: IntProperty(
 		name="Neck Bone Count",
 		description="Number of bones in the neck",
@@ -97,6 +105,12 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	add_chest_rotation_isolation: BoolProperty(
 		name="Add Chest Rotation Isolation",
 		description="Add rotation isolation for the chest",
+		default=True
+	)
+
+	override_collections: BoolProperty(
+		name="Override Collections",
+		description="Override the collections for the torso assembly",
 		default=True
 	)
 
@@ -251,18 +265,23 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 		layout.separator()
 		col = layout.column()
+
+		if self.do_show_field("fk_widget", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="FK Widget:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "fk_widget", text="")
+
 		if self.do_show_field("add_tweak_bones", template):
 			col.prop(self, "add_tweak_bones")
-			if self.add_tweak_bones and self.do_show_any_field(["tweak_relationship"], template):
-				box = layout.box()
-				box.label(text="Tweak Bones:", icon='SETTINGS')
-				col = box.column()
-				if self.do_show_field("tweak_relationship", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Tweak Relationship:", translate=False)
-					row = split.row(align=True)
-					row.prop(self, "tweak_relationship", text="")	
+
+		if self.add_tweak_bones and self.do_show_field("tweak_relationship", template):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Tweak Relationship:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "tweak_relationship", text="")	
 
 		layout.separator()
 		col = layout.column()
@@ -304,6 +323,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			tweak_relationship=self.tweak_relationship,
 			add_neck_rotation_isolation=self.add_neck_rotation_isolation,
 			add_chest_rotation_isolation=self.add_chest_rotation_isolation,
+			fk_widget=self.fk_widget,
+			override_collections=self.override_collections,
 		)
 
 		try:

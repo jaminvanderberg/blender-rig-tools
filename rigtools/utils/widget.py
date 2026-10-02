@@ -51,7 +51,7 @@ def create_circle_widget(widget_name, collection):
 	
 	for i in range(segments):
 		angle = (2 * math.pi * i) / segments
-		verts.append((math.cos(angle) * 0.5, 0.0, math.sin(angle) * 0.5))
+		verts.append((math.cos(angle) * 0.5, 0.5, math.sin(angle) * 0.5))
 		edges.append((i, (i + 1) % segments))
 		
 	mesh = bpy.data.meshes.new(widget_name)
@@ -135,6 +135,7 @@ fk_widget_types = [
 	('CIRCLE', 'Circle', 'Create a circle widget'),
 	('RECTANGLE', 'Rectangle', 'Create a rectangle widget'),
 	('FK', 'FK Shape', 'Create a FK widget'),
+	('BOX', 'Box', 'Create a box widget'),
 	('NONE', 'None', 'No widget'),
 ]
 
@@ -146,6 +147,8 @@ def create_fk_widget(widget_type, widget_name, collection):
 			return create_rectangle_widget(widget_name, collection)
 		case 'FK':
 			return create_fk_shape_widget(widget_name, collection)
+		case 'BOX':
+			return create_box_widget(widget_name, collection)
 		case _:
 			return None
 
