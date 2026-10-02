@@ -1,6 +1,5 @@
-NEXT: Fix generate ORG bones so it can use collections
-
-Do we even need templates for torso?
+MCH parent for MCH collections?
+Do we even need templates for torso?  Yes, 1 for now and get rid of the advanced option
 
 Twist bones generate ORG bones, but not DEF bones
 We don't show in the dialog whether twist bone connections exist yet.

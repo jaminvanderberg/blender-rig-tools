@@ -24,6 +24,32 @@ def _coll_by_name(arm, name):
 			return coll
 	return None
 
+def _hidden_by_ancestor(coll):
+	parent = coll.parent
+	while parent:
+		if not parent.is_visible:
+			return True
+		parent = parent.parent
+	return False
+
+
+def _iter_descendants(coll):
+	for child in getattr(coll, "children", []):
+		yield child
+		yield from _iter_descendants(child)
+
+
+def _has_rig_ui_children(arm, coll):
+	for child in _iter_descendants(coll):
+		if not _is_hidden(arm, child.name):
+			return True
+	return False
+
+
+def _collection_toggle_icon(arm, coll):
+	if not _has_rig_ui_children(arm, coll):
+		return None
+	return 'DISCLOSURE_TRI_DOWN' if coll.is_visible else 'DISCLOSURE_TRI_RIGHT'
 
 def _iter_rows(arm):
 	rows = []
@@ -449,12 +475,19 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 			if row['type'] == 'gap':
 				col.separator()
 				continue
-			visible = [coll for coll in row['colls'] if not _is_hidden(arm, coll.name)]
+			visible = [
+				coll for coll in row['colls'] 
+				if not _is_hidden(arm, coll.name) and not _hidden_by_ancestor(coll)
+			]
 			if not visible:
 				continue
 			ui_row = col.row(align=True)
 			for coll in visible:
-				ui_row.prop(coll, "is_visible", text=coll.name, toggle=True)
+				cell = ui_row.row(align=True)
+				cell.prop(coll, "is_visible", text=coll.name, toggle=True)
+				icon = _collection_toggle_icon(arm, coll)
+				if icon:
+					cell.prop(coll, "is_visible", text="", toggle=True, icon=icon)
 
 	def _draw_edit(self, col, arm, sel_name, sel_gap):
 		rows = _iter_rows(arm)
