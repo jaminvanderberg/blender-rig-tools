@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
-from rigtools.rig_ui.property_name import guess_assembly_name
+from rigtools.utils.naming import guess_assembly_name
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
 from rigtools.utils.bone import find_side
 from rigtools.utils.bone_collection import generate_bone_collection_name

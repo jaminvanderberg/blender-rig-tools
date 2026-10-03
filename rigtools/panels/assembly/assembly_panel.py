@@ -1,16 +1,7 @@
 import bpy
+from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.utils.bone import get_selected_bones, select_bones
-
-def find_assemblies(arm, bone_names):
-	wanted = set(bone_names)
-	assemblies = []
-	for assembly in arm.rigtools_assemblies:
-		names = {o.name for o in assembly.org_states}
-		names.update(b.name for b in assembly.mechanism_bones)
-		if names & wanted:
-			assemblies.append(assembly)
-	return assemblies
 
 class RIG_OT_select_assembly(bpy.types.Operator):
 	bl_description = "Select all the bones associated with the assembly"

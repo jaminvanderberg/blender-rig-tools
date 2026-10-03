@@ -1,8 +1,11 @@
 import bpy
 from bpy.props import BoolProperty, StringProperty, EnumProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.rig_ui.property_name import guess_property_label, guess_group
 from itertools import groupby
+from rigtools.rig_ui.snapping_panel import find_snap_chain
+from rigtools.utils.bone import get_selected_bones
 from rna_prop_ui import rna_idprop_ui_create
 from bpy.utils import escape_identifier
 
@@ -55,6 +58,12 @@ def _apply_enum(prop_bone, name, items):
 		)
 	if overridable:
 		prop_bone.property_overridable_library_set(f'["{name}"]', True)
+
+def get_selected_assemblies(context):
+	selected_bones = get_selected_bones(context)
+	selected_names = [bone.name for bone in selected_bones]
+	assemblies = find_assemblies(context.object.data, selected_names)
+	return sorted(assemblies, key=lambda x: x.name)
 
 class RIG_OT_ui_property_modify(bpy.types.Operator):
 	"""Modify the Rig UI settings for a custom property."""
@@ -140,46 +149,39 @@ class RIG_OT_ui_property_modify(bpy.types.Operator):
 		layout.separator()
 
 		layout.prop(self, "label", text="Label")
-		layout.prop(self, "group", text="Group")
-		layout.prop(self, "subgroup", text="Subgroup")
-		layout.prop(self, "hidden", text="Hidden")
 		layout.separator()
 		layout.prop(self, "is_enum")
 		if self.is_enum:
 			layout.prop(self, "enum_items")
 
 
-def _iterate_properties(armature_data, prop_bone, context, show_hidden=False):
-	overlay = {item.property_name: item for item in armature_data.rig_ui_properties}
-	rows = []
-	for prop in prop_bone.keys():
-		if prop.startswith("_"):
-			continue
-		item = overlay.get(prop)
-		group, side = guess_group(prop, context)
-		label = (item.label if item else guess_property_label(prop, context))
-		group = (item.group if item else group)
-		subgroup = (item.subgroup if item else side)
-		hidden = (item.hidden if item else False)
-		if hidden and not show_hidden:
-			continue
+def _iterate_assemblies(context, prop_bone):
+	overlay = {item.property_name: item for item in context.active_object.data.rig_ui_properties}
+	for assembly in get_selected_assemblies(context):
+		properties = []
+		snaps = []
+		for property in assembly.properties:
+			if property.name.startswith("_"):
+				continue
+			if property.name not in prop_bone.keys():
+				continue
+			item = overlay.get(property.name)
+			label = (item.label if item else guess_property_label(property.name, context))
+			properties.append({
+				"name": property.name,
+				"label": label,
+			})
 
-		rows.append({
-			"name": prop,
-			"label": label,
-			"group": group,
-			"subgroup": subgroup,
-			"hidden": hidden})
+			snap = find_snap_chain(context.active_object.data, property.name)
+			if snap:
+				snaps.append({
+					"name": snap.switch_property,
+					"label": snap.label,
+				})
+		properties.sort(key=lambda x: x["label"].lower())
+		snaps.sort(key=lambda x: x["label"].lower())
 
-	side_order = {"": 0, "L": 1, "R": 2}
-	rows.sort(key=lambda r: (
-		r["group"].lower(),
-		side_order.get(r["subgroup"], 3),
-		r["label"].lower(),
-		r["name"]
-	))
-	return rows
-
+		yield assembly.name, properties, snaps
 
 class RIG_PT_properties_ui(bpy.types.Panel):
 	bl_label = "Rig Properties"
@@ -209,36 +211,25 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 
 		wm = context.window_manager
 
-		props = _iterate_properties(obj.data, prop_bone, context, wm.rig_ui_show_hidden_properties)
+		for name, properties, snaps in _iterate_assemblies(context, prop_bone):
+			col = layout.box().column(align=True)
 
-		for group, group_props in groupby(props, key=lambda x: x["group"]):
-			header, body = layout.panel(f"rig_ui_props_{group}", default_closed=True)
-			header.label(text=f"{group} Properties")
-			if not body:
-				continue
-
-			current_sub = object() # force first box
-			col = None
-			for prop_data in group_props:
-				if prop_data["subgroup"] != current_sub:
-					current_sub = prop_data["subgroup"]
-					col = body.box().column(align=True)
+			for prop in properties:
 				row = col.row()
-				row.active = not prop_data["hidden"]
 				split = row.split(align=True, factor=split_size)
 				row = split.row(align=True)
-				row.label(text=prop_data["label"], translate=False)
+				row.label(text=prop["label"], translate=False)
 				row = split.row(align=True)
-				row.prop(prop_bone, f'["{prop_data["name"]}"]', text = "", slider=True)
+				row.prop(prop_bone, f'["{prop["name"]}"]', text = "", slider=True)
 				op = row.operator("rig.ui_property_modify", text="", icon='SETTINGS')
-				op.property_name = prop_data["name"]
+				op.property_name = prop["name"]
 
-		hidden_count = sum(1 for prop_data in props if prop_data["hidden"])
-		if hidden_count > 0:
-			header = layout.row(align=True)
-			header.alignment = 'RIGHT'
-			icon = 'HIDE_OFF' if wm.rig_ui_show_hidden_properties else 'HIDE_ON'
-			header.prop(wm, "rig_ui_show_hidden_properties", icon=icon, toggle=True)
+			for snap in snaps:
+				col = layout.column(align=True)
+				op = col.operator("rig.snap_ik_to_fk", text=snap["label"] + " IK > FK", icon='SNAP_ON')
+				op.switch_property = snap["name"]
+				op = col.operator("rig.snap_fk_to_ik", text=snap["label"] + " FK > IK", icon='SNAP_ON')
+				op.switch_property = snap["name"]
 
 classes = (
 	RigUIPropertyItem,

@@ -43,7 +43,7 @@ def delete_snap_chain(armature_data, switch_property):
 			armature_data.rig_ui_snap_chains.remove(i)
 			break
 
-def _find_snap_chain_item(armature_data, switch_property):
+def find_snap_chain(armature_data, switch_property):
 	for item in armature_data.rig_ui_snap_chains:
 		if item.switch_property == switch_property:
 			return item
@@ -66,7 +66,7 @@ class RIG_OT_snap_chain_modify(bpy.types.Operator):
 
 	def execute(self, context):
 		armature_data = context.object.data
-		item = _find_snap_chain_item(armature_data, self.switch_property)
+		item = find_snap_chain(armature_data, self.switch_property)
 		if not item:
 			item = armature_data.rig_ui_snap_chains.add()
 			item.switch_property = self.switch_property
@@ -77,7 +77,7 @@ class RIG_OT_snap_chain_modify(bpy.types.Operator):
 
 	def invoke(self, context, event):
 		armature_data = context.object.data
-		item = _find_snap_chain_item(armature_data, self.switch_property)
+		item = find_snap_chain(armature_data, self.switch_property)
 		self.label = item.label
 		self.group = item.group
 		self.hidden = item.hidden
@@ -144,7 +144,7 @@ class RIG_OT_snap_ik_to_fk(bpy.types.Operator):
 
 	def execute(self, context):
 		arm = context.active_object
-		item = _find_snap_chain_item(arm.data, self.switch_property)
+		item = find_snap_chain(arm.data, self.switch_property)
 		pose_bones = arm.pose.bones
 		settings = get_armature_settings(arm.data, context)
 		props = pose_bones[settings.property_bone_name]
@@ -178,7 +178,7 @@ class RIG_OT_snap_fk_to_ik(bpy.types.Operator):
 
 	def execute(self, context):
 		arm = context.active_object
-		item = _find_snap_chain_item(arm.data, self.switch_property)
+		item = find_snap_chain(arm.data, self.switch_property)
 		pose_bones = arm.pose.bones
 		settings = get_armature_settings(arm.data, context)
 		props = pose_bones[settings.property_bone_name]

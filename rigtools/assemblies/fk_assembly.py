@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.preferences import get_preferences
-from rigtools.rig_ui.property_name import guess_assembly_name
+from rigtools.utils.naming import guess_assembly_name
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.rotation_follow import RotationFollow
 from rigtools.tool.rotation_isolation import RotationIsolation

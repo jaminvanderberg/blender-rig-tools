@@ -331,6 +331,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "org_template")
 		box.prop(self, "fk_template")
 		box.prop(self, "ik_template")
+		box.prop(self, "control_template")
 		box.prop(self, "ik_pole_template")
 		box.prop(self, "ik_pole_vis_template")
 		box.prop(self, "mch_template")
