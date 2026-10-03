@@ -27,6 +27,7 @@ class TorsoAssemblyOptions:
 	use_twist_bones: bool = True
 	tweak_relationship: str = "STRETCH_TO"
 	override_collections: bool = True
+	neck_falloff_type: str = "ROOT"
 
 def create_torso_assembly(context, chains: list[list[str]], template_name, options: TorsoAssemblyOptions):
 	prefs = get_preferences()
@@ -62,6 +63,8 @@ def create_torso_assembly(context, chains: list[list[str]], template_name, optio
 			fk_collection_name = fk_collection_name if options.override_collections else None,
 			mch_collection_name = mch_collection_name if options.override_collections else None,
 			control_collection_name = control_collection_name if options.override_collections else None,
+			add_neck_rotation_isolation = options.add_neck_rotation_isolation,
+			neck_falloff_type = options.neck_falloff_type,
 		)
 		torso_fk_chain.edit_mode(context, chain)
 		assembly_chain.tools.append(torso_fk_chain)

@@ -6,6 +6,7 @@ from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.rig_ui.property_name import guess_limb_name
+from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
 from rigtools.utils.widget import fk_widget_types
 
@@ -136,6 +137,13 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		name="Override Collections",
 		description="Override the collections for the torso assembly",
 		default=True
+	)
+
+	neck_falloff_type: EnumProperty(
+		name="Neck Falloff Type",
+		description="Type of falloff for the neck",
+		items=falloff_presets + [('NONE', "None", "No falloff", '', 5)],
+		default='LINEAR'
 	)
 
 	@classmethod
@@ -355,6 +363,16 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				row.prop(self, "head_base_property_name", text="")
 			if self.do_show_field("head_inherit_scale_from_root", template):
 				col.prop(self, "head_inherit_scale_from_root")
+
+		if self.do_show_field("neck_falloff_type", template):
+			layout.separator()
+			col = layout.column()
+
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text="Neck Falloff:", translate=False)
+			row = split.row(align=True)
+			row.prop(self, "neck_falloff_type", text="")
 
 	##################################################################################################
 	# execute

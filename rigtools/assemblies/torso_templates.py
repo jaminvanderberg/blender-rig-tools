@@ -34,6 +34,7 @@ TORSO_TEMPLATES = {
 			"use_twist_bones": True,
 			"tweak_relationship": "STRETCH_TO",
 			"add_tweak_bones": True,
+			"neck_falloff_type": "ROOT",
 		},
 		redo_fields=(
 			"lower_torso_bone_count",
@@ -41,6 +42,7 @@ TORSO_TEMPLATES = {
 			"use_twist_bones",
 			"neck_twist_bone_count",
 			"chest_twist_bone_count",
+			"neck_falloff_type",
 		),
 	),
 }
@@ -63,6 +65,7 @@ REDO_PROPERTIES = {
 	"head_inherit_scale_from_root",
 	"fk_widget",
 	"override_collections",
+	"neck_falloff_type",
 }
 
 

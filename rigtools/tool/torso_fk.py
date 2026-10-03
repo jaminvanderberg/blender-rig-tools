@@ -4,6 +4,7 @@ from mathutils import Vector
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
+from rigtools.tool.twist_bones import twist_influence
 from rigtools.twist_bones import get_twist_chain, set_twist_parent
 from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_bone_name, generate_mch_bones, match_orientation, set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
@@ -22,6 +23,8 @@ class TorsoFK:
 		control_collection_name: str = "",
 		fk_collection_name: str = "",
 		mch_collection_name: str = "",
+		add_neck_rotation_isolation: bool = True,
+		neck_falloff_type: str = "ROOT",
 	):
 		self.fk_widget = fk_widget
 		self.neck_bone_count = neck_bone_count
@@ -34,6 +37,8 @@ class TorsoFK:
 		self.tweak_collection_name = tweak_collection_name
 		self.fk_collection_name = fk_collection_name
 		self.mch_collection_name = mch_collection_name
+		self.add_neck_rotation_isolation = add_neck_rotation_isolation
+		self.neck_falloff_type = neck_falloff_type
 
 		self.tweak_chain = None
 		self.fk_bone_names = []
@@ -48,6 +53,9 @@ class TorsoFK:
 		self.torso_bone_name = None
 		self.hip_bone_name = None
 		self.chest_bone_name = None
+
+		self.twist_isolator_name = None
+		self.neck_org_names = []
 
 		self.hips_mch_names = []
 		self.chest_mch_names = []
@@ -79,6 +87,11 @@ class TorsoFK:
 			set_bone_collection(armature_data, torso_bone, self.control_collection_name)
 
 		waist_position = edit_bones[org_bone_names[self.lower_torso_bone_count]].head
+		
+		first_neck_bone_index = len(org_bone_names) - self.neck_bone_count - 1
+		chest_bone_index = len(org_bone_names) - self.neck_bone_count - 2
+		lower_torso_index = self.lower_torso_bone_count - 1
+		upper_torso_index = self.lower_torso_bone_count
 
 		self.torso_bone_name = torso_bone.name
 		self.mechanism_bone_names.append(torso_bone.name)
@@ -103,7 +116,6 @@ class TorsoFK:
 
 		# Neck twist bones
 		if self.neck_twist_bone_count > 0:
-			first_neck_bone_index = len(org_bone_names) - self.neck_bone_count - 1
 			for i in range(first_neck_bone_index, len(org_bone_names) - 1):
 				twist_names = get_twist_chain(armature_data, org_bone_names[i], use_edit_bones=True)
 				org_bone = edit_bones[org_bone_names[i]]
@@ -129,7 +141,6 @@ class TorsoFK:
 
 		# Chest twist bones
 		if self.chest_twist_bone_count > 0:
-			chest_bone_index = len(org_bone_names) - self.neck_bone_count - 2
 			twist_names = get_twist_chain(armature_data, org_bone_names[chest_bone_index], use_edit_bones=True)
 			org_bone = edit_bones[org_bone_names[chest_bone_index]]
 			if not twist_names:
@@ -156,7 +167,16 @@ class TorsoFK:
 		fk_bones = [] # store locally because we reference them alot during parenting
 		for i, org_name in enumerate(org_bone_names):
 			org_bone = edit_bones[org_name]
-			fk_bone_name = generate_bone_name(org_name, prefs.fk_template)
+
+			is_neck_bone = i >= first_neck_bone_index and i < first_neck_bone_index + self.neck_bone_count
+			is_head_bone = i == len(org_bone_names) - 1
+			if is_neck_bone:
+				fk_bone_name = generate_bone_name(org_name, prefs.control_template)
+			elif is_head_bone:
+				fk_bone_name = settings.head_bone_name
+			else:
+				fk_bone_name = generate_bone_name(org_name, prefs.fk_template)
+
 			fk_bone = duplicate_bone(armature_data, org_bone, fk_bone_name, 1.0)
 			fk_bones.append(fk_bone)
 
@@ -167,15 +187,14 @@ class TorsoFK:
 
 			self.fk_bone_names.append(fk_bone.name)
 
-			if self.fk_collection_name:
+			if self.fk_collection_name and not (is_head_bone or is_neck_bone):
 				set_bone_collection(armature_data, fk_bone, self.fk_collection_name)
+			if self.control_collection_name and (is_neck_bone or is_head_bone):
+				set_bone_collection(armature_data, fk_bone, self.control_collection_name)
 
 			self.mechanism_bone_names.append(fk_bone.name)
 
 		# Parent the FK bones in two sections: lower torso and upper torso
-		lower_torso_index = self.lower_torso_bone_count - 1
-		upper_torso_index = self.lower_torso_bone_count
-
 		for fk_bone in fk_bones:
 			# Clear the parent first to avoid any circular dependencies
 			fk_bone.parent = None
@@ -199,13 +218,22 @@ class TorsoFK:
 			else:
 				parent_index = i
 
+			if i == first_neck_bone_index:
+				first_neck_tweak_index = len(source_names)
+
+			is_neck_bone = i >= first_neck_bone_index and i < first_neck_bone_index + self.neck_bone_count
+
 			if i not in self.twist_bones:
 				source_names.append(org_name)
 				tweak_parents.append(self.fk_bone_names[parent_index])
+				if is_neck_bone:
+					self.neck_org_names.append(org_name)
 				continue
 
 			twist_names = self.twist_bones[i]
 			source_names.extend(twist_names)
+			if is_neck_bone:
+				self.neck_org_names.extend(twist_names)
 
 			tweak_parents.append(self.fk_bone_names[parent_index])
 			tweak_parents.extend([org_name] * (len(twist_names) - 1))
@@ -273,6 +301,26 @@ class TorsoFK:
 				match_orientation(edit_bones[mch_name], chest_bone)
 			self.mechanism_bone_names.extend(self.chest_mch_names)
 
+		# Fix required if there is more than one neck bone
+		multiple_neck_bones = self.neck_bone_count > 1 or self.neck_twist_bone_count > 1
+
+		# And rotation isolation is enabled.
+		if self.add_neck_rotation_isolation and multiple_neck_bones:
+			# We need a twist isolation bone to fix neck twisting
+			first_neck_tweak_name = self.tweak_chain.tweak_bone_names[first_neck_tweak_index]
+			second_neck_tweak_name = self.tweak_chain.tweak_bone_names[first_neck_tweak_index + 1]
+			self.twist_isolator_name = generate_mch_bones(
+				armature_data, 
+				[edit_bones[first_neck_tweak_name]], 
+				prefs.twist_isolator_template, 
+				self.mch_collection_name
+			)[0]
+			self.mechanism_bone_names.append(self.twist_isolator_name)
+
+			twist_isolator = edit_bones[self.twist_isolator_name]
+			twist_isolator.parent = edit_bones[self.fk_bone_names[chest_bone_index]] # parent to chest FK
+			edit_bones[second_neck_tweak_name].parent = twist_isolator
+
 		return self
 
 	def pose_mode(self, context):
@@ -311,6 +359,38 @@ class TorsoFK:
 				constraint.influence = influence
 
 		avg_size = sum(pose_bones[name].length for name in self.fk_bone_names) / len(self.fk_bone_names)
+
+		# Neck twist falloff
+		if self.neck_falloff_type != "NONE":
+			for i, org_name in enumerate(self.neck_org_names):
+				org_bone = pose_bones[org_name]
+				constraint = org_bone.constraints.new(type='COPY_ROTATION')
+				constraint.target = obj
+				constraint.subtarget = self.fk_bone_names[-1]
+				constraint.target_space = 'LOCAL'
+				constraint.owner_space = 'LOCAL'
+
+				influence = twist_influence(self.neck_falloff_type, i, len(self.neck_org_names) + 1, reverse=True)
+				constraint.influence = influence
+
+		# Twist isolator
+		if self.twist_isolator_name:
+			first_neck_bone_index = len(self.fk_bone_names) - self.neck_bone_count - 1
+			neck_fk_name = self.fk_bone_names[first_neck_bone_index]
+
+			twist_isolator = pose_bones[self.twist_isolator_name]
+			copy_loc = twist_isolator.constraints.new(type='COPY_LOCATION')
+			copy_loc.target = obj
+			copy_loc.subtarget = neck_fk_name
+
+			damped_track = twist_isolator.constraints.new(type='DAMPED_TRACK')
+			damped_track.target = obj
+			damped_track.subtarget = neck_fk_name
+			damped_track.head_tail = 1.0 # Aim at tail of neck FK
+
+			copy_scale = twist_isolator.constraints.new(type='COPY_SCALE')
+			copy_scale.target = obj
+			copy_scale.subtarget = neck_fk_name
 		
 		# Create widgets
 		# FK widgets
@@ -364,12 +444,25 @@ class TorsoFK:
 			self.object_names.append(torso_wgt.name)
 
 		# Bone Colors
-		for fk_name in self.fk_bone_names:
+		for i, fk_name in enumerate(self.fk_bone_names):
 			fk_bone = pose_bones[fk_name]
-			fk_bone.color.palette = prefs.fk_bone_color
 
-		pose_bones[self.torso_bone_name].color.palette = prefs.control_bone_color
-		pose_bones[self.hip_bone_name].color.palette = prefs.control_bone_color
-		pose_bones[self.chest_bone_name].color.palette = prefs.control_bone_color
+			if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
+				fk_bone.color.palette = prefs.control_bone_color
+				fk_bone.custom_shape_wire_width = 1.5
+			else:			
+				fk_bone.color.palette = prefs.fk_bone_color
+
+		torso_bone = pose_bones[self.torso_bone_name]
+		torso_bone.color.palette = prefs.control_bone_color
+		torso_bone.custom_shape_wire_width = 1.5
+
+		hip_bone = pose_bones[self.hip_bone_name]
+		hip_bone.color.palette = prefs.control_bone_color
+		hip_bone.custom_shape_wire_width = 1.5
+
+		chest_bone = pose_bones[self.chest_bone_name]
+		chest_bone.color.palette = prefs.control_bone_color
+		chest_bone.custom_shape_wire_width = 1.5
 
 		return self

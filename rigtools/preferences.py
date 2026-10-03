@@ -73,6 +73,11 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for the IK controller bone. {name} is taken from the last bone in the chain.",
 		default="{name}"
 	)
+	control_template: StringProperty(
+		name="Master Control Bone",
+		description="Template for master control bones",
+		default="{name}"
+	)
 	ik_pole_template: StringProperty(
 		name="IK Pole Bone",
 		description="Template for the IK pole bone. {name} is taken from the first bone in the chain.",
