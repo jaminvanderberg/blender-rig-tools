@@ -49,7 +49,7 @@ class FKIKSwitch:
 		if self.mch_collection_name:
 			for bone_name in self.ik_bone_names:
 				bone = edit_bones[bone_name]
-				set_bone_collection(obj.data, bone, self.mch_collection_name)
+				set_bone_collection(obj.data, bone, self.mch_collection_name, prefs.mch_parent_collection)
 
 		self.mechanism_bone_names.extend(self.ik_bone_names)
 		self.mechanism_bone_names.extend(self.fk_bone_names)

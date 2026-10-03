@@ -1,6 +1,3 @@
-MCH parent for MCH collections?
-Do we even need templates for torso?  Yes, 1 for now and get rid of the advanced option
-
 Twist bones generate ORG bones, but not DEF bones
 We don't show in the dialog whether twist bone connections exist yet.
     Ideally:
@@ -9,6 +6,6 @@ We don't show in the dialog whether twist bone connections exist yet.
     - Notice: twist bones will be created
 Twist bones/tweak bones - another name?
 
-Chain selection tools need refinement
-    - Select hierachy doesn't work with branches
-    - Select connected doesn't work in pose mode
+delete assembly doesn't delete child collections
+
+templates don't always open as template.  maybe an advanced option?

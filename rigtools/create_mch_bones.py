@@ -41,7 +41,7 @@ class RIG_OT_create_mch_bones(bpy.types.Operator):
 			mch_bone = duplicate_bone(armature_data, bone, bone_name, 0.35)
 
 			if prefs.mch_collection_name:
-				set_bone_collection(armature_data, mch_bone, prefs.mch_collection_name)
+				set_bone_collection(armature_data, mch_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 			mch_bone.parent = bone.parent
 			bone.use_connect = False

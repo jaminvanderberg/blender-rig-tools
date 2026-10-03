@@ -112,9 +112,9 @@ class StandardIK:
 			tweak.parent = mch
 
 			if self.mch_collection_name:
-				set_bone_collection(obj.data, mch, self.mch_collection_name)
+				set_bone_collection(obj.data, mch, self.mch_collection_name, prefs.mch_parent_collection)
 			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, mch, prefs.mch_collection_name)
+				set_bone_collection(obj.data, mch, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 			self.mch_tweak_name = mch.name
 			self.mechanism_bone_names.append(self.mch_tweak_name)
@@ -131,11 +131,11 @@ class StandardIK:
 			self.snap_pole_name = snap_pole_bone.name
 
 			if self.mch_collection_name:
-				set_bone_collection(obj.data, snap_control_bone, self.mch_collection_name)
-				set_bone_collection(obj.data, snap_pole_bone, self.mch_collection_name)
+				set_bone_collection(obj.data, snap_control_bone, self.mch_collection_name, prefs.mch_parent_collection)
+				set_bone_collection(obj.data, snap_pole_bone, self.mch_collection_name, prefs.mch_parent_collection)
 			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, snap_control_bone, prefs.mch_collection_name)
-				set_bone_collection(obj.data, snap_pole_bone, prefs.mch_collection_name)
+				set_bone_collection(obj.data, snap_control_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
+				set_bone_collection(obj.data, snap_pole_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 		pole_vis_bone = None
 		if settings.do_create_widgets:

@@ -102,9 +102,33 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		default=True
 	)
 
-	add_chest_rotation_isolation: BoolProperty(
-		name="Add Chest Rotation Isolation",
-		description="Add rotation isolation for the chest",
+	neck_base_property_name: StringProperty(
+		name="Neck Base Property Name",
+		description="Base property name for the neck",
+		default="neck"
+	)
+
+	neck_inherit_scale_from_root: BoolProperty(
+		name="Neck Inherit Scale From Root",
+		description="Inherit scale from the root for the neck",
+		default=True
+	)
+
+	add_head_rotation_isolation: BoolProperty(
+		name="Add Head Rotation Isolation",
+		description="Add rotation isolation for the head",
+		default=True
+	)
+
+	head_base_property_name: StringProperty(
+		name="Head Base Property Name",
+		description="Base property name for the head",
+		default="head"
+	)
+
+	head_inherit_scale_from_root: BoolProperty(
+		name="Head Inherit Scale From Root",
+		description="Inherit scale from the root for the head",
 		default=True
 	)
 
@@ -214,7 +238,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		box.label(text="Torso Settings:", icon='SETTINGS')
 
 		template = get_torso_template(self.template_id) if self.template_id else None
-		split_size = 0.4
+		split_size = 0.6
 
 		col = box.column()
 		if self.do_show_field("limb_property_base_name", template):
@@ -263,8 +287,9 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 					row = split.row(align=True)
 					row.prop(self, "chest_twist_bone_count", text="")
 
-		layout.separator()
-		col = layout.column()
+		if self.do_show_any_field(["fk_widget", "add_tweak_bones", "tweak_relationship"], template):
+			layout.separator()
+			col = layout.column()
 
 		if self.do_show_field("fk_widget", template):
 			split = col.split(align=True, factor=split_size)
@@ -283,12 +308,53 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			row = split.row(align=True)
 			row.prop(self, "tweak_relationship", text="")	
 
-		layout.separator()
-		col = layout.column()
+		if self.do_show_any_field(["add_neck_rotation_isolation", "add_head_rotation_isolation", 
+			"neck_base_property_name", "neck_inherit_scale_from_root", "head_base_property_name", 
+			"head_inherit_scale_from_root"], template):
+			
+			layout.separator()
+
+			box = layout.box()
+			box.label(text="Rotation Isolation:", icon='SETTINGS')
+			col = box.column()
+
+		rot_split_size = 0.6
+
 		if self.do_show_field("add_neck_rotation_isolation", template):
-			col.prop(self, "add_neck_rotation_isolation")
-		if self.do_show_field("add_chest_rotation_isolation", template):
-			col.prop(self, "add_chest_rotation_isolation")
+			split = col.split(align=True, factor=rot_split_size)
+			row = split.row(align=True)
+			row.prop(self, "add_neck_rotation_isolation")
+		if self.add_neck_rotation_isolation:
+			if self.do_show_field("neck_base_property_name", template):
+				if not self.do_show_field("add_neck_rotation_isolation", template):
+					split = col.split(align=True, factor=split_size)
+					row = split.row(align=True)
+					row.label(text="Neck Base Property Name:", translate=False)
+				row = split.row(align=True)
+				row.prop(self, "neck_base_property_name", text="")
+			if self.do_show_field("neck_inherit_scale_from_root", template):
+				col.prop(self, "neck_inherit_scale_from_root")
+
+		if self.add_neck_rotation_isolation \
+			and self.do_show_any_field(["neck_base_property_name", "neck_inherit_scale_from_root"], template) \
+			and self.do_show_field("add_head_rotation_isolation", template):
+
+			col.separator()
+		
+		if self.do_show_field("add_head_rotation_isolation", template):
+			split = col.split(align=True, factor=rot_split_size)
+			row = split.row(align=True)
+			row.prop(self, "add_head_rotation_isolation")
+		if self.add_head_rotation_isolation:
+			if self.do_show_field("head_base_property_name", template):
+				if not self.do_show_field("add_head_rotation_isolation", template):
+					split = col.split(align=True, factor=split_size)
+					row = split.row(align=True)
+					row.label(text="Head Base Property Name:", translate=False)
+				row = split.row(align=True)
+				row.prop(self, "head_base_property_name", text="")
+			if self.do_show_field("head_inherit_scale_from_root", template):
+				col.prop(self, "head_inherit_scale_from_root")
 
 	##################################################################################################
 	# execute
@@ -302,7 +368,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			chains, original_mode, original_mirror = get_assembly_chains(
 				context,
 				self.assembly_uid,
-				check_property_bone=self.add_neck_rotation_isolation or self.add_chest_rotation_isolation,
+				check_property_bone=self.add_neck_rotation_isolation or self.add_head_rotation_isolation,
 			)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
@@ -322,7 +388,11 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			add_tweak_bones=self.add_tweak_bones,
 			tweak_relationship=self.tweak_relationship,
 			add_neck_rotation_isolation=self.add_neck_rotation_isolation,
-			add_chest_rotation_isolation=self.add_chest_rotation_isolation,
+			neck_base_property_name=self.neck_base_property_name,
+			neck_inherit_scale_from_root=self.neck_inherit_scale_from_root,
+			add_head_rotation_isolation=self.add_head_rotation_isolation,
+			head_base_property_name=self.head_base_property_name,
+			head_inherit_scale_from_root=self.head_inherit_scale_from_root,
 			fk_widget=self.fk_widget,
 			override_collections=self.override_collections,
 		)

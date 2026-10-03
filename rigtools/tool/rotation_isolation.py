@@ -61,11 +61,11 @@ class RotationIsolation:
 			int_bone.parent = root_bone
 
 			if self.mch_collection_name:
-				set_bone_collection(armature_data, int_bone, self.mch_collection_name)
-				set_bone_collection(armature_data, socket_bone, self.mch_collection_name)
+				set_bone_collection(armature_data, int_bone, self.mch_collection_name, prefs.mch_parent_collection)
+				set_bone_collection(armature_data, socket_bone, self.mch_collection_name, prefs.mch_parent_collection)
 			elif prefs.mch_collection_name:
-				set_bone_collection(armature_data, int_bone, prefs.mch_collection_name)
-				set_bone_collection(armature_data, socket_bone, prefs.mch_collection_name)
+				set_bone_collection(armature_data, int_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
+				set_bone_collection(armature_data, socket_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 			else:
 				for coll in bone.collections:
 					coll.assign(socket_bone)

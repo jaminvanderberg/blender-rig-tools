@@ -3,9 +3,11 @@ from dataclasses import dataclass
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.property_name import guess_assembly_name
+from rigtools.tool.rotation_isolation import RotationIsolation
 from rigtools.tool.torso_fk import TorsoFK
 from rigtools.utils.bone import find_side
 from rigtools.utils.bone_collection import generate_bone_collection_name
+from rigtools.utils.property import generate_property_name
 
 @dataclass
 class TorsoAssemblyOptions:
@@ -17,7 +19,11 @@ class TorsoAssemblyOptions:
 	add_tweak_bones: bool = True
 	fk_widget : str = "CIRCLE"
 	add_neck_rotation_isolation: bool = True
-	add_chest_rotation_isolation: bool = True
+	neck_base_property_name: str = "neck"
+	neck_inherit_scale_from_root: bool = True
+	add_head_rotation_isolation: bool = True
+	head_base_property_name: str = "head"
+	head_inherit_scale_from_root: bool = True
 	use_twist_bones: bool = True
 	tweak_relationship: str = "STRETCH_TO"
 	override_collections: bool = True
@@ -59,6 +65,39 @@ def create_torso_assembly(context, chains: list[list[str]], template_name, optio
 		)
 		torso_fk_chain.edit_mode(context, chain)
 		assembly_chain.tools.append(torso_fk_chain)
+
+		# NECK ROTATION ISOLATION
+		if options.add_neck_rotation_isolation:
+			neck_property_name = generate_property_name(
+				prefs.rotation_isolation_property_template,
+				options.neck_base_property_name,
+				side,
+			)
+			neck_rotation_isolation = RotationIsolation(
+				property_name = neck_property_name,
+				inherit_scale_from_root = options.neck_inherit_scale_from_root,
+				mch_collection_name = mch_collection_name if options.override_collections else None,
+			)
+			neck_name = torso_fk_chain.fk_bone_names[-options.neck_bone_count - 1]
+			neck_rotation_isolation.edit_mode(context, context.object.data, [neck_name])
+			assembly_chain.tools.append(neck_rotation_isolation)
+
+		# HEAD ROTATION ISOLATION
+		if options.add_head_rotation_isolation:
+			head_property_name = generate_property_name(
+				prefs.rotation_isolation_property_template,
+				options.head_base_property_name,
+				side,
+			)
+
+			head_rotation_isolation = RotationIsolation(
+				property_name = head_property_name,
+				inherit_scale_from_root = options.head_inherit_scale_from_root,
+				mch_collection_name = mch_collection_name if options.override_collections else None,
+			)
+			head_name = torso_fk_chain.fk_bone_names[-1]
+			head_rotation_isolation.edit_mode(context, context.object.data, [head_name])
+			assembly_chain.tools.append(head_rotation_isolation)
 
 	##############
 	# Pose mode

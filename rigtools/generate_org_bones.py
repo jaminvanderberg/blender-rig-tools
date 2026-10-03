@@ -1,5 +1,6 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
+from rigtools.twist_bones import get_twist_bones, get_twist_parent, set_twist_parent
 from rigtools.utils.bone import is_bone_visible, generate_bone_name, get_base_name, bone_name_matches, duplicate_bone, set_bone_collection
 from rigtools.preferences import get_preferences, get_separators
 from rigtools.utils.bone_collection import copy_collection_structure
@@ -84,6 +85,15 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 			collection = copy_collection_structure(armature_data, source_coll, self.def_collection_name, self.target_bone_collection)
 			collection.assign(org_bone)
 
+	def infer_target_name(self, armature_data, bone_name):
+		prefix, suffix = self.get_affixes()
+		base_name = self.get_def_base_name(bone_name, prefix, suffix)
+		inferred = generate_bone_name(base_name, self.target_bone_name, strip_name=False)
+		if inferred in armature_data.edit_bones:
+			return inferred
+		else:
+			return bone_name
+
 	def create_bones(self, context, pairs):
 		edit_bones = context.object.data.edit_bones
 
@@ -120,14 +130,18 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 				target_bone.parent = edit_bones[lookup[parent.name]]
 				target_bone.use_connect = def_bone.use_connect
 			else:
-				prefix, suffix = self.get_affixes()
-				base_name = self.get_def_base_name(parent.name, prefix, suffix)
-				inferred = generate_bone_name(base_name, self.target_bone_name, strip_name=False)
-				if inferred in edit_bones:
-					target_bone.parent = edit_bones[inferred]
-				else:
-					target_bone.parent = parent
+				target_bone.parent = edit_bones[self.infer_target_name(context.object.data, parent.name)]
 				target_bone.use_connect = def_bone.use_connect
+
+			# Preserve the twist parents as well
+			twist_parent_def = get_twist_parent(context.object.data, def_bone.name)
+			if twist_parent_def:
+				if twist_parent_def in lookup:
+					twist_parent_target = lookup[twist_parent_def]
+				else:
+					twist_parent_target = self.infer_target_name(context.object.data, twist_parent_def)
+
+				set_twist_parent(context.object.data, target_bone.name, twist_parent_target)
 
 		# Apply the relationship type to all bone pairs (new and existing)
 		if self.relationship_type == 'PARENT':

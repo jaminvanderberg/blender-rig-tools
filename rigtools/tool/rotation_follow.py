@@ -34,9 +34,9 @@ class RotationFollow:
 			mch_bone_name = generate_bone_name(bone_name, prefs.mch_template)
 			mch_bone = duplicate_bone(obj.data, bone, mch_bone_name, 0.35)
 			if self.mch_collection_name:
-				set_bone_collection(obj.data, mch_bone, self.mch_collection_name)
+				set_bone_collection(obj.data, mch_bone, self.mch_collection_name, prefs.mch_parent_collection)
 			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, mch_bone, prefs.mch_collection_name)
+				set_bone_collection(obj.data, mch_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 			self.mch_bone_names.append(mch_bone.name)
 			bone.use_connect = False
 			bone.parent = mch_bone

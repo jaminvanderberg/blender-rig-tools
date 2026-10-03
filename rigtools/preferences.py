@@ -185,6 +185,12 @@ class RigToolsPreferences(AddonPreferences):
 		default="MCH-TMP"
 	)
 
+	mch_parent_collection: StringProperty(
+		name="MCH Parent Collection",
+		description="Name of the parent collection for the MCH collection",
+		default="MCH"
+	)
+
 	# Property Name Templates
 	rotation_isolation_property_template: StringProperty(
 		name="Rotation Isolation Property",
@@ -354,6 +360,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "mch_collection_template")
 		box.separator()
 		box.prop(self, "mch_collection_name")
+		box.prop(self, "mch_parent_collection")
 
 		# Property Name Templates
 		box = layout.box()

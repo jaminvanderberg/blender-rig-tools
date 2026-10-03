@@ -1,7 +1,7 @@
 import string
 import bpy
 import re
-from rigtools.preferences import get_separators, get_strip_tags
+from rigtools.preferences import get_preferences, get_separators, get_strip_tags
 
 def get_selected_bones(context):
 	if context.mode == 'EDIT_ARMATURE':
@@ -179,7 +179,7 @@ def duplicate_bone_subdivided(context, org_bone, count, name_template):
 
 	return twist_bones	
 
-def set_bone_collection(armature_data, bone, collection_name):
+def set_bone_collection(armature_data, bone, collection_name, parent_collection_name=None):
 	if not collection_name:
 		return None
 
@@ -187,7 +187,17 @@ def set_bone_collection(armature_data, bone, collection_name):
 		coll.unassign(bone)
 
 	colls = armature_data.collections
-	collection = colls.get(collection_name) or colls.new(collection_name)
+	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
+	
+	collection = all_colls.get(collection_name)
+	if not collection:
+		parent = None
+		if parent_collection_name:
+			parent = all_colls.get(parent_collection_name)
+			if not parent:
+				parent = colls.new(parent_collection_name)
+
+		collection = colls.new(collection_name, parent=parent)
 
 	collection.assign(bone)
 	return collection
@@ -207,13 +217,14 @@ def duplicate_chain(armature_data, bone_names, name_template, scale, name_source
 	return new_bones
 
 def generate_mch_bones(armature_data, bones, name_template, collection_name, scale=0.35):
+	prefs = get_preferences()
 	mch_bone_names = []
 	for bone in bones:
 		bone_name = generate_bone_name(bone.name, name_template)
 		mch_bone = duplicate_bone(armature_data, bone, bone_name, scale)
 
 		if collection_name:
-			set_bone_collection(armature_data, mch_bone, collection_name)
+			set_bone_collection(armature_data, mch_bone, collection_name, prefs.mch_parent_collection)
 
 		mch_bone.parent = bone.parent
 		bone.use_connect = False

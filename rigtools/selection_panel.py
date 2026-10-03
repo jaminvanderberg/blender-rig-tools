@@ -1,5 +1,5 @@
 import bpy
-from rigtools.utils.bone import is_bone_visible
+from rigtools.utils.bone import is_bone_visible, select_bones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone_chain import find_hierarchy_chains
 
@@ -43,17 +43,8 @@ class RIG_OT_select_chains(bpy.types.Operator):
 	connected_only: bpy.props.BoolProperty(default=False)
 
 	def execute(self, context):
-		chains = find_hierarchy_chains(context, self.connected_only)
-		for chain in chains:
-			for bone_name in chain:
-				if context.mode == 'EDIT_ARMATURE':
-					bone = context.object.data.edit_bones.get(bone_name)
-					bone.select = True
-					bone.select_head = True
-					bone.select_tail = True
-				elif context.mode == 'POSE':
-					bone = context.object.pose.bones.get(bone_name)
-					bone.select = True
+		names = find_hierarchy_chains(context, self.connected_only)
+		select_bones(context.object, names, select_hidden=False)
 
 		return {'FINISHED'}
 

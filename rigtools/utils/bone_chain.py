@@ -1,5 +1,5 @@
 from rigtools.assemblies.assembly_data import find_assembly
-from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.bone import get_selected_bones, is_bone_visible
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 import bpy
@@ -129,6 +129,10 @@ def is_ancestor_selected(bone, selected_set):
 		parent = parent.parent
 	return False
 
+def _is_bone_connected(bone):
+	data = getattr(bone, "bone", bone)
+	return data.use_connect
+
 def find_hierarchy_chains(context, connected_only=False):
 	selected_bones = get_selected_bones(context)
 	if not selected_bones:
@@ -138,24 +142,21 @@ def find_hierarchy_chains(context, connected_only=False):
 		bone for bone in selected_bones
 		if not is_ancestor_selected(bone, selected_bones)
 	]
-	chains = []
+	result = set()
 	
-	def walk_hierarchy(current_bone, current_chain):
-		current_chain.append(current_bone.name)
-		children = list(current_bone.children)
-		if connected_only:
-			children = [c for c in children if c.use_connect]
-		
-		if len(children) == 0:
-			chains.append(current_chain)
+	def walk(bone):
+		if not is_bone_visible(bone):
 			return
-		
-		walk_hierarchy(children[0], current_chain)
-		
+		result.add(bone.name)
+		for child in bone.children:
+			if connected_only and not _is_bone_connected(child):
+				continue
+			walk(child)
+			
 	for head in heads:
-		walk_hierarchy(head, [])
+		walk(head)
 		
-	return chains
+	return list(result)
 
 ###############################################################################################
 # Assembly

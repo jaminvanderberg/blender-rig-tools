@@ -22,11 +22,11 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 		op.template_id = ""
 		op.assembly_uid = ""
 
-		op = layout.operator("rig.advanced_torso_setup", icon='MOD_CLOTH')
-		op.template_id = ""
+		layout.label(text="Templates")
+		op = layout.operator("rig.advanced_torso_setup", text="Torso", icon='MOD_CLOTH')
+		op.template_id = "torso"
 		op.assembly_uid = ""
 
-		layout.label(text="Templates")
 		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
 		grid.operator_context = 'INVOKE_DEFAULT'
 		for template_id, template in FK_TEMPLATES.items():

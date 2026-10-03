@@ -242,7 +242,8 @@ class TorsoFK:
 			org_bone.parent = edit_bones[self.tweak_chain.tweak_bone_names[tweak_index]]
 			tweak_index += len(self.twist_bones[i])
 
-		# Create MCH bones
+		# Create MCH bones (for master control falloff)
+		# Hips MCH bones
 		hips_count = self.lower_torso_bone_count
 		if hips_count == 1:
 			fk_bones[0].parent = hip_bone
@@ -257,6 +258,7 @@ class TorsoFK:
 				match_orientation(edit_bones[mch_name], hip_bone)
 			self.mechanism_bone_names.extend(self.hips_mch_names)
 
+		# Chest MCH bones
 		chest_count = len(org_bone_names) - self.neck_bone_count - self.lower_torso_bone_count - 1
 		if chest_count == 1:
 			fk_bones[self.lower_torso_bone_count].parent = chest_bone
@@ -287,6 +289,7 @@ class TorsoFK:
 			self.tweak_chain.pose_mode(context)
 			self.object_names.extend(self.tweak_chain.object_names)
 
+		# Master control falloff
 		if self.hips_mch_names:
 			influence = 1.0 / len(self.hips_mch_names)
 			for mch_name in self.hips_mch_names:
@@ -310,6 +313,7 @@ class TorsoFK:
 		avg_size = sum(pose_bones[name].length for name in self.fk_bone_names) / len(self.fk_bone_names)
 		
 		# Create widgets
+		# FK widgets
 		coll = get_widget_collection(context, settings.widget_collection)
 		if settings.do_create_widgets and self.fk_widget != "NONE":
 			for i, fk_name in enumerate(self.fk_bone_names):
@@ -335,6 +339,7 @@ class TorsoFK:
 
 				self.object_names.append(wgt.name)
 
+		# Master Control widgets
 		if settings.do_create_widgets:
 			hips_widget_name = generate_bone_name(self.hip_bone_name, settings.widget_template)
 			hips_wgt = create_chest_widget(hips_widget_name, coll)

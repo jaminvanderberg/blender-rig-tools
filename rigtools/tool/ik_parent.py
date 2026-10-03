@@ -48,9 +48,9 @@ class IKParent:
 			parent_bone.parent = None
 
 			if self.mch_collection_name:
-				set_bone_collection(obj.data, parent_bone, self.mch_collection_name)
+				set_bone_collection(obj.data, parent_bone, self.mch_collection_name, prefs.mch_parent_collection)
 			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, parent_bone, prefs.mch_collection_name)
+				set_bone_collection(obj.data, parent_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 			self.parent_bone_names.append(parent_bone.name)
 
