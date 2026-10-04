@@ -206,6 +206,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			setattr(self, key, value)
 
 		self.template_name = assembly.template_name
+		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
 		show_dialog = True
@@ -416,7 +417,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		)
 
 		try:
-			create_torso_assembly(context, chains, self.template_name, options)
+			create_torso_assembly(context, chains, self.template_id, self.template_name, options)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)

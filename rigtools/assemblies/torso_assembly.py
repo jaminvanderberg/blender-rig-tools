@@ -26,7 +26,7 @@ class TorsoAssemblyOptions:
 	override_collections: bool = True
 	neck_falloff_type: str = "ROOT"
 
-def create_torso_assembly(context, chains: list[list[str]], template_name, options: TorsoAssemblyOptions):
+def create_torso_assembly(context, chains: list[list[str]], template_id, template_name, options: TorsoAssemblyOptions):
 	prefs = get_preferences()
 	
 	assemblies = []
@@ -38,7 +38,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_name, optio
 		side = find_side(chain)
 		
 		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "TORSO", template_name, options)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "TORSO", template_id, template_name, options)
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 		assemblies.append(assembly_chain)
 

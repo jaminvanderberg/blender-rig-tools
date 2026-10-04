@@ -156,6 +156,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 		self.limb_property_base_name = guess_limb_name(chains[0][0], context)
 		self.template_name = "Advanced"
+		self.template_id = ""
 
 	def _invoke_from_template(self, context):
 		template = get_fk_template(self.template_id)
@@ -190,12 +191,13 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		if not assembly:
 			self.report({'ERROR'}, "Assembly not found.")
 			return {'CANCELLED'}
-
+		
 		options = assembly.get_options()
 		for key, value in options.items():
 			setattr(self, key, value)
 
 		self.template_name = assembly.template_name
+		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
 		show_dialog = True
@@ -341,7 +343,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		)
 
 		try:
-			create_fk_assembly(context, chains, self.template_name, options)
+			create_fk_assembly(context, chains, self.template_id, self.template_name, options)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)

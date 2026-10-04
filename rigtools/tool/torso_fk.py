@@ -57,6 +57,7 @@ class TorsoFK:
 		self.chest_bone_name = None
 
 		self.twist_isolator_name = None
+		self.middle_torso_mch_name = None
 		self.neck_org_names = []
 
 		self.hips_mch_names = []
@@ -303,6 +304,19 @@ class TorsoFK:
 				match_orientation(edit_bones[mch_name], chest_bone)
 			self.mechanism_bone_names.extend(self.chest_mch_names)
 
+		# Middle Torso tweak bone
+		# Should take influence from both hips and chest
+		tweak_name = self.tweak_chain.tweak_bone_names[upper_torso_index] # No twist bones, so FK index = tweak index
+		tweak_bone = edit_bones[tweak_name]
+		mch_bone = generate_mch_bones(
+			armature_data,
+			[tweak_bone],
+			prefs.mch_template,
+			self.mch_collection_name
+		)[0]
+		self.mechanism_bone_names.append(mch_bone)
+		self.middle_torso_mch_name = mch_bone
+
 		# Fix required if there is more than one neck bone
 		multiple_neck_bones = self.neck_bone_count > 1 or self.neck_twist_bone_count > 1
 
@@ -374,6 +388,14 @@ class TorsoFK:
 
 				influence = twist_influence(self.neck_falloff_type, i, len(self.neck_org_names) + 1, reverse=True)
 				constraint.influence = influence
+
+		# Middle Torso MCH bone
+		if self.middle_torso_mch_name:
+			mch_bone = pose_bones[self.middle_torso_mch_name]
+			constraint = mch_bone.constraints.new(type='COPY_TRANSFORMS')
+			constraint.target = obj
+			constraint.subtarget = self.fk_bone_names[self.lower_torso_bone_count] # First upper torso bone
+			constraint.influence = 0.5
 
 		# Twist isolator
 		if self.twist_isolator_name:

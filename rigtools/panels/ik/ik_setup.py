@@ -261,7 +261,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		limb_name = guess_limb_name(chains[0][0], context)
 		self.limb_property_base_name = limb_name
 		self.template_name = "Advanced"
-		self.bl_label = "Advanced IK Setup"
+		self.template_id = ""
 
 	def _invoke_from_template(self, context):
 		template = get_ik_template(self.template_id)
@@ -321,6 +321,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			self.report({'ERROR'}, "Assembly not found.")
 			return {'CANCELLED'}
 
+		self.template_id = assembly.template_id
+
 		options = assembly.get_options()
 		twist_segments_raw = options.pop("twist_segments", [])
 		for key, value in options.items():
@@ -343,7 +345,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.falloff = segment.falloff
 
 		self.template_name = assembly.template_name
-		self.bl_label = assembly.template_name or "Advanced IK Setup"
+		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
 		show_dialog = True
@@ -612,7 +614,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		)
 
 		try:
-			tip_controls = create_ik_assembly(context, chains, self.template_name, options)
+			tip_controls = create_ik_assembly(context, chains, self.template_id, self.template_name, options)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
