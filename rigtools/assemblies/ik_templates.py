@@ -28,6 +28,7 @@ IK_TEMPLATES = {
 			"limb_property_base_name": "arm",
 			"add_tweak_bones": True,
 			"switch_property_type": "ENUM",
+			"ik_bone_count": 3,
 			"add_rotation_isolation": True,
 			"inherit_scale_from_root": True,
 			"override_collections": True,
@@ -52,6 +53,7 @@ IK_TEMPLATES = {
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",
+			"ik_bone_count",
 			"add_rotation_isolation",
 			"inherit_scale_from_root",
 			"use_twist_bones",
@@ -71,6 +73,7 @@ IK_TEMPLATES = {
 			"inherit_scale_from_root": False,
 			"override_collections": True,
 			"ik_type": "IK",
+			"ik_bone_count": 3,
 			"enable_ik_stretch": True,
 			"pole_distance": 0.5,
 			"tweak_relationship": "STRETCH_TO",
@@ -85,6 +88,7 @@ IK_TEMPLATES = {
 				{"name": "Shin", "index": 1, "source": "NONE", "falloff": "LINEAR"},
 			),
 			"twist_bone_count": 4,
+			"add_foot_roll": True,
 		},
 		redo_fields=(
 			"add_tweak_bones",
@@ -92,9 +96,11 @@ IK_TEMPLATES = {
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",
+			"ik_bone_count",
 			"use_twist_bones",
 			"twist_bone_count",
 			"twist_segments",
+			"add_foot_roll",
 		),
 	),
 	"skirt.spline": IKTemplate(
@@ -163,6 +169,8 @@ REDO_PROPERTIES = {
 	"use_twist_bones",
 	"twist_bone_count",
 	"twist_segments",
+	"add_foot_roll",
+	"ik_bone_count",
 }
 
 

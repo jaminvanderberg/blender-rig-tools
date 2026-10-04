@@ -105,6 +105,14 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default='IK'
 	)
 
+	ik_bone_count: IntProperty(
+		name="IK Bone Count",
+		description="Number of bones to use for the IK chain",
+		default=3,
+		min=2,
+		max=10
+	)
+
 	enable_ik_stretch: BoolProperty(
 		name="Enable IK Stretch",
 		description="Enable IK stretch for the IK chain",
@@ -225,6 +233,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		description="Name of the template to use for the IK/FK switch chain",
 		default="",
 		options={'HIDDEN'}
+	)
+
+	add_foot_roll: BoolProperty(
+		name="Add Foot Roll",
+		description="Add foot roll to the IK/FK switch chain",
+		default=False
 	)
 
 	@classmethod
@@ -464,14 +478,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				box.label(text="IK Settings:", icon='CON_KINEMATIC')
 				col = box.column()
 
+				if self.do_show_field("ik_bone_count", template):
+					col.prop(self, "ik_bone_count")
+
 				if self.do_show_field("enable_snapping", template):
 					col.prop(self, "enable_snapping")
 
 				if self.do_show_field("enable_ik_stretch", template):
 					col.prop(self, "enable_ik_stretch")
 
-				if self.do_show_field("pole_distance", template):
-					col.prop(self, "pole_distance")
+				# TODO : Disable and add a tooltip if heel pivots are not setup
+				if self.do_show_field("add_foot_roll", template):
+					col.prop(self, "add_foot_roll")
 
 		if self.do_show_any_field(["ik_type", "spline_control_count", "twist_type", "spline_skip_first", "enable_snapping", "enable_ik_stretch", "pole_distance"], template):
 			layout.separator()
@@ -611,6 +629,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 					for s in context.window_manager.rig_twist_segments
 				]
 			) if self.use_twist_bones else [],
+			add_foot_roll=self.add_foot_roll,
 		)
 
 		try:

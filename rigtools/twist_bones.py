@@ -2,6 +2,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator, Panel
 
+from rigtools.heel_pivots import RIG_OT_set_heel_pivot, get_heel_pivot, get_heel_pivot_feet, set_heel_pivot
 from rigtools.utils.naming import flip_side_name, same_side_names
 
 TWIST_MAP_KEY = "rigtools_twist_parents"
@@ -147,6 +148,18 @@ def _rna_set_twist_parent_ui(self, value):
 		return
 	set_twist_parent(context.object.data, bone.name, value)
 
+def _rna_get_heel_pivot_ui(self):
+	bone = get_active_bone(bpy.context)
+	if not bone:
+		return ""
+	return get_heel_pivot(bpy.context.object.data, bone.name)
+
+
+def _rna_set_heel_pivot_ui(self, value):
+	bone = get_active_bone(bpy.context)
+	if not bone:
+		return
+	set_heel_pivot(bpy.context.object.data, bone.name, value)		
 
 class RIG_OT_set_twist_parent(Operator):
 	bl_idname = "rig.set_twist_parent"
@@ -282,15 +295,30 @@ class RIG_PT_bone(Panel):
 			bone.name,
 			use_edit_bones=(context.mode == 'EDIT_ARMATURE'),
 		)
-		if not twists:
-			return
+		if twists:
+			box = layout.box()
+			box.label(text="Twist Bones:")
+			col = box.column(align=True)
+			for twist in twists:
+				col.label(text=twist.name, icon='BONE_DATA')
+
+		layout.separator()
 
 		box = layout.box()
-		box.label(text="Twist Bones:")
-		col = box.column(align=True)
-		for twist in twists:
-			col.label(text=twist.name, icon='BONE_DATA')
+		col = box.column()
+		col.label(text="Heel Pivot: used for foot roll. Assign to foot bone (not toe).", icon='PIVOT_CURSOR')
+		col.prop_search(
+			context.window_manager,
+			"rigtools_heel_pivot",
+			armature,
+			"bones",
+			text="Heel Pivot",
+		)
 
+		feet = get_heel_pivot_feet(armature, bone.name)
+		if feet:
+			col.separator()
+			col.label(text=f"Heel pivot for: {', '.join(feet)}", icon='INFO')
 
 def menu_edit_armature_parent(self, context):
 	layout = self.layout
@@ -302,6 +330,7 @@ def menu_edit_armature_parent(self, context):
 classes = (
 	RIG_OT_set_twist_parent,
 	RIG_OT_clear_twist_parent,
+	RIG_OT_set_heel_pivot,
 	RIG_PT_bone,
 )
 
@@ -340,6 +369,13 @@ def register():
 		)
 		addon_keymaps.append((km, kmi))
 
+	bpy.types.WindowManager.rigtools_heel_pivot = StringProperty(
+		name="Heel Pivot",
+		description="Heel pivot bone for the selected foot bone. Should be placed at the heel of the foot and cover the width of the foot.",
+		get=_rna_get_heel_pivot_ui,
+		set=_rna_set_heel_pivot_ui,
+	)
+
 
 def unregister():
 	for km, kmi in addon_keymaps:
@@ -348,5 +384,6 @@ def unregister():
 
 	bpy.types.VIEW3D_MT_edit_armature_parent.remove(menu_edit_armature_parent)
 	del bpy.types.WindowManager.rigtools_twist_parent
+	del bpy.types.WindowManager.rigtools_heel_pivot
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)

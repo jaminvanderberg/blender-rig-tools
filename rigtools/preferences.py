@@ -82,6 +82,16 @@ class RigToolsPreferences(AddonPreferences):
 		description="Template for master control bones",
 		default="{name}"
 	)
+	foot_roll_template: StringProperty(
+		name="Foot Roll Control Bone",
+		description="Template for the foot roll control bone.",
+		default="{name}.roll"
+	)
+	vis_template: StringProperty(
+		name="VIS Bone",
+		description="Template for visualization (non-keyed) bones.",
+		default="VIS-{name}"
+	)
 	ik_pole_template: StringProperty(
 		name="IK Pole Bone",
 		description="Template for the IK pole bone. {name} is taken from the first bone in the chain.",
@@ -156,6 +166,11 @@ class RigToolsPreferences(AddonPreferences):
 		name="Intermediate Bone",
 		description="Template using {name} as placeholder",
 		default="MCH-INT-{name}"
+	)
+	mch_foot_roll_template: StringProperty(
+		name="MCH Foot Roll Control Bone",
+		description="Template for the MCH foot roll control bone.",
+		default="MCH-{name}.{type}"
 	)
 
 	ik_collection_template: StringProperty(
@@ -336,6 +351,8 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "fk_template")
 		box.prop(self, "ik_template")
 		box.prop(self, "control_template")
+		box.prop(self, "foot_roll_template")
+		box.prop(self, "vis_template")
 		box.prop(self, "ik_pole_template")
 		box.prop(self, "ik_pole_vis_template")
 		box.prop(self, "mch_template")
@@ -351,6 +368,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "term_template")
 		box.prop(self, "socket_template")
 		box.prop(self, "int_template")
+		box.prop(self, "mch_foot_roll_template")
 		box.separator()
 
 		box = layout.box()

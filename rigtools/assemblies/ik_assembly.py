@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.heel_pivots import get_heel_pivot
+from rigtools.tool.foot_roll import FootRoll
 from rigtools.utils.naming import generate_bone_collection_name, generate_property_name, guess_assembly_name, find_side
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
 from rigtools.preferences import get_preferences
@@ -23,6 +25,7 @@ class IKAssemblyOptions:
 	inherit_scale_from_root: bool = False
 	override_collections: bool = True
 	ik_type: str = 'IK' # 'IK' or 'SPLINE'
+	ik_bone_count: int = 3
 	enable_ik_stretch: bool = True
 	pole_distance: float = 1.0
 	spline_control_count: int = 3
@@ -31,6 +34,8 @@ class IKAssemblyOptions:
 	tweak_relationship: str = 'STRETCH_TO' # 'STRETCH_TO' or 'DAMPED_TRACK'
 	fk_widget: str = 'FK' # 'widget.fk_widget_types
 	enable_snapping: bool = True
+
+	add_foot_roll: bool = False
 
 	ik_parent: bool = True
 	ik_parents: List[IKParentTarget] = field(default_factory=list)
@@ -72,6 +77,10 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
 			mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
 
+			limb_count = options.ik_bone_count if options.ik_type == 'IK' else len(chain)
+			limb_chain = chain[:limb_count]
+			fk_tip = chain[limb_count:]
+
 			# TWEAK CHAIN
 			if options.add_tweak_bones:
 				tweak_chain = FKTweakChain(
@@ -85,9 +94,11 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					skip_first_tweak = False,
 					do_create_fk = True,
 				)
-				tweak_chain.edit_mode(armature_data, chain)
-				chain = tweak_chain.fk_bone_names
+				tweak_chain.edit_mode(armature_data, limb_chain)
+				switch_chain = tweak_chain.fk_bone_names
 				assembly_chain.tools.append(tweak_chain)
+			else:
+				switch_chain = limb_chain
 
 			# FK/IK SWITCH
 			switch_property_name = generate_property_name(prefs.fk_ik_switch_property_template, options.limb_property_base_name, side)
@@ -98,7 +109,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				fk_collection_name = fk_collection_name if options.override_collections else None,
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)
-			fk_ik_switch.edit_mode(context, chain, name_source = org_chain)
+			fk_ik_switch.edit_mode(context, switch_chain, name_source = org_chain)
 			fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names
 			assembly_chain.tools.append(fk_ik_switch)
 
@@ -129,7 +140,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 						tweak_collection_name = tweak_collection_name if options.override_collections else None,
 						tweak_relationship = options.tweak_relationship,
 					)
-					twist_bones.edit_mode(context, org_chain, fk_ik_switch.switch_bone_names)
+					twist_bones.edit_mode(context, limb_chain, fk_ik_switch.switch_bone_names)
 					assembly_chain.tools.append(twist_bones)
 
 				ik = StandardIK(
@@ -140,12 +151,25 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					mch_collection_name = mch_collection_name if options.override_collections else None,
 				)
 				tweak_bone_names = tweak_chain.tweak_bone_names if options.add_tweak_bones else None
-				ik.edit_mode(context, ik_bone_names, fk_bone_names, tweak_bone_names, name_source=org_chain)
+				ik.edit_mode(context, ik_bone_names[:limb_count], fk_bone_names[:limb_count], tweak_bone_names, name_source=org_chain[:limb_count])
 				assembly_chain.tools.append(ik)
 				tip_controls.append(ik.ik_control_name)
 
 				if options.enable_snapping:
 					ik.register_snap_chain(context, switch_property_name)
+
+				if options.add_foot_roll:
+					heel_pivot_name = get_heel_pivot(context.object.data, org_chain[limb_count - 1])
+					foot_roll = FootRoll(
+						mch_collection_name = mch_collection_name,
+					)
+					foot_roll.edit_mode(context, 
+						mch_ik_foot_name = ik_bone_names[limb_count - 1],
+						ik_foot_name = ik.ik_control_name,
+						heel_pivot_name = heel_pivot_name,
+						org_toe_name = org_chain[limb_count],
+					)
+					assembly_chain.tools.append(foot_roll)
 			# SPLINE IK
 			elif options.ik_type == 'SPLINE':
 				spline_ik = SplineIK(

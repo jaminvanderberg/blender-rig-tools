@@ -5,7 +5,7 @@ from rigtools.utils.naming import generate_bone_name
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
-from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_line_widget, create_box_widget
+from rigtools.utils.widget import create_ik_widget, get_widget_collection, create_sphere_widget, create_line_widget
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
 
@@ -265,7 +265,7 @@ class StandardIK:
 			coll = get_widget_collection(context, settings.widget_collection)
 
 			ik_widget_name = generate_bone_name(self.ik_control_name, settings.widget_template)
-			wgt = create_box_widget(ik_widget_name, coll)
+			wgt = create_ik_widget(ik_widget_name, coll)
 			ik_control_bone.custom_shape = wgt
 			self.object_names.append(wgt.name)
 
