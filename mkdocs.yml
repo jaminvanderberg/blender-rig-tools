@@ -6,6 +6,11 @@ theme:
 
 nav:
   - Assemblies: assemblies.md
+  - Inverse Kinematics Assemblies: ik_assemblies.md
+  - Forward Kinematics Assemblies: fk_assemblies.md
+  - Twist Bones: twist_bones.md
+  - ORG & DEF: org_def.md
+  - Rig UI: rig_ui.md
 
 markdown_extensions:
   - admonition

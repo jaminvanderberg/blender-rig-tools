@@ -1,6 +1,6 @@
 import bpy
 from rigtools.utils.bone import duplicate_chain
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, bone_template
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from bpy.props import StringProperty
@@ -41,7 +41,7 @@ class FKIKSwitch:
 			bpy.ops.object.mode_set(mode='EDIT')
 
 		self.fk_bone_names = duplicate_chain(obj.data, switch_bone_names, prefs.fk_template, 1.0, name_source)
-		self.ik_bone_names = duplicate_chain(obj.data, switch_bone_names, prefs.ik_mch_template, 1.0, name_source)
+		self.ik_bone_names = duplicate_chain(obj.data, switch_bone_names, bone_template("ik_mch"), 1.0, name_source)
 
 		if self.fk_collection_name:
 			for bone_name in self.fk_bone_names:

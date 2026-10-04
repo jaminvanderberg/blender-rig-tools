@@ -1,4 +1,4 @@
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
 from rigtools.armature_settings import get_armature_settings
@@ -41,7 +41,7 @@ class RotationIsolation:
 		for bone_name in bone_names:
 			bone = armature_data.edit_bones[bone_name]
 
-			socket_name = generate_bone_name(bone.name, prefs.socket_template)
+			socket_name = name_bone("socket", bone.name)
 			socket_bone = armature_data.edit_bones.new(socket_name)
 
 			socket_bone.head = bone.head.copy()
@@ -51,7 +51,7 @@ class RotationIsolation:
 			if self.inherit_scale_from_root:
 				socket_bone.inherit_scale = 'NONE'
 
-			int_name = generate_bone_name(bone.name, prefs.int_template)
+			int_name = name_bone("int", bone.name)
 			int_bone = armature_data.edit_bones.new(int_name)
 
 			int_bone.head = bone.head.copy()
@@ -64,9 +64,6 @@ class RotationIsolation:
 			if self.mch_collection_name:
 				set_bone_collection(armature_data, int_bone, self.mch_collection_name, prefs.mch_parent_collection)
 				set_bone_collection(armature_data, socket_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			elif prefs.mch_collection_name:
-				set_bone_collection(armature_data, int_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
-				set_bone_collection(armature_data, socket_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 			else:
 				for coll in bone.collections:
 					coll.assign(socket_bone)

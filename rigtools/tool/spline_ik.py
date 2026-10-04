@@ -1,6 +1,6 @@
 import bpy
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from bpy.props import StringProperty
@@ -44,12 +44,9 @@ class SplineIK:
 
 		obj = context.object
 		edit_bones = obj.data.edit_bones
-		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
-
-		settings = get_armature_settings(obj.data, context)
 
 		bones = mch_bone_names[1 if self.skip_first else 0:]
 
@@ -86,15 +83,9 @@ class SplineIK:
 			else:
 				pos_name = "mid." + bone_suffix[(i - 1) % len(bone_suffix)]
 
-			if "{i}" in prefs.ik_spline_template:
-				spline_template = prefs.ik_spline_template.replace("{i}", pos_name)
-				twist_template = prefs.ik_spline_twist_template.replace("{i}", pos_name)
-			else:
-				spline_template = prefs.ik_spline_template + "." + pos_name
-				twist_template = prefs.ik_spline_twist_template + "." + pos_name
-
+			source = name_source[0] if name_source else edit_bones[bones[seg_index]].name
 			ref_bone = edit_bones[bones[seg_index]]
-			spline_bone_name = generate_bone_name(name_source[0] if name_source else ref_bone.name, spline_template)
+			spline_bone_name = name_bone("ik_spline", source, i=pos_name)
 			spline_bone = edit_bones.new(spline_bone_name)
 			spline_bone.head = pos
 			direction = (points[seg_index + 1] - points[seg_index]).normalized()
@@ -113,7 +104,7 @@ class SplineIK:
 
 			twist_bone = None
 			if do_twist:
-				twist_name = generate_bone_name(name_source[0] if name_source else ref_bone.name, twist_template)
+				twist_name = name_bone("ik_spline_twist", source, i=pos_name)
 				twist_bone = duplicate_bone(obj.data, spline_bone, twist_name, 1.2)
 				self.twist_names.append(twist_bone.name)
 				twist_bone.parent = spline_bone
@@ -142,7 +133,6 @@ class SplineIK:
 
 	def object_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		
 		if obj.mode != 'OBJECT':
 			bpy.ops.object.mode_set(mode='OBJECT')
@@ -152,7 +142,7 @@ class SplineIK:
 		armature_data.pose_position = 'REST'	
 
 		# Create the spline object
-		spline_name = generate_bone_name(self.control_names[0], prefs.spline_object_template)
+		spline_name = name_bone("spline_object", self.control_names[0])
 		curve_data = bpy.data.curves.new(spline_name, 'CURVE')
 		curve_data.dimensions = '3D'
 		curve_obj = bpy.data.objects.new(spline_name, curve_data)

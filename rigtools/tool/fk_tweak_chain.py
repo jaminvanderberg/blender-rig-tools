@@ -1,7 +1,7 @@
 import bpy
 from dataclasses import dataclass, field
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_fk_widget, fk_widget_types
 from rigtools.armature_settings import get_armature_settings
@@ -40,7 +40,6 @@ class FKTweakChain:
 	def edit_mode(self, armature_data, org_bone_names):
 		self.org_bone_names = org_bone_names
 
-		prefs = get_preferences()
 		bpy.ops.object.mode_set(mode='EDIT')
 
 		edit_bones = armature_data.edit_bones
@@ -74,7 +73,7 @@ class FKTweakChain:
 				self.tweak_bone_names.append("")
 				continue
 			
-			tweak_name = generate_bone_name(bone_name, prefs.tweak_template)
+			tweak_name = name_bone("tweak", bone_name)
 			tweak_bone = duplicate_bone(armature_data, org_bone, tweak_name, 1)
 			tweak_bone.length = tweak_length
 			
@@ -91,7 +90,7 @@ class FKTweakChain:
 
 		# Create terminal (tip) tweak bone            
 		last_org_bone = edit_bones[self.org_bone_names[-1]]
-		term_name = generate_bone_name(self.org_bone_names[-1], prefs.term_template)
+		term_name = name_bone("term", self.org_bone_names[-1])
 		term_bone = edit_bones.new(term_name)
 		if self.do_create_fk:
 			term_bone.parent = last_parent

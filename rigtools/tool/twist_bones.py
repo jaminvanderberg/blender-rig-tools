@@ -4,11 +4,10 @@ from dataclasses import dataclass
 
 import bpy
 
-from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.twist_bones import get_twist_chain, set_twist_parent, prune_twist_map
 from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import bone_template, name_bone
 
 def _linear(t):  return 1.0 - t
 def _smooth(t): return 1.0 - (3.0 * t*t - 2.0 * t*t*t)
@@ -93,7 +92,6 @@ class TwistBones:
 	def edit_mode(self, context, org_bone_names, driver_bone_names):
 		obj = context.object
 		edit_bones = obj.data.edit_bones
-		prefs = get_preferences()
 
 		self.driver_bone_names = driver_bone_names
 
@@ -111,7 +109,7 @@ class TwistBones:
 			print(f"Twist names: {twist_names}")
 			if not twist_names:
 				twist_names = duplicate_bone_subdivided(
-					context, org_bone, self.twist_bone_count, prefs.twist_template
+					context, org_bone, self.twist_bone_count, bone_template("twist")
 				)
 				for twist_name in twist_names:
 					set_twist_parent(obj.data, twist_name, org_bone.name)
@@ -134,7 +132,7 @@ class TwistBones:
 			if segment.source != 'SELF': continue
 			switch_bone = edit_bones[driver_bone_names[segment.index]]
 
-			isolator_name = generate_bone_name(org_bone.name, prefs.twist_isolator_template)
+			isolator_name = name_bone("twist_isolator", org_bone.name)
 			isolator = duplicate_bone(obj.data, switch_bone, isolator_name, scale=0.31)
 			isolator.parent = (
 				edit_bones[self.twist_parent_name] if segment.index == 0 and self.twist_parent_name

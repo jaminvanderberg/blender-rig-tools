@@ -71,10 +71,11 @@ def register():
 		bpy.utils.register_class(cls)
 
 	# Scene properties
+	from rigtools.utils.naming import bone_template
 	bpy.types.Scene.mch_bone_name = bpy.props.StringProperty(
 		name="Bone Name", 
 		description="Template using {name} as a placeholder (e.g., 'MCH-{name}' or '{name}_MCH'). L/R suffixes will be preserved.",
-		default="MCH-{name}"
+		default=bone_template("mch")
 	)
 
 	# Keymaps

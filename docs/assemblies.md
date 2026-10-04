@@ -76,6 +76,11 @@ There also may be some times where it's still safe to reconfigure an assembly mu
 And sometimes, you might even know you're going to lose something and it's still the best solution.
 By keeping track of all the assemblies and allowing you to delete them, RigTools maintains that flexibility.
 
+Deleting or reconfiguring an assembly will not delete any bone collections that were created.
+This is done intentionally to preserve Rig UI data and other bone collection states.
+Blender offers the "Remove Unused" tool in the Bone Collections tab, if you need to remove any orphaned collections.
+All other parts of the assemblies are deleted, including: bones (excluding [twist bones](twist_bones.md)), custom properties, widgets, splines, etc.
+
 ## Creating Assemblies
 
 After you've selected the correct bone chain, you can create a new assembly by click on one of the templates
@@ -121,10 +126,11 @@ From this panel, you can reconfigure an assembly or delete it.
     This comes with the same caveats as deleting.
 
 
-## Related tools
+## Related
 
-For documenation on the specific tools, start here:
-
-- Inverse Kinematics Assemblies
-- Forward Kinematics Assemblies
+- [Inverse Kinematics Assemblies](ik_assemblies.md)
+- [Forward Kinematics Assemblies](fk_assemblies.md)
+- [Twist Bones](twist_bones.md)
+- [ORG & DEF](org_def.md)
+- [Rig UI](rig_ui.md)
 

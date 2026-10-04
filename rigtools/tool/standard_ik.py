@@ -1,7 +1,7 @@
 import math
 import bpy
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
@@ -72,7 +72,7 @@ class StandardIK:
 
 		last_mch_bone_name = self.mch_bone_names[-1]
 		last_mch_bone = edit_bones[last_mch_bone_name]
-		ik_bone_name = generate_bone_name(name_source[-1] if name_source else last_mch_bone_name, prefs.ik_template)
+		ik_bone_name = name_bone("ik", name_source[-1] if name_source else last_mch_bone_name)
 		ik_control_bone = duplicate_bone(obj.data, last_mch_bone, ik_bone_name, 1.2)
 		ik_control_bone.parent = root_bone
 
@@ -80,7 +80,7 @@ class StandardIK:
 		bone1 = edit_bones[bone1_name]
 		bone2_name = self.mch_bone_names[1]
 		bone2 = edit_bones[bone2_name]
-		pole_bone_name = generate_bone_name(name_source[0] if name_source else bone1_name, prefs.ik_pole_template)
+		pole_bone_name = name_bone("ik_pole", name_source[0] if name_source else bone1_name)
 
 		shoulder = bone1.head.copy()
 		elbow = bone2.head.copy()
@@ -108,26 +108,24 @@ class StandardIK:
 
 		if self.enable_ik_stretch and tweak_bone_names:
 			tweak = edit_bones[tweak_bone_names[len(self.mch_bone_names) - 2]]
-			mch_name = generate_bone_name(tweak.name, prefs.mch_template)
+			mch_name = name_bone("mch", tweak.name)
 			mch = duplicate_bone(obj.data, tweak, mch_name, 0.5)
 			mch.parent = tweak.parent
 			tweak.parent = mch
 
 			if self.mch_collection_name:
 				set_bone_collection(obj.data, mch, self.mch_collection_name, prefs.mch_parent_collection)
-			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, mch, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 			self.mch_tweak_name = mch.name
 			self.mechanism_bone_names.append(self.mch_tweak_name)
 
 		if self.enable_snapping:
-			snap_control_name = generate_bone_name(ik_control_bone.name, prefs.fk_ik_snap_template)
+			snap_control_name = name_bone("fk_ik_snap", ik_control_bone.name)
 			snap_control_bone = duplicate_bone(obj.data, ik_control_bone, snap_control_name, 0.8)
 			snap_control_bone.parent = edit_bones[fk_bone_names[-1]]
 			self.snap_control_name = snap_control_bone.name
 
-			snap_pole_name = generate_bone_name(pole_bone.name, prefs.fk_ik_snap_template)
+			snap_pole_name = name_bone("fk_ik_snap", pole_bone.name)
 			snap_pole_bone = duplicate_bone(obj.data, pole_bone, snap_pole_name, 0.8)
 			snap_pole_bone.parent = edit_bones[fk_bone_names[0]]
 			self.snap_pole_name = snap_pole_bone.name
@@ -135,13 +133,10 @@ class StandardIK:
 			if self.mch_collection_name:
 				set_bone_collection(obj.data, snap_control_bone, self.mch_collection_name, prefs.mch_parent_collection)
 				set_bone_collection(obj.data, snap_pole_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, snap_control_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
-				set_bone_collection(obj.data, snap_pole_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 		pole_vis_bone = None
 		if settings.do_create_widgets:
-			pole_vis_bone_name = generate_bone_name(name_source[0] if name_source else bone1_name, prefs.ik_pole_vis_template)
+			pole_vis_bone_name = name_bone("ik_pole_vis", name_source[0] if name_source else bone1_name)
 			pole_vis_bone = edit_bones.new(pole_vis_bone_name)
 			pole_vis_bone.head = pole_bone.head
 			pole_vis_bone.tail = bone1.tail
@@ -259,6 +254,7 @@ class StandardIK:
 		pole_bone.color.palette = prefs.ik_bone_color
 		ik_control_bone = pose_bones[self.ik_control_name]
 		ik_control_bone.color.palette = prefs.ik_bone_color
+		ik_control_bone.custom_shape_wire_width = 2.0
 
 		# Widgets
 		if settings.do_create_widgets:

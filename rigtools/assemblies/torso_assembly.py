@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.utils.naming import guess_assembly_name, find_side, name_collection, name_property
+from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
-from rigtools.utils.naming import generate_bone_collection_name, generate_property_name, guess_assembly_name, find_side
 from rigtools.tool.rotation_isolation import RotationIsolation
 from rigtools.tool.torso_fk import TorsoFK
 
@@ -27,8 +28,6 @@ class TorsoAssemblyOptions:
 	neck_falloff_type: str = "ROOT"
 
 def create_torso_assembly(context, chains: list[list[str]], template_id, template_name, options: TorsoAssemblyOptions):
-	prefs = get_preferences()
-	
 	assemblies = []
 
 	##############
@@ -42,10 +41,17 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 		assemblies.append(assembly_chain)
 
-		tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
-		fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
-		mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)		
-		control_collection_name = generate_bone_collection_name(prefs.control_collection_template, options.limb_property_base_name, side)
+		tweak_collection_name = name_collection("tweak", options.limb_property_base_name, side)
+		fk_collection_name = name_collection("fk", options.limb_property_base_name, side)
+		mch_collection_name = name_collection("mch", options.limb_property_base_name, side)
+		control_collection_name = name_collection("control", options.limb_property_base_name, side)
+
+		if options.override_collections:
+			ensure_bone_collection(
+				context.object.data,
+				mch_collection_name,
+				get_preferences().mch_parent_collection,
+			)
 
 		# TWEAK CHAIN
 		torso_fk_chain = TorsoFK(
@@ -68,8 +74,8 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 
 		# NECK ROTATION ISOLATION
 		if options.add_neck_rotation_isolation:
-			neck_property_name = generate_property_name(
-				prefs.rotation_isolation_property_template,
+			neck_property_name = name_property(
+				"rotation_isolation",
 				options.neck_base_property_name,
 				side,
 			)
@@ -84,8 +90,8 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 
 		# HEAD ROTATION ISOLATION
 		if options.add_head_rotation_isolation:
-			head_property_name = generate_property_name(
-				prefs.rotation_isolation_property_template,
+			head_property_name = name_property(
+				"rotation_isolation",
 				options.head_base_property_name,
 				side,
 			)

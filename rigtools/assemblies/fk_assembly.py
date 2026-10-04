@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.utils.naming import guess_assembly_name, find_side, name_collection, name_property
+from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
-from rigtools.utils.naming import generate_bone_collection_name, generate_property_name, guess_assembly_name, find_side
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.rotation_follow import RotationFollow
 from rigtools.tool.rotation_isolation import RotationIsolation
+
 
 @dataclass
 class FKAssemblyOptions:
@@ -24,8 +26,6 @@ class FKAssemblyOptions:
 	override_collections: bool = True
 
 def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions):
-	prefs = get_preferences()
-	
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
@@ -44,15 +44,21 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 
-			prefs_tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
-			prefs_fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
-			mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
+			default_tweak_collection_name = name_collection("tweak", options.limb_property_base_name, side)
+			default_fk_collection_name = name_collection("fk", options.limb_property_base_name, side)
+			mch_collection_name = name_collection("mch", options.limb_property_base_name, side)
 
-			fk_collection_name = options.fk_collection_name or prefs_fk_collection_name
-			tweak_collection_name = options.tweak_collection_name or prefs_tweak_collection_name
+			fk_collection_name = options.fk_collection_name or default_fk_collection_name
+			tweak_collection_name = options.tweak_collection_name or default_tweak_collection_name
 			if not options.override_collections:
 				fk_collection_name = None
 				tweak_collection_name = None
+
+			ensure_bone_collection(
+				armature_data,
+				mch_collection_name,
+				get_preferences().mch_parent_collection,
+			)
 
 			# TWEAK CHAIN
 			tweak = FKTweakChain(
@@ -69,7 +75,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# ROTATION ISOLATION
 			if options.add_rotation_isolation and options.do_create_fk:
-				property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side)
+				property_name = name_property("rotation_isolation", options.limb_property_base_name, side)
 				rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
 				rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
 				assembly_chain.tools.append(rotation_isolation)

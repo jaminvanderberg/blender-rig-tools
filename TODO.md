@@ -15,5 +15,5 @@ Torso add tweak bones disabled is an error
 
 Make it so an error doesn't destroy an assembly
 
-refactor bone naming.  Maybe it's just a contract for how bones should be named in general
-
+better FK hand and foot widgets
+Finish toe FK

@@ -1,10 +1,10 @@
 import bpy
-from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from dataclasses import dataclass
 from typing import List
+from rigtools.preferences import get_preferences
 from rigtools.armature_settings import get_armature_settings
 from rna_prop_ui import rna_idprop_ui_create
 
@@ -44,15 +44,13 @@ class IKParent:
 		self.parent_bone_names = []
 		for bone_name in bone_names:
 			bone = edit_bones.get(bone_name)
-			parent_name = generate_bone_name(bone_name, prefs.ik_parent_template)
+			parent_name = name_bone("ik_parent", bone_name)
 			parent_bone = duplicate_bone(obj.data, bone, parent_name, 0.5)
 			bone.parent = parent_bone
 			parent_bone.parent = None
 
 			if self.mch_collection_name:
 				set_bone_collection(obj.data, parent_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			elif prefs.mch_collection_name:
-				set_bone_collection(obj.data, parent_bone, prefs.mch_collection_name, prefs.mch_parent_collection)
 
 			self.parent_bone_names.append(parent_bone.name)
 

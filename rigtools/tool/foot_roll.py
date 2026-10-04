@@ -3,7 +3,7 @@ from re import I
 import bpy
 from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.widget import create_roll_widget, get_widget_collection
 from rigtools.armature_settings import get_armature_settings
@@ -65,13 +65,8 @@ class FootRoll:
 
 		up = Vector((0, 0, 1))
 
-		toe_roll_template = prefs.mch_foot_roll_template.replace("{type}", "toe.roll")
-		heel_roll_template = prefs.mch_foot_roll_template.replace("{type}", "heel.roll")
-		rock_a_template = prefs.mch_foot_roll_template.replace("{type}", "rock.a")
-		rock_b_template = prefs.mch_foot_roll_template.replace("{type}", "rock.b")
-
-		def create_roll_bone(name_template, head, tail):
-			name = generate_bone_name(ik_foot_name, name_template)
+		def create_roll_bone(roll_type, head, tail):
+			name = name_bone("mch_foot_roll", ik_foot_name, type=roll_type)
 			bone = edit_bones.new(name)
 			bone.head = head
 			bone.tail = tail
@@ -89,17 +84,17 @@ class FootRoll:
 			return bone
 
 		length = mch_ik_foot_bone.length * 0.5
-		toe_roll_bone = align_roll_bone(create_roll_bone(toe_roll_template, ball_pivot, heel_pivot))
-		heel_roll_bone = align_roll_bone(create_roll_bone(heel_roll_template, heel_pivot, heel_pivot + Vector((0, 0, length))))
-		rock_a_bone = align_roll_bone(create_roll_bone(rock_a_template, heel_head, heel_tail))
-		rock_b_bone = align_roll_bone(create_roll_bone(rock_b_template, heel_tail, heel_head))
+		toe_roll_bone = align_roll_bone(create_roll_bone("toe.roll", ball_pivot, heel_pivot))
+		heel_roll_bone = align_roll_bone(create_roll_bone("heel.roll", heel_pivot, heel_pivot + Vector((0, 0, length))))
+		rock_a_bone = align_roll_bone(create_roll_bone("rock.a", heel_head, heel_tail))
+		rock_b_bone = align_roll_bone(create_roll_bone("rock.b", heel_tail, heel_head))
 
 		self.toe_roll_name = toe_roll_bone.name
 		self.heel_roll_name = heel_roll_bone.name
 		self.rock_a_name = rock_a_bone.name
 		self.rock_b_name = rock_b_bone.name
 
-		foot_roll_control_name = generate_bone_name(ik_foot_name, prefs.foot_roll_template)
+		foot_roll_control_name = name_bone("foot_roll", ik_foot_name)
 		foot_roll_control_bone = duplicate_bone(context.object.data, heel_roll_bone, foot_roll_control_name, 1.5)
 		self.foot_roll_control_name = foot_roll_control_bone.name
 		self.mechanism_bone_names.append(foot_roll_control_bone.name)
@@ -125,7 +120,7 @@ class FootRoll:
 		foot_roll_control_bone.parent = edit_bones[self.ik_foot_name]
 
 		# IK VIS bone
-		vis_name = generate_bone_name(ik_foot_name, prefs.vis_template)
+		vis_name = name_bone("vis", ik_foot_name)
 		vis_bone = edit_bones.new(vis_name)
 		vis_bone.head = heel_pivot
 		vis_bone.tail = toe_bone.tail
@@ -143,7 +138,7 @@ class FootRoll:
 		# MCH Toe bone
 		mch_toe_bone = align_roll_bone(edit_bones[generate_mch_bones(armature_data, 
 			[edit_bones[org_toe_name]],
-			prefs.mch_template,
+			bone_template("mch"),
 			self.mch_collection_name
 		)[0]])
 		self.mch_toe_name = mch_toe_bone.name
@@ -243,5 +238,9 @@ class FootRoll:
 
 			ik = pose_bones[self.ik_foot_name]
 			ik.custom_shape_transform = pose_bones[self.vis_name]
+
+		# Bone Colors
+		ctrl.color.palette = prefs.ik_bone_color
+		ctrl.custom_shape_wire_width = 1.5			
 
 		return self

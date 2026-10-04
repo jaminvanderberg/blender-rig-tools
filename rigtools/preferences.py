@@ -56,182 +56,22 @@ class RigToolsPreferences(AddonPreferences):
 		default="-._"
 	)
 
-	# Naming Templates
+	# User-facing naming boundaries
 	def_template: StringProperty(
 		name="DEF Bone",
-		description="Template for DEF (deform) bones.",
+		description="Template for DEF (deform) bones on the copy tool.",
 		default="DEF-{name}"
 	)
 	org_template: StringProperty(
 		name="Target/ORG Bone",
-		description="Template for target/ORG bones.",
+		description="Template for target/ORG bones on the copy tool.",
 		default="ORG-{name}"
 	)
 	fk_template: StringProperty(
 		name="FK Bone",
-		description="Template for FK bones.",
+		description="Default template for FK bones created by the FK/tweak tool.",
 		default="FK-{name}"
 	)
-	ik_template: StringProperty(
-		name="IK Controller Bone",
-		description="Template for the IK controller bone. {name} is taken from the last bone in the chain.",
-		default="{name}"
-	)
-	control_template: StringProperty(
-		name="Master Control Bone",
-		description="Template for master control bones",
-		default="{name}"
-	)
-	foot_roll_template: StringProperty(
-		name="Foot Roll Control Bone",
-		description="Template for the foot roll control bone.",
-		default="{name}.roll"
-	)
-	vis_template: StringProperty(
-		name="VIS Bone",
-		description="Template for visualization (non-keyed) bones.",
-		default="VIS-{name}"
-	)
-	ik_pole_template: StringProperty(
-		name="IK Pole Bone",
-		description="Template for the IK pole bone. {name} is taken from the first bone in the chain.",
-		default="{name}.pole"
-	)
-	ik_pole_vis_template: StringProperty(
-		name="IK Pole Vis Target Bone",
-		description="Template for the IK pole vis target bone. {name} is taken from the first bone in the chain.",
-		default="VIS-{name}.pole"
-	)
-	ik_spline_template: StringProperty(
-		name="IK Spline Bone",
-		description="Template for the IK spline bone names. {i} is the position number (start, mid, end).",
-		default="{name}.spline.{i}"
-	)
-	ik_spline_twist_template: StringProperty(
-		name="IK Spline Twist Bone",
-		description="Template for the IK spline twist bone names. {name} is the name of the spline bone.",
-		default="{name}.twist.{i}"
-	)
-	mch_template: StringProperty(
-		name="MCH Bone",
-		description="Template for standard MCH bones.",
-		default="MCH-{name}"
-	)
-	ik_mch_template: StringProperty(
-		name="MCH-IK Bone",
-		description="Template for the IK MCH bones.",
-		default="MCH-IK-{name}"
-	)
-	twist_template: StringProperty(
-		name="Twist Bone",
-		description="Template for the twist bone.",
-		default="ORG-{name}.{i}"
-	)
-	twist_isolator_template: StringProperty(
-		name="Twist Isolator Bone",
-		description="Template for the twist isolator bone.",
-		default="MCH-TWIST-{name}"
-	)
-	fk_ik_snap_template: StringProperty(
-		name="IK > FK Snap Bone",
-		description="Template for the IK > FK snapping bones. Note: will be combined with the IK and pole templates.",
-		default="MCH-FK-IK-{name}.master"
-	)
-	ik_parent_template: StringProperty(
-		name="IK Parent Control Bone",
-		description="Template for the IK parent bone. Note: will be combined with the IK and pole templates.",
-		default="MCH-IK-{name}.parent"
-	)
-	switch_template: StringProperty(
-		name="Switch Bone",
-		description="Template FK/IK switch control bones.",
-		default="MCH-SWITCH-{name}"
-	)
-	tweak_template: StringProperty(
-		name="Tweak Bone",
-		description="Template for tweak bones.",
-		default="{name}.tweak"
-	)
-	term_template: StringProperty(
-		name="Terminal Tweak",
-		description="Template using {name} as placeholder",
-		default="{name}.tip.tweak"
-	)
-	socket_template: StringProperty(
-		name="Socket Bone",
-		description="Template using {name} as placeholder",
-		default="MCH-SOCKET-{name}"
-	)
-	int_template: StringProperty(
-		name="Intermediate Bone",
-		description="Template using {name} as placeholder",
-		default="MCH-INT-{name}"
-	)
-	mch_foot_roll_template: StringProperty(
-		name="MCH Foot Roll Control Bone",
-		description="Template for the MCH foot roll control bone.",
-		default="MCH-{name}.{type}"
-	)
-
-	ik_collection_template: StringProperty(
-		name="IK Collection",
-		description="Template for the IK collection name.",
-		default="{Name}.IK{side}"
-	)
-
-	fk_collection_template: StringProperty(
-		name="FK Collection",
-		description="Template for the FK collection name.",
-		default="{Name}.FK{side}"
-	)
-
-	control_collection_template: StringProperty(
-		name="Master Control Collection",
-		description="Template for the control collection name.",
-		default="{Name}{side}"
-	)
-
-	tweak_collection_template: StringProperty(
-		name="Tweak Collection",
-		description="Template for the tweak collection name.",
-		default="{Name}.Tweak{side}"
-	)
-
-	mch_collection_template: StringProperty(
-		name="MCH Collection",
-		description="Template for the MCH collection name.",
-		default="MCH-{Name}"
-	)
-
-	mch_collection_name: StringProperty(
-		name="Non-Limb MCH Collection",
-		description="Name of bone collection where MCH bones are created",
-		default="MCH-TMP"
-	)
-
-	mch_parent_collection: StringProperty(
-		name="MCH Parent Collection",
-		description="Name of the parent collection for the MCH collection",
-		default="MCH"
-	)
-
-	# Property Name Templates
-	rotation_isolation_property_template: StringProperty(
-		name="Rotation Isolation Property",
-		description="Template for the rotation isolation property.",
-		default="{name}.rot.follow{side}"
-	)
-	fk_ik_switch_property_template: StringProperty(
-		name="FK/IK Switch Property",
-		description="Template for the FK/IK switch property.",
-		default="{name}.FK.IK{side}"
-	)
-	ik_parent_property_template: StringProperty(
-		name="IK Parent Property",
-		description="Template for the IK parent property.",
-		default="{name}.ik.parent{side}"
-	)
-
 
 	# Rig Structure Defaults
 	root_bone_name: StringProperty(
@@ -264,6 +104,16 @@ class RigToolsPreferences(AddonPreferences):
 		description="Name of bone holding custom properties",
 		default="properties"
 	)
+	mch_collection_name: StringProperty(
+		name="Non-Limb MCH Collection",
+		description="Name of bone collection where non-limb MCH bones are created",
+		default="MCH-TMP"
+	)
+	mch_parent_collection: StringProperty(
+		name="MCH Parent Collection",
+		description="Name of the parent collection for MCH collections",
+		default="MCH"
+	)
 	do_create_widgets: BoolProperty(
 		name="Create Widgets",
 		description="Create widgets for the bones",
@@ -278,11 +128,6 @@ class RigToolsPreferences(AddonPreferences):
 		name="Widget Object",
 		description="Template using {name} as placeholder",
 		default="WGT-{name}"
-	)
-	spline_object_template: StringProperty(
-		name="Spline Object",
-		description="Template using {name} as placeholder",
-		default="SPLINE-{name}"
 	)
 
 	# Theme Colors
@@ -345,68 +190,11 @@ class RigToolsPreferences(AddonPreferences):
 
 		# Naming Templates
 		box = layout.box()
-		box.label(text="Naming Templates", icon='OUTLINER_DATA_ARMATURE')
+		box.label(text="Naming", icon='OUTLINER_DATA_ARMATURE')
 		box.prop(self, "def_template")
 		box.prop(self, "org_template")
 		box.prop(self, "fk_template")
-		box.prop(self, "ik_template")
-		box.prop(self, "control_template")
-		box.prop(self, "foot_roll_template")
-		box.prop(self, "vis_template")
-		box.prop(self, "ik_pole_template")
-		box.prop(self, "ik_pole_vis_template")
-		box.prop(self, "mch_template")
-		box.prop(self, "ik_mch_template")
-		box.prop(self, "twist_template")
-		box.prop(self, "twist_isolator_template")
-		box.prop(self, "fk_ik_snap_template")
-		box.prop(self, "ik_parent_template")
-		box.prop(self, "ik_spline_template")
-		box.prop(self, "ik_spline_twist_template")
-		box.prop(self, "switch_template")
-		box.prop(self, "tweak_template")
-		box.prop(self, "term_template")
-		box.prop(self, "socket_template")
-		box.prop(self, "int_template")
-		box.prop(self, "mch_foot_roll_template")
-		box.separator()
 
-		box = layout.box()
-		box.label(text="Collection Templates", icon='OUTLINER_COLLECTION')
-
-		left = box.split(factor=0.4)
-		col = left.column()
-		right = left.split(factor=0.75)
-		col = right.column(align=True)
-		col.label(text="{name} -> limb base name (e.g. 'arm')")
-		col.label(text="{Name} -> proper case of base name (e.g. 'Arm')")
-		col.label(text="{side} -> .L / .R / (blank)")
-		box.prop(self, "ik_collection_template")
-		box.prop(self, "fk_collection_template")
-		box.prop(self, "control_collection_template")
-		box.prop(self, "tweak_collection_template")
-		box.prop(self, "mch_collection_template")
-		box.separator()
-		box.prop(self, "mch_collection_name")
-		box.prop(self, "mch_parent_collection")
-
-		# Property Name Templates
-		box = layout.box()
-		box.label(text="Property Name Templates", icon='PROPERTIES')
-
-		left = box.split(factor=0.4)
-		col = left.column()
-		right = left.split(factor=0.75)
-		col = right.column(align=True)
-		col.label(text="{name} -> limb base name (e.g. 'arm')")
-		col.label(text="{side} -> .L / .R / (blank)")
-
-		col = box.column()
-		col.prop(self, "rotation_isolation_property_template")
-		col.prop(self, "fk_ik_switch_property_template")
-		col.prop(self, "ik_parent_property_template")
-
-		# Rig Structure Defaults
 		box = layout.box()
 		box.label(text="Rig Structure Defaults", icon='CON_ARMATURE')
 		box.prop(self, "root_bone_name")
@@ -415,11 +203,12 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "chest_bone_name")
 		box.prop(self, "head_bone_name")
 		box.prop(self, "property_bone_name")
+		box.prop(self, "mch_collection_name")
+		box.prop(self, "mch_parent_collection")
 		box.prop(self, "do_create_widgets")
 		if self.do_create_widgets:
 			box.prop(self, "widget_collection")
 			box.prop(self, "widget_template")
-		box.prop(self, "spline_object_template")
 
 		# Control Colors
 		box = layout.box()

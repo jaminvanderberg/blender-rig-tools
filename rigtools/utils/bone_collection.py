@@ -2,6 +2,26 @@ import re
 from rigtools.preferences import get_preferences
 
 
+def ensure_bone_collection(armature_data, collection_name, parent_collection_name=None):
+	if not collection_name:
+		return None
+
+	colls = armature_data.collections
+	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
+
+	collection = all_colls.get(collection_name)
+	if collection:
+		return collection
+
+	parent = None
+	if parent_collection_name:
+		parent = all_colls.get(parent_collection_name)
+		if not parent:
+			parent = colls.new(parent_collection_name)
+
+	return colls.new(collection_name, parent=parent)
+
+
 def set_bone_collection(armature_data, bone, collection_name, parent_collection_name=None):
 	if not collection_name:
 		return None
@@ -9,19 +29,7 @@ def set_bone_collection(armature_data, bone, collection_name, parent_collection_
 	for coll in list(bone.collections):
 		coll.unassign(bone)
 
-	colls = armature_data.collections
-	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
-
-	collection = all_colls.get(collection_name)
-	if not collection:
-		parent = None
-		if parent_collection_name:
-			parent = all_colls.get(parent_collection_name)
-			if not parent:
-				parent = colls.new(parent_collection_name)
-
-		collection = colls.new(collection_name, parent=parent)
-
+	collection = ensure_bone_collection(armature_data, collection_name, parent_collection_name)
 	collection.assign(bone)
 	return collection
 

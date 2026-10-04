@@ -4,9 +4,10 @@ from typing import List
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.heel_pivots import get_heel_pivot
 from rigtools.tool.foot_roll import FootRoll
-from rigtools.utils.naming import generate_bone_collection_name, generate_property_name, guess_assembly_name, find_side
-from rigtools.tool.twist_bones import TwistBones, TwistSegment
+from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_collection, name_property
+from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
+from rigtools.tool.twist_bones import TwistBones, TwistSegment
 
 # Tools
 from rigtools.tool.fk_tweak_chain import FKTweakChain
@@ -50,8 +51,6 @@ class IKAssemblyOptions:
 def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions):
 	"""find_side() throws an error if the side is not the same for all bones in the chain"""
 
-	prefs = get_preferences()
-	
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
@@ -72,10 +71,17 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 
-			ik_collection_name = generate_bone_collection_name(prefs.ik_collection_template, options.limb_property_base_name, side)
-			tweak_collection_name = generate_bone_collection_name(prefs.tweak_collection_template, options.limb_property_base_name, side)
-			fk_collection_name = generate_bone_collection_name(prefs.fk_collection_template, options.limb_property_base_name, side)
-			mch_collection_name = generate_bone_collection_name(prefs.mch_collection_template, options.limb_property_base_name, side)
+			ik_collection_name = name_collection("ik", options.limb_property_base_name, side)
+			tweak_collection_name = name_collection("tweak", options.limb_property_base_name, side)
+			fk_collection_name = name_collection("fk", options.limb_property_base_name, side)
+			mch_collection_name = name_collection("mch", options.limb_property_base_name, side)
+
+			if options.override_collections:
+				ensure_bone_collection(
+					armature_data,
+					mch_collection_name,
+					get_preferences().mch_parent_collection,
+				)
 
 			limb_count = options.ik_bone_count if options.ik_type == 'IK' else len(chain)
 			limb_chain = chain[:limb_count]
@@ -89,7 +95,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					fk_collection_name = mch_collection_name if options.override_collections else None,
 
 					# Hard-coded options
-					fk_bone_template = prefs.switch_template,
+					fk_bone_template = bone_template("switch"),
 					fk_widget = "NONE",  # this is an intermediate chain, no widget
 					skip_first_tweak = False,
 					do_create_fk = True,
@@ -101,7 +107,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				switch_chain = limb_chain
 
 			# FK/IK SWITCH
-			switch_property_name = generate_property_name(prefs.fk_ik_switch_property_template, options.limb_property_base_name, side)
+			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
 			fk_ik_switch = FKIKSwitch(
 				switch_property_name = switch_property_name,
 				switch_property_type = options.switch_property_type,
@@ -116,7 +122,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			# ROTATION ISOLATION
 			if options.add_rotation_isolation:
 				rotation_isolation = RotationIsolation(
-					property_name = generate_property_name(prefs.rotation_isolation_property_template, options.limb_property_base_name, side),
+					property_name = name_property("rotation_isolation", options.limb_property_base_name, side),
 					mch_collection_name = mch_collection_name if options.override_collections else None,
 					inherit_scale_from_root = options.inherit_scale_from_root,
 
@@ -185,7 +191,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			# IK PARENT
 			if options.ik_parent:
 				ik_parent = IKParent(
-					property_name = generate_property_name(prefs.ik_parent_property_template, options.limb_property_base_name, side),
+					property_name = name_property("ik_parent", options.limb_property_base_name, side),
 					parents = options.ik_parents,
 					self_parent_label = options.ik_parent_self_parent_label,
 					mch_collection_name = mch_collection_name if options.override_collections else None,

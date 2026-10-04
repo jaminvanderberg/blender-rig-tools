@@ -22,6 +22,69 @@ SIDE_NAMES = {
 
 QUALIFIER_NAMES = ("upper", "lower", "left", "right", "front", "back", "top", "bottom", "inner", "outer")
 
+# Tool-owned naming contract. User-facing boundaries (DEF/ORG/FK) stay in preferences.
+BONE = {
+	"ik": "{name}",
+	"ik_pole": "{name}.pole",
+	"ik_pole_vis": "VIS-{name}.pole",
+	"ik_mch": "MCH-IK-{name}",
+	"control": "{name}",
+	"foot_roll": "{name}.roll",
+	"vis": "VIS-{name}",
+	"mch": "MCH-{name}",
+	"twist": "ORG-{name}.{i}",
+	"twist_isolator": "MCH-TWIST-{name}",
+	"fk_ik_snap": "MCH-FK-IK-{name}.master",
+	"ik_parent": "MCH-IK-{name}.parent",
+	"switch": "MCH-SWITCH-{name}",
+	"tweak": "{name}.tweak",
+	"term": "{name}.tip.tweak",
+	"socket": "MCH-SOCKET-{name}",
+	"int": "MCH-INT-{name}",
+	"ik_spline": "{name}.spline.{i}",
+	"ik_spline_twist": "{name}.twist.{i}",
+	"mch_foot_roll": "MCH-{name}.{type}",
+	"spline_object": "SPLINE-{name}",
+}
+
+COLLECTION = {
+	"ik": "{Name}.IK{side}",
+	"fk": "{Name}.FK{side}",
+	"control": "{Name}{side}",
+	"tweak": "{Name}.Tweak{side}",
+	"mch": "MCH-{Name}",
+}
+
+PROPERTY = {
+	"rotation_isolation": "{name}.rot.follow{side}",
+	"fk_ik_switch": "{name}.FK.IK{side}",
+	"ik_parent": "{name}.ik.parent{side}",
+}
+
+def bone_template(role):
+	return BONE[role]
+
+
+def name_bone(role, source_name, *, strip_name=True, strip_numbers=False, index=None, **tokens):
+	template = BONE[role]
+	for key, value in tokens.items():
+		template = template.replace("{" + key + "}", str(value))
+	return generate_bone_name(
+		source_name,
+		template,
+		strip_name=strip_name,
+		strip_numbers=strip_numbers,
+		index=index,
+	)
+
+
+def name_collection(role, base_name, side):
+	return generate_bone_collection_name(COLLECTION[role], base_name, side)
+
+
+def name_property(role, base_name, side):
+	return generate_property_name(PROPERTY[role], base_name, side)
+
 def get_base_name(bone_name) -> tuple[str, str]:
 	symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
 	match = re.search(symmetry_pattern, bone_name, re.IGNORECASE)

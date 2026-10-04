@@ -124,11 +124,7 @@ def delete_assembly(context, assembly_uid):
 
 		bpy.ops.object.mode_set(mode='OBJECT') # flush any bone changes from the big delete
 
-		# check to see if any collections are empty
-		for collection_name in collection_names:
-			collection = obj.data.collections.get(collection_name)
-			if collection and len(collection.bones) == 0:
-				obj.data.collections.remove(collection)
+		# No longer deletes collections to keep RigUI data
 
 		bpy.ops.object.mode_set(mode=original_mode)
 

@@ -7,7 +7,7 @@ from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.twist_bones import get_twist_chain, set_twist_parent
 from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_mch_bones, match_orientation
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
 from rigtools.utils.widget import create_box_widget, create_chest_widget, create_fk_widget, get_widget_collection
@@ -124,7 +124,7 @@ class TorsoFK:
 				org_bone = edit_bones[org_bone_names[i]]
 				if not twist_names:
 					twist_names = duplicate_bone_subdivided(
-						context, org_bone, self.neck_twist_bone_count, prefs.twist_template
+						context, org_bone, self.neck_twist_bone_count, bone_template("twist")
 					)
 					for twist_name in twist_names:
 						set_twist_parent(armature_data, twist_name, org_bone_names[i])
@@ -148,7 +148,7 @@ class TorsoFK:
 			org_bone = edit_bones[org_bone_names[chest_bone_index]]
 			if not twist_names:
 				twist_names = duplicate_bone_subdivided(
-					context, org_bone, self.chest_twist_bone_count, prefs.twist_template
+					context, org_bone, self.chest_twist_bone_count, bone_template("twist")
 				)
 				for twist_name in twist_names:
 					set_twist_parent(armature_data, twist_name, org_bone_names[chest_bone_index])
@@ -174,7 +174,7 @@ class TorsoFK:
 			is_neck_bone = i >= first_neck_bone_index and i < first_neck_bone_index + self.neck_bone_count
 			is_head_bone = i == len(org_bone_names) - 1
 			if is_neck_bone:
-				fk_bone_name = generate_bone_name(org_name, prefs.control_template)
+				fk_bone_name = name_bone("control", org_name)
 			elif is_head_bone:
 				fk_bone_name = settings.head_bone_name
 			else:
@@ -282,7 +282,7 @@ class TorsoFK:
 			self.hips_mch_names = generate_mch_bones(
 				armature_data,
 				fk_bones[0:hips_count],
-				prefs.mch_template,
+				bone_template("mch"),
 				self.mch_collection_name
 			)
 			for mch_name in self.hips_mch_names:
@@ -297,7 +297,7 @@ class TorsoFK:
 			self.chest_mch_names = generate_mch_bones(
 				armature_data,
 				fk_bones[self.lower_torso_bone_count:self.lower_torso_bone_count + chest_count],
-				prefs.mch_template,
+				bone_template("mch"),
 				self.mch_collection_name
 			)
 			for mch_name in self.chest_mch_names:
@@ -311,7 +311,7 @@ class TorsoFK:
 		mch_bone = generate_mch_bones(
 			armature_data,
 			[tweak_bone],
-			prefs.mch_template,
+			bone_template("mch"),
 			self.mch_collection_name
 		)[0]
 		self.mechanism_bone_names.append(mch_bone)
@@ -328,7 +328,7 @@ class TorsoFK:
 			self.twist_isolator_name = generate_mch_bones(
 				armature_data, 
 				[edit_bones[first_neck_tweak_name]], 
-				prefs.twist_isolator_template, 
+				bone_template("twist_isolator"), 
 				self.mch_collection_name
 			)[0]
 			self.mechanism_bone_names.append(self.twist_isolator_name)
