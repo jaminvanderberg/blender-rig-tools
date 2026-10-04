@@ -1,5 +1,7 @@
 import bpy
-from rigtools.utils.bone import generate_bone_name, duplicate_bone, is_collection_visible, set_bone_collection
+from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.bone_collection import is_collection_visible, set_bone_collection
 from rigtools.preferences import get_preferences
 
 class RIG_PT_create_mch_bones(bpy.types.Panel):

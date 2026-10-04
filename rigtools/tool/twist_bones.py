@@ -7,7 +7,8 @@ import bpy
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.twist_bones import get_twist_chain, set_twist_parent, prune_twist_map
-from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_bone_name
+from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided
+from rigtools.utils.naming import generate_bone_name
 
 def _linear(t):  return 1.0 - t
 def _smooth(t): return 1.0 - (3.0 * t*t - 2.0 * t*t*t)

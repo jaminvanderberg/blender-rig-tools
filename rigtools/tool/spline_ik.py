@@ -1,5 +1,7 @@
 import bpy
-from rigtools.utils.bone import generate_bone_name, duplicate_bone, duplicate_chain, set_bone_collection
+from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from bpy.props import StringProperty
 from rna_prop_ui import rna_idprop_ui_create

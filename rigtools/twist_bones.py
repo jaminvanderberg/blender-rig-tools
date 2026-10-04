@@ -2,7 +2,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator, Panel
 
-from rigtools.utils.bone import flip_side_name, same_side_names
+from rigtools.utils.naming import flip_side_name, same_side_names
 
 TWIST_MAP_KEY = "rigtools_twist_parents"
 

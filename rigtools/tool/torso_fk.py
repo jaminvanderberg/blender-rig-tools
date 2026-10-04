@@ -6,7 +6,9 @@ from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.twist_bones import get_twist_chain, set_twist_parent
-from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_bone_name, generate_mch_bones, match_orientation, set_bone_collection
+from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_mch_bones, match_orientation
+from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
 from rigtools.utils.widget import create_box_widget, create_chest_widget, create_fk_widget, get_widget_collection
     

@@ -31,7 +31,7 @@ from rigtools.panels.assembly import assembly_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import property_panel
 from rigtools.rig_ui import visibility_panel
-from rigtools.rig_ui import snapping_panel
+from rigtools.rig_ui import snapping_operator
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -65,7 +65,7 @@ def register():
 	collections_panel.register()
 	property_panel.register()
 	visibility_panel.register()
-	snapping_panel.register()
+	snapping_operator.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -125,7 +125,7 @@ def unregister():
 	fk_panel.unregister()
 	assembly_data.unregister()
 	visibility_panel.unregister()
-	snapping_panel.unregister()
+	snapping_operator.unregister()
 
 if __name__ == "__main__":
 	register()

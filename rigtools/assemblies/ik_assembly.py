@@ -2,11 +2,8 @@ from dataclasses import dataclass, field
 from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
-from rigtools.utils.naming import guess_assembly_name
+from rigtools.utils.naming import generate_bone_collection_name, generate_property_name, guess_assembly_name, find_side
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
-from rigtools.utils.bone import find_side
-from rigtools.utils.bone_collection import generate_bone_collection_name
-from rigtools.utils.property import generate_property_name
 from rigtools.preferences import get_preferences
 
 # Tools
@@ -65,7 +62,7 @@ def create_ik_assembly(context, chains, template_name, options: IKAssemblyOption
 			org_chain = chain
 			side = find_side(chain)
 
-			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name, side)
 			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_name, options)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)

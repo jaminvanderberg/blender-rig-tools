@@ -1,5 +1,7 @@
 import bpy
-from rigtools.utils.bone import generate_bone_name, duplicate_bone, set_bone_collection
+from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
 
 class RotationFollow:

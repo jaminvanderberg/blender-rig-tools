@@ -9,14 +9,14 @@ from rigtools.assemblies.ik_templates import (
 	validate_ik_templates,
 )
 from rigtools.assemblies.template_options import resolve_template_options
-from rigtools.rig_ui.property_name import guess_limb_name
+from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.tool.twist_bones import falloff_presets, twist_source_types
 from rigtools.utils.widget import fk_widget_types
 from rigtools.tool.ik_parent import IKParentTarget
-from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
+from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
+from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
-from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.utils.bone import select_bones
 
 class IKParentSlot(bpy.types.PropertyGroup):

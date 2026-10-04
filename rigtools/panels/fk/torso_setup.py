@@ -1,13 +1,13 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from rigtools.assemblies.delete_assembly import delete_assembly
-from rigtools.assemblies.assembly_data import find_assembly
+from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
-from rigtools.rig_ui.property_name import guess_limb_name
+from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.twist_bones import falloff_presets
-from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
+from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
 from rigtools.utils.widget import fk_widget_types
 
 

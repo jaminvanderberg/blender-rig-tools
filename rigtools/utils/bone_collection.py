@@ -2,15 +2,35 @@ import re
 from rigtools.preferences import get_preferences
 
 
-def generate_bone_collection_name(template, base_name, side):
-	ret = template
-	if "{Name}" in template:
-		ret = ret.replace("{Name}", base_name.capitalize())
-	if "{name}" in template:
-		ret = ret.replace("{name}", base_name)
-	if "{side}" in template:
-		ret = ret.replace("{side}", side)
-	return ret
+def set_bone_collection(armature_data, bone, collection_name, parent_collection_name=None):
+	if not collection_name:
+		return None
+
+	for coll in list(bone.collections):
+		coll.unassign(bone)
+
+	colls = armature_data.collections
+	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
+
+	collection = all_colls.get(collection_name)
+	if not collection:
+		parent = None
+		if parent_collection_name:
+			parent = all_colls.get(parent_collection_name)
+			if not parent:
+				parent = colls.new(parent_collection_name)
+
+		collection = colls.new(collection_name, parent=parent)
+
+	collection.assign(bone)
+	return collection
+
+
+def is_collection_visible(collection, armature_data):
+	if collection:
+		return collection.is_visible_effectively
+	return not armature_data.collections.is_solo_active
+
 
 def replace_name_token(name, find, replace):
 	if not find or find == replace:
@@ -28,6 +48,7 @@ def replace_name_token(name, find, replace):
 			out.append(part)
 	return ''.join(out)
 
+
 def collection_ancestors(coll):
 	chain = []
 	while coll:
@@ -35,6 +56,7 @@ def collection_ancestors(coll):
 		coll = coll.parent
 	chain.reverse()
 	return chain
+
 
 def copy_collection_structure(armature_data, source_coll, find, replace):
 	parent = None

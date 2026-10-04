@@ -1,6 +1,6 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
-from rigtools.rig_ui.snapping_panel import delete_snap_chain
+from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
 
 def delete_assembly(context, assembly_uid):

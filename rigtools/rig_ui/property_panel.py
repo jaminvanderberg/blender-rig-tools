@@ -1,26 +1,13 @@
 import bpy
-from bpy.props import BoolProperty, StringProperty, EnumProperty, CollectionProperty
+from bpy.props import BoolProperty, StringProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
-from rigtools.rig_ui.property_name import guess_property_label, guess_group
-from itertools import groupby
-from rigtools.rig_ui.snapping_panel import find_snap_chain
+from rigtools.rig_ui.property_item import RigUIPropertyItem, find_property_item
+from rigtools.rig_ui.snapping_data import find_snap_chain
 from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.naming import guess_property_label
 from rna_prop_ui import rna_idprop_ui_create
 from bpy.utils import escape_identifier
-
-class RigUIPropertyItem(bpy.types.PropertyGroup):
-	property_name: StringProperty()
-	label: StringProperty()
-	group: StringProperty()
-	subgroup: StringProperty()
-	hidden: BoolProperty(default=False)
-
-def _find_property_item(armature_data, property_name):
-	for item in armature_data.rig_ui_properties:
-		if item.property_name == property_name:
-			return item
-	return None
 
 def _parse_enum_items(enum_items):
 	parts = []
@@ -73,9 +60,6 @@ class RIG_OT_ui_property_modify(bpy.types.Operator):
 
 	property_name: StringProperty()
 	label: StringProperty()
-	group: StringProperty()
-	subgroup: StringProperty()
-	hidden: BoolProperty(default=False)
 
 	is_enum: BoolProperty(
 		name="Enum Property",
@@ -95,14 +79,11 @@ class RIG_OT_ui_property_modify(bpy.types.Operator):
 
 	def execute(self, context):
 		armature_data = context.object.data
-		item = _find_property_item(armature_data, self.property_name)
+		item = find_property_item(armature_data, self.property_name)
 		if not item:
 			item = armature_data.rig_ui_properties.add()
 			item.property_name = self.property_name
 		item.label = self.label
-		item.group = self.group
-		item.subgroup = self.subgroup
-		item.hidden = self.hidden
 
 		settings = get_armature_settings(armature_data, context)
 		prop_bone = context.active_object.pose.bones[settings.property_bone_name]
@@ -116,12 +97,8 @@ class RIG_OT_ui_property_modify(bpy.types.Operator):
 
 	def invoke(self, context, event):
 		armature_data = context.object.data
-		item = _find_property_item(armature_data, self.property_name)
-		guessed_group, guessed_side = guess_group(self.property_name, context)
+		item = find_property_item(armature_data, self.property_name)
 		self.label = (item.label if item else guess_property_label(self.property_name, context))
-		self.group = (item.group if item else guessed_group)
-		self.subgroup = (item.subgroup if item else guessed_side)
-		self.hidden = (item.hidden if item else False)
 
 		settings = get_armature_settings(armature_data, context)
 		prop_bone = context.active_object.pose.bones[settings.property_bone_name]
@@ -176,10 +153,8 @@ def _iterate_assemblies(context, prop_bone):
 			if snap:
 				snaps.append({
 					"name": snap.switch_property,
-					"label": snap.label,
 				})
 		properties.sort(key=lambda x: x["label"].lower())
-		snaps.sort(key=lambda x: x["label"].lower())
 
 		yield assembly.name, properties, snaps
 
@@ -209,9 +184,12 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 		layout = self.layout
 		split_size = 0.6
 
-		wm = context.window_manager
-
+		first = True
 		for name, properties, snaps in _iterate_assemblies(context, prop_bone):
+			if not first:
+				layout.separator()
+			first = False
+			
 			col = layout.box().column(align=True)
 
 			for prop in properties:
@@ -226,9 +204,9 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 
 			for snap in snaps:
 				col = layout.column(align=True)
-				op = col.operator("rig.snap_ik_to_fk", text=snap["label"] + " IK > FK", icon='SNAP_ON')
+				op = col.operator("rig.snap_ik_to_fk", text=name + " IK > FK", icon='SNAP_ON')
 				op.switch_property = snap["name"]
-				op = col.operator("rig.snap_fk_to_ik", text=snap["label"] + " FK > IK", icon='SNAP_ON')
+				op = col.operator("rig.snap_fk_to_ik", text=name + " FK > IK", icon='SNAP_ON')
 				op.switch_property = snap["name"]
 
 classes = (
@@ -241,11 +219,6 @@ def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
 	bpy.types.Armature.rig_ui_properties = CollectionProperty(type=RigUIPropertyItem)
-	bpy.types.WindowManager.rig_ui_show_hidden_properties = BoolProperty(
-		name="Show Hidden",
-		description="Show hidden properties in the properties UI",
-		default=False
-	)
 
 def unregister():
 	del bpy.types.Armature.rig_ui_properties

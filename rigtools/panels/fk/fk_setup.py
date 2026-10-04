@@ -2,14 +2,14 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 
 from rigtools.assemblies.delete_assembly import delete_assembly
-from rigtools.assemblies.assembly_data import find_assembly
+from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
-from rigtools.rig_ui.property_name import guess_limb_name
-from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection, get_assembly_chains
+from rigtools.utils.naming import guess_limb_name
+from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
 from rigtools.utils.widget import fk_widget_types
 
 

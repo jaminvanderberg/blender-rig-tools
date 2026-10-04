@@ -9,3 +9,6 @@ Twist bones/tweak bones - another name?
 delete assembly doesn't delete child collections
 
 templates don't always open as template.  maybe an advanced option?
+
+IK - add tweak bones disabled still makes tweak bones
+Torso add tweak bones disabled is an error
