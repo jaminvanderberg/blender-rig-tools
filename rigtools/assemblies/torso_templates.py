@@ -43,6 +43,15 @@ TORSO_TEMPLATES = {
 			"neck_twist_bone_count",
 			"chest_twist_bone_count",
 			"neck_falloff_type",
+			"add_tweak_bones",
+			"tweak_relationship",
+			"add_neck_rotation_isolation",
+			"add_head_rotation_isolation",
+			"neck_base_property_name",
+			"neck_inherit_scale_from_root",
+			"head_base_property_name",
+			"head_inherit_scale_from_root",
+			"fk_widget",
 		),
 	),
 }
@@ -64,7 +73,6 @@ REDO_PROPERTIES = {
 	"head_base_property_name",
 	"head_inherit_scale_from_root",
 	"fk_widget",
-	"override_collections",
 	"neck_falloff_type",
 }
 

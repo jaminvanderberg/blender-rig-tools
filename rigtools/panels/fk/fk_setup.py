@@ -7,8 +7,9 @@ from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembl
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.armature_settings import get_armature_settings
+from rigtools.panels.template_draw import TemplateDraw
 from rigtools.preferences import get_preferences
-from rigtools.utils.naming import guess_limb_name
+from rigtools.utils.naming import bone_template, guess_limb_name
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
 from rigtools.utils.widget import fk_widget_types
 
@@ -25,16 +26,21 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default=""
 	)
 
-	do_create_fk: BoolProperty(
-		name="Create FK Bones",
-		description="Create the FK bone chain. If unchecked, the tweak bones will be parented in a chain.",
-		default=True
+	control_mode: EnumProperty(
+		name="Control Mode",
+		description="Control mode for the FK/Tweak chain",
+		items=[
+			('FK/TWEAK', 'FK/TWEAK', 'Create an FK/Tweak chain'),
+			('FK', 'FK only', 'Create an simple FK chain without tweak bones'),
+			('TWEAK', 'TWEAK only', 'Create a tweak only chain. Tweak bones should be re-parented later.'),
+		],
+		default='FK/TWEAK'
 	)
 
-	fk_bone_template: StringProperty(
-		name="FK bone name",
-		description="Template using {name} as a placeholder (e.g., 'FK-{name}' or '{name}_FK'). L/R suffixes will be preserved.",
-		default="FK-{name}"
+	add_tweak_bones: BoolProperty(
+		name="Add Tweak Bones",
+		description="Add tweak bones to the chain",
+		default=True
 	)
 
 	skip_first_tweak: BoolProperty(
@@ -141,8 +147,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 	def _invoke_from_selection(self, context):
 		prefs = get_preferences()
-		if not self.properties.is_property_set("fk_bone_template"):
-			self.fk_bone_template = prefs.fk_template
 
 		try:
 			chains = find_chains_from_selection(context)
@@ -167,9 +171,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		option_values = resolve_template_options(FKAssemblyOptions, template.options)
 		for key, value in option_values.items():
 			setattr(self, key, value)
-
-		if "fk_bone_template" not in template.options:
-			self.fk_bone_template = get_preferences().fk_template
 
 		if not self.limb_property_base_name:
 			try:
@@ -215,6 +216,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		if result == {'CANCELLED'}:
 			return result
 
+		self.add_tweak_bones = (self.control_mode != 'FK')
+
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
 		return self.execute(context)
@@ -222,88 +225,51 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	##################################################################################################
 	# draw
 
-	def do_show_field(self, field_name, template):
-		if not template:
-			return True
-		return field_name in template.redo_fields
-
-	def do_show_any_field(self, field_names, template):
-		if not template:
-			return True
-		return any(field in template.redo_fields for field in field_names)
 
 	def draw(self, context):
 		layout = self.layout
-		box = layout.box()
-		box.label(text="FK Tweak Chain Settings:", icon='SETTINGS')
-		settings = get_armature_settings(context.object.data, context)
-
 		template = get_fk_template(self.template_id) if self.template_id else None
-		split_size = 0.4
+		split_size = 0.6
 
-		col = box.column()
-		if self.do_show_field("limb_property_base_name", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Limb Property Base Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "limb_property_base_name", text="")
+		def field_visible(field_name):
+			if field_name in ["tweak_relationship", "skip_first_tweak"]:
+				return self.control_mode != 'FK' and (self.add_tweak_bones or self.control_mode == 'TWEAK')
+			if field_name in ["fk_widget"]:
+				return self.control_mode != 'TWEAK'
+			if field_name in ["add_tweak_bones"]:
+				control_mode_visible = template is None or "control_mode" in template.redo_fields
+				return self.control_mode != 'TWEAK' and not control_mode_visible
+			if field_name in ["add_rotation_isolation", "create_rotation_follow_setup"]:
+				return self.control_mode != 'TWEAK'
+			if field_name in ["rotation_follow_skip", "rotation_follow_relationship"]:
+				return self.create_rotation_follow_setup
+			return True
 
-		if self.do_show_field("do_create_fk", template):
-			col.prop(self, "do_create_fk")
+		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
 
-		if self.do_create_fk:
-			if settings.do_create_widgets and self.do_show_field("fk_widget", template):
-				split = col.split(align=True, factor=split_size)
-				row = split.row(align=True)
-				row.label(text="FK Widget:", translate=False)
-				row = split.row(align=True)
-				row.prop(self, "fk_widget", text="")
+		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"], 
+			"FK Chain Settings:", "SETTINGS", lambda col: (
 
-			if self.do_show_field("fk_bone_template", template):
-				split = col.split(align=True, factor=split_size)
-				row = split.row(align=True)
-				row.label(text="FK Bone Template:", translate=False)
-				row = split.row(align=True)
-				row.prop(self, "fk_bone_template", text="")
-
-		if self.do_show_any_field(
-			["limb_property_base_name", "do_create_fk", "fk_widget", "fk_bone_template"],
-			template,
-		):
-			col.separator()
-
-		col = box.column(align=True)
-		if self.do_show_field("tweak_relationship", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Tweak Relationship:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "tweak_relationship", text="")
-
-		if self.do_show_field("skip_first_tweak", template):
-			col.prop(self, "skip_first_tweak")
-
-		if self.do_show_field("override_collections", template):
-			col.prop(self, "override_collections")
-
-		col = layout.column()
-		if self.do_show_field("add_rotation_isolation", template):
-			col.prop(self, "add_rotation_isolation")
-		if self.do_show_field("create_rotation_follow_setup", template):
-			col.prop(self, "create_rotation_follow_setup")
-		if self.create_rotation_follow_setup and self.do_show_any_field(
-			["rotation_follow_skip", "rotation_follow_relationship"],
-			template,
-		):
-			box = layout.box()
-			box.label(text="Rotation Follow Setup:", icon='CONSTRAINT')
-			col = box.column()
-			if self.do_show_field("rotation_follow_skip", template):
-				col.prop(self, "rotation_follow_skip")
-			if self.do_show_field("rotation_follow_relationship", template):
-				col.prop(self, "rotation_follow_relationship")
-
+			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget"], lambda: (
+				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
+				draw.split_field(col, "Control Mode:", "control_mode"),
+				draw.split_field(col, "FK Widget:", "fk_widget"),
+			)),
+			draw.draw_section(col, ["add_tweak_bones", "tweak_relationship", "skip_first_tweak"], lambda: (
+				draw.full_field(col, "Add Tweak Bones", "add_tweak_bones"),
+				draw.split_field(col, "Tweak Relationship:", "tweak_relationship"),
+				draw.full_field(col, "Skip First Tweak", "skip_first_tweak"),
+			)),
+		))
+		draw.draw_section(layout, ["add_rotation_isolation", "create_rotation_follow_setup", "rotation_follow_skip", "rotation_follow_relationship"], lambda: (
+			draw.full_field(layout, "Add Rotation Isolation", "add_rotation_isolation"),
+			draw.full_field(layout, "Create Rotation Follow Setup", "create_rotation_follow_setup"),
+			draw.box_section(layout, ["rotation_follow_skip", "rotation_follow_relationship"], "Rotation Follow Setup:", 'CONSTRAINT', lambda col: (
+				draw.full_field(col, "Rotation Follow Skip:", "rotation_follow_skip"),
+				draw.split_field(col, "Rotation Follow Relationship:", "rotation_follow_relationship"),
+			))
+		))
+		
 	##################################################################################################
 	# execute
 
@@ -326,10 +292,13 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			delete_assembly(context, self.assembly_uid)
 			self.assembly_uid = ""
 
+		if self.control_mode != 'TWEAK':
+			self.control_mode = 'FK/TWEAK' if self.add_tweak_bones else 'FK'
+
 		options = FKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
-			do_create_fk=self.do_create_fk,
-			fk_bone_template=self.fk_bone_template,
+			control_mode=self.control_mode,
+			fk_bone_template=bone_template('fk'),
 			skip_first_tweak=self.skip_first_tweak,
 			fk_widget=self.fk_widget,
 			create_rotation_follow_setup=self.create_rotation_follow_setup,
@@ -339,7 +308,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			tweak_collection_name=self.tweak_collection_name,
 			tweak_relationship=self.tweak_relationship,
 			add_rotation_isolation=self.add_rotation_isolation,
-			override_collections=self.override_collections,
 		)
 
 		try:

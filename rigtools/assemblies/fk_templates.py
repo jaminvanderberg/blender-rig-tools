@@ -22,7 +22,7 @@ FK_TEMPLATES = {
 		icon="BONE_DATA",
 		options={
 			"limb_property_base_name": "",
-			"do_create_fk": True,
+			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "CIRCLE",
 			"create_rotation_follow_setup": True,
@@ -36,8 +36,28 @@ FK_TEMPLATES = {
 			"limb_property_base_name",
 			"fk_widget",
 			"skip_first_tweak",
-			"tweak_relationship",
 			"add_rotation_isolation",
+			"create_rotation_follow_setup",
+			"rotation_follow_skip",
+			"add_tweak_bones",
+		),
+	),
+	"fk_only": FKTemplate(
+		label="FK Only",
+		description="FK only chain. No tweaks.",
+		icon="RESTRICT_SELECT_OFF",
+		options={
+			"limb_property_base_name": "",
+			"control_mode": "FK",
+			"fk_widget": "CIRCLE",
+			"create_rotation_follow_setup": True,
+			"rotation_follow_skip": 1,
+			"rotation_follow_relationship": "COPY_ROTATION",
+			"add_rotation_isolation": False,
+		},
+		redo_fields=(
+			"limb_property_base_name",
+			"fk_widget",
 			"create_rotation_follow_setup",
 			"rotation_follow_skip",
 		),
@@ -48,7 +68,7 @@ FK_TEMPLATES = {
 		icon="CON_GEOMETRYATTRIBUTE",
 		options={
 			"limb_property_base_name": "",
-			"do_create_fk": True,
+			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "RECTANGLE",
 			"create_rotation_follow_setup": True,
@@ -56,7 +76,6 @@ FK_TEMPLATES = {
 			"rotation_follow_relationship": "COPY_ROTATION",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": True,
-			"override_collections": True,
 		},
 		redo_fields=(
 			"fk_widget",
@@ -65,6 +84,7 @@ FK_TEMPLATES = {
 			"add_rotation_isolation",
 			"create_rotation_follow_setup",
 			"rotation_follow_skip",
+			"add_tweak_bones",
 		),
 	),
 	"tail": FKTemplate(
@@ -73,7 +93,7 @@ FK_TEMPLATES = {
 		icon="CURVE_PATH",
 		options={
 			"limb_property_base_name": "tail",
-			"do_create_fk": True,
+			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "CIRCLE",
 			"create_rotation_follow_setup": True,
@@ -81,7 +101,6 @@ FK_TEMPLATES = {
 			"rotation_follow_relationship": "COPY_ROTATION",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": True,
-			"override_collections": True,
 		},
 		redo_fields=(
 			"fk_widget",
@@ -90,6 +109,7 @@ FK_TEMPLATES = {
 			"add_rotation_isolation",
 			"create_rotation_follow_setup",
 			"rotation_follow_skip",
+			"add_tweak_bones",
 		),
 	),
 	"finger": FKTemplate(
@@ -98,7 +118,7 @@ FK_TEMPLATES = {
 		icon="VIEW_PAN",
 		options={
 			"limb_property_base_name": "finger",
-			"do_create_fk": True,
+			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",
 			"create_rotation_follow_setup": True,
@@ -106,13 +126,13 @@ FK_TEMPLATES = {
 			"rotation_follow_relationship": "COPY_ROTATION",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": False,
-			"override_collections": True,
 		},
 		redo_fields=(
 			"fk_widget",
 			"skip_first_tweak",
 			"tweak_relationship",
 			"add_rotation_isolation",
+			"add_tweak_bones",
 		),
 	),
 	"tweak": FKTemplate(
@@ -121,7 +141,7 @@ FK_TEMPLATES = {
 		icon="PARTICLE_POINT",
 		options={
 			"limb_property_base_name": "",
-			"do_create_fk": False,
+			"control_mode": "TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "NONE",
 			"create_rotation_follow_setup": False,
@@ -129,12 +149,10 @@ FK_TEMPLATES = {
 			"rotation_follow_relationship": "COPY_ROTATION",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": False,
-			"override_collections": False,
 		},
 		redo_fields=(
 			"limb_property_base_name",
 			"tweak_relationship",
-			"override_collections",
 		),
 	),
 }
@@ -142,8 +160,6 @@ FK_TEMPLATES = {
 
 REDO_PROPERTIES = {
 	"limb_property_base_name",
-	"do_create_fk",
-	"fk_bone_template",
 	"skip_first_tweak",
 	"fk_widget",
 	"create_rotation_follow_setup",
@@ -151,7 +167,8 @@ REDO_PROPERTIES = {
 	"rotation_follow_relationship",
 	"tweak_relationship",
 	"add_rotation_isolation",
-	"override_collections",
+	"control_mode",
+	"add_tweak_bones"
 }
 
 

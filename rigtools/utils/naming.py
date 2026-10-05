@@ -25,6 +25,7 @@ QUALIFIER_NAMES = ("upper", "lower", "left", "right", "front", "back", "top", "b
 # Tool-owned naming contract. User-facing boundaries (DEF/ORG/FK) stay in preferences.
 BONE = {
 	"ik": "{name}",
+	"fk": "FK-{name}",
 	"ik_pole": "{name}.pole",
 	"ik_pole_vis": "VIS-{name}.pole",
 	"ik_mch": "MCH-IK-{name}",
@@ -56,7 +57,7 @@ COLLECTION = {
 }
 
 PROPERTY = {
-	"rotation_isolation": "{name}.rot.follow{side}",
+	"rotation_isolation": "{name}.FK.rot.follow{side}",
 	"fk_ik_switch": "{name}.FK.IK{side}",
 	"ik_parent": "{name}.ik.parent{side}",
 }

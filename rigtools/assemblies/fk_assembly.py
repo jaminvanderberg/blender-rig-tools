@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.tool.fk_chain import FKChain
 from rigtools.utils.naming import guess_assembly_name, find_side, name_collection, name_property
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
@@ -12,7 +13,7 @@ from rigtools.tool.rotation_isolation import RotationIsolation
 @dataclass
 class FKAssemblyOptions:
 	limb_property_base_name: str
-	do_create_fk: bool = True
+	control_mode: str = 'FK/TWEAK' # 'FK/TWEAK', 'FK', 'TWEAK'
 	fk_bone_template: str = "FK-{name}"
 	skip_first_tweak: bool = False
 	fk_widget: str = 'CIRCLE'
@@ -60,29 +61,41 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				get_preferences().mch_parent_collection,
 			)
 
-			# TWEAK CHAIN
-			tweak = FKTweakChain(
-				fk_bone_template=options.fk_bone_template,
-				skip_first_tweak=options.skip_first_tweak,
-				do_create_fk=options.do_create_fk,
-				fk_widget=options.fk_widget,
-				fk_collection_name=fk_collection_name,
-				tweak_collection_name=tweak_collection_name,
-				tweak_relationship=options.tweak_relationship,
-			)
-			tweak.edit_mode(armature_data, chain)
-			assembly_chain.tools.append(tweak)
+			if options.control_mode in ['FK/TWEAK', 'TWEAK']:
+				# TWEAK CHAIN
+				tweak = FKTweakChain(
+					fk_bone_template=options.fk_bone_template,
+					skip_first_tweak=options.skip_first_tweak,
+					do_create_fk=(options.control_mode == 'FK/TWEAK'),
+					fk_widget=options.fk_widget,
+					fk_collection_name=fk_collection_name,
+					tweak_collection_name=tweak_collection_name,
+					tweak_relationship=options.tweak_relationship,
+				)
+				tweak.edit_mode(armature_data, chain)
+				assembly_chain.tools.append(tweak)
+				fk_names = tweak.fk_bone_names
+			else:
+				# FK CHAIN
+				fk = FKChain(
+					fk_bone_template=options.fk_bone_template,
+					fk_widget=options.fk_widget,
+					fk_collection_name=fk_collection_name,
+				)
+				fk.edit_mode(armature_data, chain)
+				assembly_chain.tools.append(fk)
+				fk_names = fk.fk_bone_names
 
 			# ROTATION ISOLATION
-			if options.add_rotation_isolation and options.do_create_fk:
+			if options.add_rotation_isolation and len(fk_names) > 0:
 				property_name = name_property("rotation_isolation", options.limb_property_base_name, side)
 				rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
-				rotation_isolation.edit_mode(context, armature_data, [tweak.fk_bone_names[0]])
+				rotation_isolation.edit_mode(context, armature_data, [fk_names[0]])
 				assembly_chain.tools.append(rotation_isolation)
 
 			# ROTATION FOLLOW
-			if options.create_rotation_follow_setup and tweak.fk_bone_names:
-				follow_bones = tweak.fk_bone_names[options.rotation_follow_skip:]
+			if options.create_rotation_follow_setup and len(fk_names) > 0:
+				follow_bones = fk_names[options.rotation_follow_skip:]
 				if follow_bones:
 					follow = RotationFollow(relationship=options.rotation_follow_relationship, mch_collection_name=mch_collection_name)
 					follow.edit_mode(context, follow_bones)

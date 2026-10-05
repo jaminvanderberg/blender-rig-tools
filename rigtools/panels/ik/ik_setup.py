@@ -9,6 +9,7 @@ from rigtools.assemblies.ik_templates import (
 	validate_ik_templates,
 )
 from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.panels.template_draw import TemplateDraw
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.tool.twist_bones import falloff_presets, twist_source_types
@@ -117,13 +118,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		name="Enable IK Stretch",
 		description="Enable IK stretch for the IK chain",
 		default=True
-	)
-
-	pole_distance: FloatProperty(
-		name="Pole Distance",
-		description="Distance from the IK chain to place the pole bone",
-		default=1.0,
-		min=0.0
 	)
 
 	spline_control_count: IntProperty(
@@ -383,124 +377,71 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 	##################################################################################################
 	# draw
-	def do_show_field(self, field_name, template):
-		if not template: return True
-		redo_fields = template.redo_fields
-		return field_name in redo_fields
-
-	def do_show_any_field(self, field_names, template):
-		if not template: return True
-		redo_fields = template.redo_fields
-		return any(field in redo_fields for field in field_names)
 	
 	def draw(self, context):
 		layout = self.layout
-		split_size = 0.4
 
-		box = layout.box()
-		box.label(text="IK/FK Switch Settings:", icon='SETTINGS')
+		template = get_ik_template(self.template_id) if self.template_id else None
+		split_size = 0.5
 
-		template = None
-		if self.template_id:
-			template = get_ik_template(self.template_id)
+		def field_visible(field_name):
+			if field_name in ["tweak_relationship"]:
+				return self.add_tweak_bones
+			if field_name in ["inherit_scale_from_root"]:
+				return self.add_rotation_isolation
+			if field_name in ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"]:
+				return self.ik_type == 'IK'
+			if field_name in ["spline_control_count", "twist_type", "spline_skip_first"]:
+				return self.ik_type == 'SPLINE'
+			if field_name in ["ik_parents"]:
+				return self.ik_parent
+			if field_name in ["add_ik_control_as_pole_parent"]:
+				return self.ik_parent and self.ik_type == 'IK'
+			if field_name in ["use_twist_bones"]:
+				return self.ik_type == 'IK'
+			if field_name in ["twist_bone_count", "twist_segments"]:
+				return self.use_twist_bones and self.ik_type == 'IK'
+			return True
 
-		col = box.column()
-		if self.do_show_field("limb_property_base_name", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Limb Property Base Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "limb_property_base_name", text="")
+		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
 
-		if self.do_show_field("switch_property_type", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Switch Property Type:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "switch_property_type", text="")
+		draw.box_section(layout, ["limb_property_base_name", "switch_property_type", "fk_widget", "add_tweak_bones", "tweak_relationship"], 
+			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-		if self.do_show_any_field(["limb_property_base_name", "switch_property_type"], template):
-			layout.separator()
+			draw.draw_section(col, ["limb_property_base_name", "switch_property_type", "fk_widget"], lambda: (
+				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
+				draw.split_field(col, "Switch Property Type:", "switch_property_type"),
+				draw.split_field(col, "FK Widget:", "fk_widget"),
+			)),
+			draw.draw_section(col, ["add_tweak_bones", "tweak_relationship"], lambda: (
+				draw.full_field(col, "Add Tweak Bones", "add_tweak_bones"),
+				draw.split_field(col, "Tweak Relationship:", "tweak_relationship"),
+			)),
+		))
+		draw.draw_section(layout, ["add_rotation_isolation", "inherit_scale_from_root"], lambda: (
+			draw.full_field(layout, "Add Rotation Isolation", "add_rotation_isolation"),
+			draw.full_field(layout, "Inherit Scale From Root", "inherit_scale_from_root"),
+		))
+		draw.draw_section(layout, ["ik_type", "ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll", "spline_control_count", "twist_type", "spline_skip_first"], lambda: (
+			draw.full_field(layout, "IK Type", "ik_type"),
+			draw.box_section(layout, ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"], "IK Settings", 'CON_KINEMATIC', lambda col: (
+				draw.full_field(col, "IK Bone Count", "ik_bone_count"),
+				draw.full_field(col, "Enable Snapping", "enable_snapping"),
+				draw.full_field(col, "Enable IK Stretch", "enable_ik_stretch"),
+				draw.full_field(col, "Add Foot Roll", "add_foot_roll"),
+			)),
+			draw.box_section(layout, ["spline_control_count", "twist_type", "spline_skip_first"], "Spline IK Settings", 'CON_SPLINEIK', lambda col: (
+				draw.full_field(col, "Spline Control Count", "spline_control_count"),
+				draw.split_field(col, "Twist Type", "twist_type"),
+				draw.full_field(col, "Spline Skip First", "spline_skip_first"),
+			)),
+		))
 
-		if self.do_show_field("add_rotation_isolation", template):
-			col = layout.column()
-			col.prop(self, "add_rotation_isolation")
-			if self.add_rotation_isolation and self.do_show_field("inherit_scale_from_root", template):
-				col.prop(self, "inherit_scale_from_root")
 
-		if self.do_show_field("fk_widget", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="FK Widget:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "fk_widget", text="")
+		def draw_ik_parents(context, box):
+			if not draw.do_show("ik_parents"):
+				return
 
-		if self.do_show_any_field(["add_rotation_isolation", "inherit_scale_from_root", "fk_widget"], template):
-			col.separator()
-
-		if self.do_show_field("add_tweak_bones", template):
-			col.prop(self, "add_tweak_bones")
-
-		if self.add_tweak_bones and self.do_show_field("tweak_relationship", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Tweak Relationship:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "tweak_relationship", text="")
-
-		if self.do_show_any_field(["add_tweak_bones", "tweak_relationship"], template):
-			layout.separator()
-		
-		if self.do_show_field("ik_type", template):
-			col = layout.column()
-			col.prop(self, "ik_type")
-
-		if self.do_show_any_field(["spline_control_count", "twist_type", "spline_skip_first", "enable_snapping", "enable_ik_stretch", "pole_distance"], template):
-			box = layout.box()
-			if self.ik_type == 'SPLINE':
-				box.label(text="Spline IK Settings:", icon='CON_SPLINEIK')
-				col = box.column()
-
-				if self.do_show_field("spline_control_count", template):
-					col.prop(self, "spline_control_count")
-
-				if self.do_show_field("twist_type", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Twist Controllers:", translate=False)
-					row = split.row(align=True)
-					row.prop(self, "twist_type", text="")
-
-				if self.do_show_field("spline_skip_first", template):
-					col.prop(self, "spline_skip_first")
-
-			elif self.ik_type == 'IK':
-				box.label(text="IK Settings:", icon='CON_KINEMATIC')
-				col = box.column()
-
-				if self.do_show_field("ik_bone_count", template):
-					col.prop(self, "ik_bone_count")
-
-				if self.do_show_field("enable_snapping", template):
-					col.prop(self, "enable_snapping")
-
-				if self.do_show_field("enable_ik_stretch", template):
-					col.prop(self, "enable_ik_stretch")
-
-				# TODO : Disable and add a tooltip if heel pivots are not setup
-				if self.do_show_field("add_foot_roll", template):
-					col.prop(self, "add_foot_roll")
-
-		if self.do_show_any_field(["ik_type", "spline_control_count", "twist_type", "spline_skip_first", "enable_snapping", "enable_ik_stretch", "pole_distance"], template):
-			layout.separator()
-		
-		if self.do_show_field("ik_parent", template):
-			col = layout.column(align=True)
-			col.prop(self, "ik_parent")
-		if self.ik_parent and self.do_show_field("ik_parents", template):
-			col = layout.column()
-			box = col.box()
-			box.label(text="IK Parents:", icon='CON_ARMATURE')
 			parents = context.window_manager.rig_ik_parents
 			col = box.column(align=True)
 			for i, parent in enumerate(parents):
@@ -511,58 +452,66 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				op.index = i
 			box.operator("rig.add_ik_parent", text="Add Parent", icon='ADD')
 
-			if self.ik_type == 'IK':
-				row = box.row(align=True)
-				split = row.split(align=True, factor=0.6)
+		def draw_ik_control_as_pole_parent(context, box):
+			if not draw.do_show("add_ik_control_as_pole_parent"):
+				return
+
+			row = box.row(align=True)
+			split = row.split(align=True, factor=0.6)
+			row = split.row(align=True)
+			row.prop(self, "add_ik_control_as_pole_parent")
+			if self.add_ik_control_as_pole_parent:
 				row = split.row(align=True)
-				row.prop(self, "add_ik_control_as_pole_parent")
-				if self.add_ik_control_as_pole_parent:
-					row = split.row(align=True)
-					row.prop(self, "ik_parent_self_parent_label", text="")
+				row.prop(self, "ik_parent_self_parent_label", text="")			
 
-		if self.ik_type == 'IK' and self.do_show_any_field(
-			["use_twist_bones", "twist_bone_count", "twist_segments"], template
-		):
-			layout.separator()
-			col = layout.column(align=True)
-			if self.do_show_field("use_twist_bones", template):
-				col.prop(self, "use_twist_bones")
+		draw.draw_section(layout, ["ik_parent", "ik_parents", "add_ik_control_as_pole_parent"], lambda: (
+			draw.full_field(layout, "Setup IK Parent Switching", "ik_parent"),
+			draw.box_section(layout, ["ik_parents", "add_ik_control_as_pole_parent"], "IK Parents", 'CON_ARMATURE', lambda col: (
+				draw_ik_parents(context, col),
+				draw_ik_control_as_pole_parent(context, col),
+			)),
+		))
 
-			if self.use_twist_bones:
-				if self.do_show_field("twist_bone_count", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Twist Count:", translate=False)
-					row = split.row(align=True)
-					row.prop(self, "twist_bone_count", text="")
+		def draw_twist_segments(context, box):
+			if not draw.do_show("twist_segments"):
+				return
 
-				if self.do_show_field("twist_segments", template):
-					box = col.box()
-					box.label(text="Twist Segments:", icon='BONE_DATA')
-					segments = context.window_manager.rig_twist_segments
-					seg_col = box.column(align=True)
-					header = seg_col.row(align=True)
-					header.label(text="Name")
-					idx_header = header.row(align=True)
-					idx_header.ui_units_x = 2.5
-					idx_header.label(text="Index")
-					header.label(text="Source")
-					header.label(text="Falloff")
-					header.label(text="", icon='BLANK1')
-					for i, segment in enumerate(segments):
-						row = seg_col.row(align=True)
-						row.prop(segment, "name", text="")
-						idx = row.row(align=True)
-						idx.ui_units_x = 2.5
-						idx.prop(segment, "index", text="")
-						row.prop(segment, "source", text="")
-						sub = row.row(align=True)
-						sub.enabled = segment.source != 'NONE'
-						sub.prop(segment, "falloff", text="")
-						op = row.operator("rig.remove_twist_segment", text="", icon='REMOVE')
-						op.index = i
-					box.operator("rig.add_twist_segment", text="Add Segment", icon='ADD')
+			segments = context.window_manager.rig_twist_segments
+			seg_col = box.column(align=True)
+			header = seg_col.row(align=True)
+			header.label(text="Name")
+			idx_header = header.row(align=True)
+			idx_header.ui_units_x = 2.5
+			idx_header.label(text="Index")
+			header.label(text="Source")
+			header.label(text="Falloff")
+			header.label(text="", icon='BLANK1')
+			for i, segment in enumerate(segments):
+				row = seg_col.row(align=True)
+				row.prop(segment, "name", text="")
+				idx = row.row(align=True)
+				idx.ui_units_x = 2.5
+				idx.prop(segment, "index", text="")
+				row.prop(segment, "source", text="")
+				sub = row.row(align=True)
+				sub.enabled = segment.source != 'NONE'
+				sub.prop(segment, "falloff", text="")
+				op = row.operator("rig.remove_twist_segment", text="", icon='REMOVE')
+				op.index = i
+			box.operator("rig.add_twist_segment", text="Add Segment", icon='ADD')			
 
+		draw.draw_section(layout, ["use_twist_bones", "twist_bone_count", "twist_segments"], lambda: (
+			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
+			draw.box_section(layout, ["twist_segments"], "Twist Segments", 'BONE_DATA', lambda col: (
+				draw.draw_section(col, ["twist_bone_count"], lambda: (
+					draw.full_field(col, "Twist Bone Count", "twist_bone_count"),
+				)),
+				draw.draw_section(col, ["twist_segments"], lambda: (
+					draw_twist_segments(context, col),
+				)),
+			)),
+		))
+		
 
 	##################################################################################################
 	# execute
@@ -601,7 +550,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			override_collections=self.override_collections,
 			ik_type=self.ik_type,
 			enable_ik_stretch=self.enable_ik_stretch,
-			pole_distance=self.pole_distance,
 			spline_control_count=self.spline_control_count,
 			spline_skip_first=self.spline_skip_first,
 			twist_type=self.twist_type,

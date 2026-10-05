@@ -5,6 +5,7 @@ from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
+from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
@@ -133,12 +134,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		default=True
 	)
 
-	override_collections: BoolProperty(
-		name="Override Collections",
-		description="Override the collections for the torso assembly",
-		default=True
-	)
-
 	neck_falloff_type: EnumProperty(
 		name="Neck Falloff Type",
 		description="Type of falloff for the neck",
@@ -231,149 +226,72 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	##################################################################################################
 	# draw
 
-	def do_show_field(self, field_name, template):
-		if not template:
-			return True
-		return field_name in template.redo_fields
-
-	def do_show_any_field(self, field_names, template):
-		if not template:
-			return True
-		return any(field in template.redo_fields for field in field_names)
-
 	def draw(self, context):
 		layout = self.layout
-		box = layout.box()
-		box.label(text="Torso Settings:", icon='SETTINGS')
-
 		template = get_torso_template(self.template_id) if self.template_id else None
 		split_size = 0.6
 
-		col = box.column()
-		if self.do_show_field("limb_property_base_name", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Limb Property Base Name:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "limb_property_base_name", text="")
+		def field_visible(field_name):
+			if field_name in ["tweak_relationship"]:
+				return self.add_tweak_bones
+			if field_name in ["neck_base_property_name", "neck_inherit_scale_from_root"]:
+				return self.add_neck_rotation_isolation
+			if field_name in ["head_base_property_name", "head_inherit_scale_from_root"]:
+				return self.add_head_rotation_isolation
+			if field_name in ["neck_twist_bone_count", "chest_twist_bone_count"]:
+				return self.use_twist_bones
 
-		col.separator()
+			return True
 
-		if self.do_show_field("lower_torso_bone_count", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Lower Torso Bone Count:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "lower_torso_bone_count", text="")
+		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
 
-		if self.do_show_field("neck_bone_count", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Neck Bone Count:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "neck_bone_count", text="")
+		draw.box_section(layout, ["limb_property_base_name", "lower_torso_bone_count", "neck_bone_count"], 
+			"Torso Settings:", "SETTINGS", lambda col: (
 
-		layout.separator()
-		col = layout.column()
+			draw.draw_section(col, ["limb_property_base_name"], lambda: (
+				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
+			)),
+			draw.draw_section(col, ["lower_torso_bone_count", "neck_bone_count"], lambda: (
+				draw.split_field(col, "Lower Torso Bone Count:", "lower_torso_bone_count"),
+				draw.split_field(col, "Neck Bone Count:", "neck_bone_count"),
+			)),
+		))
+		draw.draw_section(layout, ["use_twist_bones", "neck_twist_bone_count", "chest_twist_bone_count"], lambda: (
+			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
+			draw.box_section(layout, ["neck_twist_bone_count", "chest_twist_bone_count"], "Twist Bones:", 'MOD_SCREW', lambda col: (
+				draw.full_field(col, "Neck Twist Bone Count:", "neck_twist_bone_count"),
+				draw.full_field(col, "Chest Twist Bone Count:", "chest_twist_bone_count"),
+			)),
+		))
+		draw.draw_section(layout, ["fk_widget", "add_tweak_bones", "tweak_relationship"], lambda: (
+			draw.split_field(layout, "FK Widget:", "fk_widget"),
+			draw.full_field(layout, "Add Tweak Bones", "add_tweak_bones"),
+			draw.split_field(layout, "Tweak Relationship:", "tweak_relationship"),
+		))
 
-		if self.do_show_field("use_twist_bones", template):
-			col.prop(self, "use_twist_bones")
-			if self.use_twist_bones and self.do_show_any_field(["neck_twist_bone_count", "chest_twist_bone_count"], template):
-				box = layout.box()
-				box.label(text="Twist Bones:", icon='SETTINGS')
-				col = box.column()
-				if self.do_show_field("neck_twist_bone_count", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Neck Twist Bone Count:", translate=False)
-					row = split.row(align=True)
-					row.prop(self, "neck_twist_bone_count", text="")
+		draw.box_section(layout, ["add_neck_rotation_isolation", "add_head_rotation_isolation", "neck_base_property_name", "neck_inherit_scale_from_root", "head_base_property_name", "head_inherit_scale_from_root"], 
+			"Rotation Isolation:", 'SETTINGS', lambda col: (
 
-				if self.do_show_field("chest_twist_bone_count", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Chest Twist Bone Count:", translate=False)
-					row = split.row(align=True)
-					row.prop(self, "chest_twist_bone_count", text="")
+			draw.draw_section(col, ["add_neck_rotation_isolation", "neck_base_property_name"], lambda: (
+				draw.split_row(col, [
+					SplitSection(label="Add Neck Rotation Isolation", prop="add_neck_rotation_isolation"),
+					SplitSection(label="", prop="neck_base_property_name"),
+				]),
+				draw.full_field(col, "Neck Inherit Scale From Root", "neck_inherit_scale_from_root"),
+			)),
 
-		if self.do_show_any_field(["fk_widget", "add_tweak_bones", "tweak_relationship"], template):
-			layout.separator()
-			col = layout.column()
+			draw.draw_section(col, ["add_head_rotation_isolation", "head_base_property_name"], lambda: (
+				draw.split_row(col, [
+					SplitSection(label="Add Head Rotation Isolation", prop="add_head_rotation_isolation"),
+					SplitSection(label="Head Base Property Name", prop="head_base_property_name"),
+				]),
+				draw.full_field(col, "Head Inherit Scale From Root", "head_inherit_scale_from_root"),
+			)),
+		))
 
-		if self.do_show_field("fk_widget", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="FK Widget:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "fk_widget", text="")
-
-		if self.do_show_field("add_tweak_bones", template):
-			col.prop(self, "add_tweak_bones")
-
-		if self.add_tweak_bones and self.do_show_field("tweak_relationship", template):
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Tweak Relationship:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "tweak_relationship", text="")	
-
-		if self.do_show_any_field(["add_neck_rotation_isolation", "add_head_rotation_isolation", 
-			"neck_base_property_name", "neck_inherit_scale_from_root", "head_base_property_name", 
-			"head_inherit_scale_from_root"], template):
-			
-			layout.separator()
-
-			box = layout.box()
-			box.label(text="Rotation Isolation:", icon='SETTINGS')
-			col = box.column()
-
-		rot_split_size = 0.6
-
-		if self.do_show_field("add_neck_rotation_isolation", template):
-			split = col.split(align=True, factor=rot_split_size)
-			row = split.row(align=True)
-			row.prop(self, "add_neck_rotation_isolation")
-		if self.add_neck_rotation_isolation:
-			if self.do_show_field("neck_base_property_name", template):
-				if not self.do_show_field("add_neck_rotation_isolation", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Neck Base Property Name:", translate=False)
-				row = split.row(align=True)
-				row.prop(self, "neck_base_property_name", text="")
-			if self.do_show_field("neck_inherit_scale_from_root", template):
-				col.prop(self, "neck_inherit_scale_from_root")
-
-		if self.add_neck_rotation_isolation \
-			and self.do_show_any_field(["neck_base_property_name", "neck_inherit_scale_from_root"], template) \
-			and self.do_show_field("add_head_rotation_isolation", template):
-
-			col.separator()
-		
-		if self.do_show_field("add_head_rotation_isolation", template):
-			split = col.split(align=True, factor=rot_split_size)
-			row = split.row(align=True)
-			row.prop(self, "add_head_rotation_isolation")
-		if self.add_head_rotation_isolation:
-			if self.do_show_field("head_base_property_name", template):
-				if not self.do_show_field("add_head_rotation_isolation", template):
-					split = col.split(align=True, factor=split_size)
-					row = split.row(align=True)
-					row.label(text="Head Base Property Name:", translate=False)
-				row = split.row(align=True)
-				row.prop(self, "head_base_property_name", text="")
-			if self.do_show_field("head_inherit_scale_from_root", template):
-				col.prop(self, "head_inherit_scale_from_root")
-
-		if self.do_show_field("neck_falloff_type", template):
-			layout.separator()
-			col = layout.column()
-
-			split = col.split(align=True, factor=split_size)
-			row = split.row(align=True)
-			row.label(text="Neck Falloff:", translate=False)
-			row = split.row(align=True)
-			row.prop(self, "neck_falloff_type", text="")
+		draw.draw_section(layout, ["neck_falloff_type"], lambda: (
+			draw.split_field(layout, "Neck Falloff:", "neck_falloff_type"),
+		))
 
 	##################################################################################################
 	# execute
@@ -413,7 +331,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			head_base_property_name=self.head_base_property_name,
 			head_inherit_scale_from_root=self.head_inherit_scale_from_root,
 			fk_widget=self.fk_widget,
-			override_collections=self.override_collections,
+			neck_falloff_type=self.neck_falloff_type,
 		)
 
 		try:
