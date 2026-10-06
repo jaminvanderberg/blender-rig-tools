@@ -12,8 +12,10 @@ from rigtools.preferences import get_preferences
 class FootRoll:
 	def __init__(self, *,
 		mch_collection_name: str,
+		ik_collection_name: str,
 	):
 		self.mch_collection_name = mch_collection_name
+		self.ik_collection_name = ik_collection_name
 
 		self.mch_ik_foot_name = None
 		self.ik_foot_name = None
@@ -110,6 +112,12 @@ class FootRoll:
 				coll.bones.append(heel_roll_bone)
 				coll.bones.append(rock_a_bone)
 				coll.bones.append(rock_b_bone)
+
+		if self.ik_collection_name:
+			set_bone_collection(context.object.data, foot_roll_control_bone, self.ik_collection_name)
+		else:
+			for coll in edit_bones[self.ik_foot_name].collections:
+				coll.bones.append(foot_roll_control_bone)
 
 		# Parenting
 		mch_ik_foot_bone.parent = toe_roll_bone

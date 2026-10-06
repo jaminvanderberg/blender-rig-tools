@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions
@@ -13,6 +13,7 @@ class FKTemplate:
 	options: dict[str, Any]
 	redo_fields: tuple[str, ...] = ()
 	show_dialog: bool = False
+	field_labels: dict[str, str] = field(default_factory=dict)
 
 
 FK_TEMPLATES = {

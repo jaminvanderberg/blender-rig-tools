@@ -1,6 +1,7 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.ik_templates import (
 	get_ik_template,
@@ -156,6 +157,20 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		description="Type of widget to create for the FK bones",
 		items=fk_widget_types,
 		default='FK'
+	)
+	
+	fk_end_widget: EnumProperty(
+		name="FK End Widget",
+		description="Type of widget for the last bone in the FK chain (hand, foot, etc.)",
+		items=fk_widget_types,
+		default='BOX'
+	)
+
+	tip_widget: EnumProperty(
+		name="Tip Widget",
+		description="Type of widget for FK bones past the last IK control",
+		items=fk_widget_types,
+		default='CIRCLE'
 	)
 
 	enable_snapping: BoolProperty(
@@ -405,13 +420,15 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
 
-		draw.box_section(layout, ["limb_property_base_name", "switch_property_type", "fk_widget", "add_tweak_bones", "tweak_relationship"], 
+		draw.box_section(layout, ["limb_property_base_name", "switch_property_type", "fk_widget", "tip_widget", "add_tweak_bones", "tweak_relationship"], 
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "switch_property_type", "fk_widget"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "switch_property_type", "fk_widget", "tip_widget"], lambda: (
 				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
 				draw.split_field(col, "Switch Property Type:", "switch_property_type"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
+				draw.split_field(col, "FK End Widget:", "fk_end_widget"),
+				draw.split_field(col, "Tip Widget:", "tip_widget"),
 			)),
 			draw.draw_section(col, ["add_tweak_bones", "tweak_relationship"], lambda: (
 				draw.full_field(col, "Add Tweak Bones", "add_tweak_bones"),
@@ -537,10 +554,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				context.object.data.use_mirror_x = original_mirror
 				return {'CANCELLED'}
 
-		if self.assembly_uid:
-			delete_assembly(context, self.assembly_uid)
-		self.assembly_uid = ""
-
 		options = IKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
 			add_tweak_bones=self.add_tweak_bones,
@@ -555,6 +568,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			twist_type=self.twist_type,
 			tweak_relationship=self.tweak_relationship,
 			fk_widget=self.fk_widget,
+			tip_widget=self.tip_widget,
+			fk_end_widget=self.fk_end_widget,
 			enable_snapping=self.enable_snapping,
 			ik_parent=self.ik_parent,
 			ik_parents=[
@@ -580,9 +595,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			add_foot_roll=self.add_foot_roll,
 		)
 
+	
+		assembly_uid = self.assembly_uid
+
+		def rebuild():
+			if assembly_uid:
+				delete_assembly(context, assembly_uid)
+
+			return create_ik_assembly(context, chains, self.template_id, self.template_name, options, replacement_uid = assembly_uid)
+
 		try:
-			tip_controls = create_ik_assembly(context, chains, self.template_id, self.template_name, options)
-		except Exception as e:
+			tip_controls = run_assembly_transaction(rebuild)
+		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror

@@ -3,9 +3,10 @@ from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.heel_pivots import get_heel_pivot
+from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.foot_roll import FootRoll
 from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_collection, name_property
-from rigtools.utils.bone_collection import ensure_bone_collection
+from rigtools.utils.bone_collection import add_bone_collection, ensure_bone_collection
 from rigtools.preferences import get_preferences
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
 
@@ -35,6 +36,8 @@ class IKAssemblyOptions:
 	tweak_relationship: str = 'STRETCH_TO' # 'STRETCH_TO' or 'DAMPED_TRACK'
 	fk_widget: str = 'FK' # 'widget.fk_widget_types
 	enable_snapping: bool = True
+	tip_widget: str = 'CIRCLE'
+	fk_end_widget: str = 'CIRCLE'
 
 	add_foot_roll: bool = False
 
@@ -48,12 +51,13 @@ class IKAssemblyOptions:
 	twist_bone_count: int = 4
 
 
-def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions):
+def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions, replacement_uid=None):
 	"""find_side() throws an error if the side is not the same for all bones in the chain"""
 
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
+	edit_bones = armature_data.edit_bones
 
 	assemblies = []
 	tip_controls = []
@@ -67,7 +71,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			side = find_side(chain)
 
 			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name, side)
-			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, replacement_uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 
@@ -106,12 +110,26 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			else:
 				switch_chain = limb_chain
 
+			# END OF CHAIN FK
+			if len(fk_tip) > 0:
+				tip_fk = FKChain(
+					fk_bone_template = bone_template("control"),
+					fk_collection_name = fk_collection_name if options.override_collections else None,
+					fk_widget = options.tip_widget,
+				)
+				tip_fk.edit_mode(armature_data, fk_tip)
+				assembly_chain.tools.append(tip_fk)
+
+				for fk_name in tip_fk.fk_bone_names:
+					add_bone_collection(armature_data, edit_bones[fk_name], ik_collection_name if options.override_collections else None)
+
 			# FK/IK SWITCH
 			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
 			fk_ik_switch = FKIKSwitch(
 				switch_property_name = switch_property_name,
 				switch_property_type = options.switch_property_type,
 				fk_widget_type = options.fk_widget,
+				fk_end_widget_type = options.fk_end_widget,
 				fk_collection_name = fk_collection_name if options.override_collections else None,
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)
@@ -167,13 +185,14 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				if options.add_foot_roll:
 					heel_pivot_name = get_heel_pivot(context.object.data, org_chain[limb_count - 1])
 					foot_roll = FootRoll(
-						mch_collection_name = mch_collection_name,
+						mch_collection_name = mch_collection_name if options.override_collections else None,
+						ik_collection_name = ik_collection_name if options.override_collections else None,
 					)
 					foot_roll.edit_mode(context, 
 						mch_ik_foot_name = ik_bone_names[limb_count - 1],
 						ik_foot_name = ik.ik_control_name,
 						heel_pivot_name = heel_pivot_name,
-						org_toe_name = org_chain[limb_count],
+						org_toe_name = tip_fk.fk_bone_names[0],
 					)
 					assembly_chain.tools.append(foot_roll)
 			# SPLINE IK
@@ -223,6 +242,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
 				assembly.apply_tool(tool)
+
 	finally:
 		armature_data.use_mirror_x = original_mirror
 

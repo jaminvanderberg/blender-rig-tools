@@ -136,6 +136,7 @@ fk_widget_types = [
 	('RECTANGLE', 'Rectangle', 'Create a rectangle widget'),
 	('FK', 'FK Shape', 'Create a FK widget'),
 	('BOX', 'Box', 'Create a box widget'),
+	('IK', 'IK Shape', 'Create an IK widget'),
 	('NONE', 'None', 'No widget'),
 ]
 
@@ -149,6 +150,8 @@ def create_fk_widget(widget_type, widget_name, collection):
 			return create_fk_shape_widget(widget_name, collection)
 		case 'BOX':
 			return create_box_widget(widget_name, collection)
+		case 'IK':
+			return create_ik_widget(widget_name, collection)
 		case _:
 			return None
 

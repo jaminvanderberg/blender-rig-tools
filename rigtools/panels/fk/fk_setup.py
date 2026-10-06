@@ -1,6 +1,7 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 
+from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
@@ -288,10 +289,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			self.report({'ERROR'}, str(e))
 			return {'CANCELLED'}
 
-		if self.assembly_uid:
-			delete_assembly(context, self.assembly_uid)
-			self.assembly_uid = ""
-
 		if self.control_mode != 'TWEAK':
 			self.control_mode = 'FK/TWEAK' if self.add_tweak_bones else 'FK'
 
@@ -310,9 +307,24 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			add_rotation_isolation=self.add_rotation_isolation,
 		)
 
+		assembly_uid = self.assembly_uid
+
+		def rebuild():
+			if assembly_uid:
+				delete_assembly(context, assembly_uid)
+
+			return create_fk_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=assembly_uid,
+			)
+
 		try:
-			create_fk_assembly(context, chains, self.template_id, self.template_name, options)
-		except Exception as e:
+			run_assembly_transaction(rebuild)
+		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror

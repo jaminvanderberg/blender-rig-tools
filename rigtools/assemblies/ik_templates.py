@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from rigtools.armature_settings import get_armature_settings
@@ -16,6 +16,7 @@ class IKTemplate:
 	icon: str
 	options: dict[str, Any]
 	redo_fields: tuple[str, ...] = ()
+	field_labels: dict[str, str] = field(default_factory=dict)
 	show_dialog: bool = False
 
 
@@ -37,6 +38,8 @@ IK_TEMPLATES = {
 			"pole_distance": 0.25,
 			"tweak_relationship": "STRETCH_TO",
 			"fk_widget": "FK",
+			"tip_widget": "CIRCLE",
+			"fk_end_widget": "CIRCLE",
 			"enable_snapping": True,
 			"ik_parent": True,
 			"ik_parents": ("root", "torso", "hips", "chest", "head"),
@@ -52,6 +55,7 @@ IK_TEMPLATES = {
 			"tweak_relationship",
 			"switch_property_type",
 			"fk_widget",
+			"fk_end_widget",
 			"enable_ik_stretch",
 			"ik_bone_count",
 			"add_rotation_isolation",
@@ -59,7 +63,11 @@ IK_TEMPLATES = {
 			"use_twist_bones",
 			"twist_bone_count",
 			"twist_segments",
+			"fk_end_widget",
 		),
+		field_labels={
+			"fk_end_widget": "Hand FK Widget:",
+		},
 	),
 	"leg": IKTemplate(
 		label="Leg",
@@ -78,6 +86,8 @@ IK_TEMPLATES = {
 			"pole_distance": 0.5,
 			"tweak_relationship": "STRETCH_TO",
 			"fk_widget": "FK",
+			"tip_widget": "CIRCLE",
+			"fk_end_widget": "CIRCLE",
 			"enable_snapping": True,
 			"ik_parent": True,
 			"ik_parents": ("root", "torso", "self"),
@@ -101,7 +111,13 @@ IK_TEMPLATES = {
 			"twist_bone_count",
 			"twist_segments",
 			"add_foot_roll",
+			"tip_widget",
+			"fk_end_widget",
 		),
+		field_labels={
+			"tip_widget": "Toe Widget:",
+			"fk_end_widget": "Foot FK Widget:",
+		},
 	),
 	"skirt.spline": IKTemplate(
 		label="Skirt - Spline",
@@ -171,6 +187,8 @@ REDO_PROPERTIES = {
 	"twist_segments",
 	"add_foot_roll",
 	"ik_bone_count",
+	"tip_widget",
+	"fk_end_widget",
 }
 
 

@@ -28,13 +28,18 @@ class TemplateDraw:
 
 	def do_show_any(self, field_names):
 		return any(self.do_show(field_name) for field_name in field_names)
+	
+	def get_field_label(self, field_name, default_label):
+		if self.template and field_name in self.template.field_labels:
+			return self.template.field_labels[field_name]
+		return default_label
 
 	def split_field(self, layout, label, prop):
 		if not self.do_show(prop):
 			return
 		split = layout.split(align=True, factor=self.split_size)
 		row = split.row(align=True)
-		row.label(text=label, translate=False)
+		row.label(text=self.get_field_label(prop, label), translate=False)
 		row = split.row(align=True)
 		row.prop(self.op, prop, text="")
 		
@@ -48,6 +53,8 @@ class TemplateDraw:
 			return
 		row = layout.row(align=True)
 		for section in sections:
+			if not self.do_show(section.prop):
+				continue
 			row.prop(self.op, section.prop, text=section.label, icon=section.icon)
 		
 	def draw_section(self, layout, fields, draw_func):

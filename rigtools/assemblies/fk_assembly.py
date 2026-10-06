@@ -26,7 +26,7 @@ class FKAssemblyOptions:
 	add_rotation_isolation: bool = True
 	override_collections: bool = True
 
-def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions):
+def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None):
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
@@ -41,7 +41,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			side = find_side(chain)
 			
 			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
-			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options, replacement_uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 

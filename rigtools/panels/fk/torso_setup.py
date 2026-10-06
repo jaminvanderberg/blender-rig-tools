@@ -1,5 +1,6 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.template_options import resolve_template_options
@@ -283,7 +284,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			draw.draw_section(col, ["add_head_rotation_isolation", "head_base_property_name"], lambda: (
 				draw.split_row(col, [
 					SplitSection(label="Add Head Rotation Isolation", prop="add_head_rotation_isolation"),
-					SplitSection(label="Head Base Property Name", prop="head_base_property_name"),
+					SplitSection(label="", prop="head_base_property_name"),
 				]),
 				draw.full_field(col, "Head Inherit Scale From Root", "head_inherit_scale_from_root"),
 			)),
@@ -311,10 +312,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			self.report({'ERROR'}, str(e))
 			return {'CANCELLED'}
 
-		if self.assembly_uid:
-			delete_assembly(context, self.assembly_uid)
-			self.assembly_uid = ""
-
 		options = TorsoAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
 			lower_torso_bone_count=self.lower_torso_bone_count,
@@ -334,9 +331,24 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			neck_falloff_type=self.neck_falloff_type,
 		)
 
+		assembly_uid = self.assembly_uid
+
+		def rebuild():
+			if assembly_uid:
+				delete_assembly(context, assembly_uid)
+
+			return create_torso_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=assembly_uid,
+			)
+
 		try:
-			create_torso_assembly(context, chains, self.template_id, self.template_name, options)
-		except Exception as e:
+			run_assembly_transaction(rebuild)
+		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror

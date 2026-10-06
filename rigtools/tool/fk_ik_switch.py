@@ -13,12 +13,14 @@ class FKIKSwitch:
 		switch_property_name: str,
 		switch_property_type: str = 'ENUM', # 'ENUM' or 'FLOAT'
 		fk_widget_type: str = "CIRCLE",
+		fk_end_widget_type: str = "BOX",
 		fk_collection_name: str = None,
 		mch_collection_name: str = None,
 	):
 		self.switch_property_name = switch_property_name
 		self.switch_property_type = switch_property_type
 		self.fk_widget_type = fk_widget_type
+		self.fk_end_widget_type = fk_end_widget_type
 		self.fk_collection_name = fk_collection_name
 		self.mch_collection_name = mch_collection_name
 
@@ -94,7 +96,7 @@ class FKIKSwitch:
 				)
 			prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
 
-		for switch_bone_name, fk_bone_name, ik_bone_name in zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names):
+		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
 			fk_bone = pose_bones[fk_bone_name]
 			ik_bone = pose_bones[ik_bone_name]
 			switch_bone = pose_bones[switch_bone_name]
@@ -120,10 +122,16 @@ class FKIKSwitch:
 
 			fk_bone.color.palette = prefs.fk_bone_color
 
-			if self.fk_widget_type != "NONE":
+			widget_type = (
+				self.fk_end_widget_type
+				if i == len(self.fk_bone_names) - 1
+				else self.fk_widget_type
+			)
+
+			if widget_type != "NONE":
 				coll = get_widget_collection(context, settings.widget_collection)
-				widget_name = generate_bone_name(fk_bone_name, settings.widget_template)	
-				wgt = create_fk_widget(self.fk_widget_type, widget_name, coll)
+				widget_name = generate_bone_name(fk_bone_name, settings.widget_template)
+				wgt = create_fk_widget(widget_type, widget_name, coll)
 				fk_bone.custom_shape = wgt
 
 				self.object_names.append(wgt.name)

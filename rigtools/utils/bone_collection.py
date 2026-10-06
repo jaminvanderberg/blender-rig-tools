@@ -33,6 +33,14 @@ def set_bone_collection(armature_data, bone, collection_name, parent_collection_
 	collection.assign(bone)
 	return collection
 
+def add_bone_collection(armature_data, bone, collection_name, parent_collection_name=None):
+	if not collection_name:
+		return None
+
+	collection = ensure_bone_collection(armature_data, collection_name, parent_collection_name)
+	collection.assign(bone)
+	return collection
+
 
 def is_collection_visible(collection, armature_data):
 	if collection:
