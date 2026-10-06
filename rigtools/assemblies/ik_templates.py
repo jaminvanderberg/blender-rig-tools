@@ -52,7 +52,6 @@ IK_TEMPLATES = {
 		},
 		redo_fields=(
 			"add_tweak_bones",
-			"tweak_relationship",
 			"switch_property_type",
 			"fk_widget",
 			"fk_end_widget",
@@ -102,7 +101,6 @@ IK_TEMPLATES = {
 		},
 		redo_fields=(
 			"add_tweak_bones",
-			"tweak_relationship",
 			"switch_property_type",
 			"fk_widget",
 			"enable_ik_stretch",

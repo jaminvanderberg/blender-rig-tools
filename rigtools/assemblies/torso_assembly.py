@@ -14,7 +14,6 @@ class TorsoAssemblyOptions:
 	neck_bone_count: int
 	neck_twist_bone_count: int = 2
 	chest_twist_bone_count: int = 2
-	add_tweak_bones: bool = True
 	fk_widget : str = "CIRCLE"
 	add_neck_rotation_isolation: bool = True
 	neck_base_property_name: str = "neck"
@@ -59,7 +58,6 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 			neck_bone_count = options.neck_bone_count,
 			neck_twist_bone_count = options.neck_twist_bone_count if options.use_twist_bones else 0,
 			chest_twist_bone_count = options.chest_twist_bone_count if options.use_twist_bones else 0,
-			add_tweak_bones = options.add_tweak_bones,
 			tweak_relationship = options.tweak_relationship,
 			fk_widget = options.fk_widget,
 			tweak_collection_name = tweak_collection_name if options.override_collections else None,

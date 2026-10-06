@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.tool.fk_chain import FKChain
+from rigtools.tool.skirt_collision import SkirtCollision
 from rigtools.utils.naming import guess_assembly_name, find_side, name_collection, name_property
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
@@ -25,6 +26,8 @@ class FKAssemblyOptions:
 	tweak_relationship: str = 'STRETCH_TO'
 	add_rotation_isolation: bool = True
 	override_collections: bool = True
+	add_skirt_collision: bool = False
+	skirt_collision_target_bone_names: list[str] = field(default_factory=list)
 
 def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None):
 	armature_data = context.object.data
@@ -100,6 +103,12 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					follow = RotationFollow(relationship=options.rotation_follow_relationship, mch_collection_name=mch_collection_name)
 					follow.edit_mode(context, follow_bones)
 					assembly_chain.tools.append(follow)
+
+			# SKIRT COLLISION
+			if options.add_skirt_collision and len(fk_names) > 0:
+				skirt_collision = SkirtCollision(target_bone_names=options.skirt_collision_target_bone_names, mch_bone_collection_name=mch_collection_name)
+				skirt_collision.edit_mode(context, fk_names)
+				assembly_chain.tools.append(skirt_collision)
 
 		##############
 		# Pose mode

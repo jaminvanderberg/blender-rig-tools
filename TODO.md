@@ -8,9 +8,10 @@ Twist bones/tweak bones - another name?
 
 Custom template instead of advanced option?
 
-IK - add tweak bones disabled still makes tweak bones
-Torso add tweak bones disabled is an error
-
 Validation for foot roll (requires >=1 extra bone past the IK chain)
 
 ik stretch like rigify
+
+Bone segments instead of twist bones?
+
+add ik parent menu

@@ -46,6 +46,7 @@ BONE = {
 	"ik_spline_twist": "{name}.twist.{i}",
 	"mch_foot_roll": "MCH-{name}.{type}",
 	"spline_object": "SPLINE-{name}",
+	"collision_target": "MCH-COLLIDE-TGT-{name}",
 }
 
 COLLECTION = {

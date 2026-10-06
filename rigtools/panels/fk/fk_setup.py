@@ -135,6 +135,12 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	add_skirt_collision: BoolProperty(
+		name="Add Skirt Collision",
+		description="Add skirt collision to the FK bones.",
+		default=False
+	)
+
 	@classmethod
 	def description(cls, context, properties):
 		if properties.template_id:
@@ -270,6 +276,9 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				draw.split_field(col, "Rotation Follow Relationship:", "rotation_follow_relationship"),
 			))
 		))
+		draw.draw_section(layout, ["add_skirt_collision"], lambda: (
+			draw.full_field(layout, "Add Skirt Collision", "add_skirt_collision"),
+		))
 		
 	##################################################################################################
 	# execute
@@ -305,6 +314,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			tweak_collection_name=self.tweak_collection_name,
 			tweak_relationship=self.tweak_relationship,
 			add_rotation_isolation=self.add_rotation_isolation,
+			add_skirt_collision=self.add_skirt_collision,
+			skirt_collision_target_bone_names=['ORG-thigh.L'],
 		)
 
 		assembly_uid = self.assembly_uid

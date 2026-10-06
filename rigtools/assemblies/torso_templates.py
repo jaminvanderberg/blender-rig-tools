@@ -34,7 +34,6 @@ TORSO_TEMPLATES = {
 			"override_collections": True,
 			"use_twist_bones": True,
 			"tweak_relationship": "STRETCH_TO",
-			"add_tweak_bones": True,
 			"neck_falloff_type": "ROOT",
 		},
 		redo_fields=(
@@ -56,7 +55,6 @@ REDO_PROPERTIES = {
 	"use_twist_bones",
 	"neck_twist_bone_count",
 	"chest_twist_bone_count",
-	"add_tweak_bones",
 	"tweak_relationship",
 	"add_neck_rotation_isolation",
 	"add_head_rotation_isolation",

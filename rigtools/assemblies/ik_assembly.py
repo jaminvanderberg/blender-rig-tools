@@ -163,6 +163,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 						twist_parent_name = twist_parent_name,
 						tweak_collection_name = tweak_collection_name if options.override_collections else None,
 						tweak_relationship = options.tweak_relationship,
+						add_tweak_bones = options.add_tweak_bones,
 					)
 					twist_bones.edit_mode(context, limb_chain, fk_ik_switch.switch_bone_names)
 					assembly_chain.tools.append(twist_bones)

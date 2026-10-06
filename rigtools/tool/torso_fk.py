@@ -17,7 +17,6 @@ class TorsoFK:
 		fk_widget: str = "CIRCLE",
 		lower_torso_bone_count: int,
 		neck_bone_count: int,
-		add_tweak_bones: bool = True,
 		tweak_relationship: str = "STRETCH_TO",
 		neck_twist_bone_count: int,
 		chest_twist_bone_count: int,
@@ -33,7 +32,6 @@ class TorsoFK:
 		self.neck_twist_bone_count = neck_twist_bone_count
 		self.chest_twist_bone_count = chest_twist_bone_count
 		self.lower_torso_bone_count = lower_torso_bone_count
-		self.add_tweak_bones = add_tweak_bones
 		self.tweak_relationship = tweak_relationship
 		self.control_collection_name = control_collection_name
 		self.tweak_collection_name = tweak_collection_name
@@ -242,20 +240,18 @@ class TorsoFK:
 			tweak_parents.extend([org_name] * (len(twist_names) - 1))
 
 		# Create the tweak chain
-		if self.add_tweak_bones:
-			self.tweak_chain = FKTweakChain(
-				do_create_fk=False,
-				tweak_relationship=self.tweak_relationship,
-				tweak_collection_name=self.tweak_collection_name,
-				tweak_scale=0.40
-			).edit_mode(armature_data, source_names)
+		self.tweak_chain = FKTweakChain(
+			do_create_fk=False,
+			tweak_relationship=self.tweak_relationship,
+			tweak_collection_name=self.tweak_collection_name,
+			tweak_scale=0.40
+		).edit_mode(armature_data, source_names)
 
 		# Parent the tweak bones to the fk bones
-		if self.add_tweak_bones:
-			for tweak_name, parent in zip(self.tweak_chain.tweak_bone_names, tweak_parents, strict=True):
-				edit_bones[tweak_name].parent = edit_bones[parent]
+		for tweak_name, parent in zip(self.tweak_chain.tweak_bone_names, tweak_parents, strict=True):
+			edit_bones[tweak_name].parent = edit_bones[parent]
 
-			edit_bones[self.tweak_chain.terminal_tweak_name].parent = edit_bones[self.fk_bone_names[-1]]
+		edit_bones[self.tweak_chain.terminal_tweak_name].parent = edit_bones[self.fk_bone_names[-1]]
 		
 		if self.tweak_chain:
 			self.mechanism_bone_names.extend(self.tweak_chain.mechanism_bone_names)

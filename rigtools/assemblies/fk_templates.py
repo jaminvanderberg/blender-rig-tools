@@ -77,6 +77,7 @@ FK_TEMPLATES = {
 			"rotation_follow_relationship": "COPY_ROTATION",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": True,
+			"add_skirt_collision": False,
 		},
 		redo_fields=(
 			"fk_widget",
@@ -86,6 +87,7 @@ FK_TEMPLATES = {
 			"create_rotation_follow_setup",
 			"rotation_follow_skip",
 			"add_tweak_bones",
+			"add_skirt_collision",
 		),
 	),
 	"tail": FKTemplate(
@@ -169,7 +171,8 @@ REDO_PROPERTIES = {
 	"tweak_relationship",
 	"add_rotation_isolation",
 	"control_mode",
-	"add_tweak_bones"
+	"add_tweak_bones",
+	"add_skirt_collision",
 }
 
 

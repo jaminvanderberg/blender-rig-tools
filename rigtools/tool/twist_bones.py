@@ -67,7 +67,8 @@ class TwistBones:
 		twist_bone_count: int,
 		twist_parent_name: str = "",
 		tweak_collection_name: str = "",
-		tweak_relationship: str = 'STRETCH_TO'
+		tweak_relationship: str = 'STRETCH_TO',
+		add_tweak_bones: bool = True,
 	):
 		if twist_bone_count < 2:
 			raise ValueError("twist_bone_count must be >= 2")
@@ -77,6 +78,7 @@ class TwistBones:
 		self.tweak_collection_name = tweak_collection_name
 		self.tweak_relationship = tweak_relationship
 		self.twist_parent_name = twist_parent_name
+		self.add_tweak_bones = add_tweak_bones
 
 		self.driver_bone_names = None
 
@@ -139,12 +141,18 @@ class TwistBones:
 				else switch_bone.parent
 			)
 
-			# Parent the first BIG tweak bone (org parent) to the isolator
-			first_tweak = org_bone.parent
-			first_tweak.parent = isolator
+			if self.add_tweak_bones:
+				# Parent the first BIG tweak bone (org parent) to the isolator
+				first_tweak = org_bone.parent
+				first_tweak.parent = isolator
+			else:
+				edit_bones[twist_names[0]].parent = isolator
 
 			self.isolator_names[segment.index] = isolator.name
 			self.mechanism_bone_names.append(isolator.name)
+
+		if not self.add_tweak_bones:
+			return self
 
 		n = self.twist_bone_count
 		for group in consecutive_index_groups(self.twist_bones.keys()):

@@ -62,12 +62,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		default=2
 	)
 
-	add_tweak_bones: BoolProperty(
-		name="Add Tweak Bones",
-		description="Add tweak bones for the neck and/or chest",
-		default=True
-	)
-	
 	tweak_relationship: EnumProperty(
 		name="Tweak Relationship",
 		description="Type of relationship for the tweak bones",
@@ -233,8 +227,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		split_size = 0.6
 
 		def field_visible(field_name):
-			if field_name in ["tweak_relationship"]:
-				return self.add_tweak_bones
 			if field_name in ["neck_base_property_name", "neck_inherit_scale_from_root"]:
 				return self.add_neck_rotation_isolation
 			if field_name in ["head_base_property_name", "head_inherit_scale_from_root"]:
@@ -264,9 +256,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				draw.full_field(col, "Chest Twist Bone Count:", "chest_twist_bone_count"),
 			)),
 		))
-		draw.draw_section(layout, ["fk_widget", "add_tweak_bones", "tweak_relationship"], lambda: (
+		draw.draw_section(layout, ["fk_widget", "tweak_relationship"], lambda: (
 			draw.split_field(layout, "FK Widget:", "fk_widget"),
-			draw.full_field(layout, "Add Tweak Bones", "add_tweak_bones"),
 			draw.split_field(layout, "Tweak Relationship:", "tweak_relationship"),
 		))
 
@@ -319,7 +310,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			use_twist_bones=self.use_twist_bones,
 			neck_twist_bone_count=self.neck_twist_bone_count,
 			chest_twist_bone_count=self.chest_twist_bone_count,
-			add_tweak_bones=self.add_tweak_bones,
 			tweak_relationship=self.tweak_relationship,
 			add_neck_rotation_isolation=self.add_neck_rotation_isolation,
 			neck_base_property_name=self.neck_base_property_name,
