@@ -21,7 +21,7 @@ class SkirtCollision:
 
 		self.mechanism_bone_names = []
 		self.property_names = []
-		self.object_names = []
+		self.object_names = []		
 
 	def edit_mode(self, context, fk_names):
 		self.fk_bone_names = fk_names
@@ -35,9 +35,8 @@ class SkirtCollision:
 		fk_bones = [edit_bones[name] for name in fk_names]
 
 		total_length = sum(fk_bone.length for fk_bone in fk_bones)
-		target_spacing = total_length * 1.4 / len(fk_bones)
-		chain_origin = fk_bones[0].head.copy()
-		chain_direction = (fk_bones[-1].tail - chain_origin).normalized()
+		target_spacing = total_length * 1.5 / len(fk_bones)
+		covered = 0.0
 
 		for index, fk_bone in enumerate(fk_bones):
 			collision_name = generate_bone_name(
@@ -47,9 +46,14 @@ class SkirtCollision:
 			collision_bone = edit_bones.new(collision_name)
 			collision_bone.parent = fk_bones[0].parent
 
-			point = chain_origin + chain_direction * target_spacing * (index + 1)
+			direction = fk_bone.tail - fk_bone.head
+			tangent = direction / direction.length
+			along = target_spacing * (index + 1) - covered
+			point = fk_bone.head + tangent * along
 			collision_bone.head = point
-			collision_bone.tail = point + chain_direction * target_spacing * 0.1
+			collision_bone.tail = point + tangent * target_spacing * 0.25
+
+			covered += direction.length
 
 			if self.mch_bone_collection_name:
 				set_bone_collection(armature_data, collision_bone, self.mch_bone_collection_name)
@@ -66,7 +70,6 @@ class SkirtCollision:
 			point = collision_bone.head
 			distance_along_target = (point - target.head).dot(target_direction)
 			axis_point = target.head + target_direction * distance_along_target
-			radial = point - axis_point
 
 			pin_name = generate_bone_name(fk_bone.name, bone_template("collision_source"))
 			pin = edit_bones.new(pin_name)

@@ -48,6 +48,7 @@ BONE = {
 	"spline_object": "SPLINE-{name}",
 	"collision_target": "MCH-COLLIDE-TGT-{name}",
 	"collision_source": "MCH-COLLIDE-{name}",
+	"skirt_ride": "MCH-SKIRT-RIDE-{name}",
 }
 
 COLLECTION = {
