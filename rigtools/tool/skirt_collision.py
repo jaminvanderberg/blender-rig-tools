@@ -17,6 +17,7 @@ class SkirtCollision:
 		self.fk_bone_names = []
 		self.collision_bone_names = []
 		self.mch_bone_names = []
+		self.pin_bone_names = []
 
 		self.mechanism_bone_names = []
 		self.property_names = []
@@ -49,6 +50,24 @@ class SkirtCollision:
 			self.mechanism_bone_names.append(collision_bone.name)
 			self.collision_bone_names.append(collision_bone.name)
 
+			target = edit_bones[self.target_bone_names[0]]
+			target_direction = (target.tail - target.head).normalized()
+
+			point = collision_bone.head
+			distance_along_target = (point - target.head).dot(target_direction)
+			axis_point = target.head + target_direction * distance_along_target
+			radial = point - axis_point
+
+			pin_name = generate_bone_name(fk_bone.name, bone_template("collision_source"))
+			pin = edit_bones.new(pin_name)
+			pin.head = axis_point
+			pin.tail = point
+			pin.parent = target
+			pin.length = pin.length * 0.35
+			
+			self.mechanism_bone_names.append(pin.name)
+			self.pin_bone_names.append(pin.name)
+
 		mch_names = generate_mch_bones(armature_data, fk_bones, bone_template("mch"), self.mch_bone_collection_name)
 
 		self.mechanism_bone_names.extend(mch_names)
@@ -65,19 +84,20 @@ class SkirtCollision:
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
 
-		for fk_name, mch_name, collision_name in zip(self.fk_bone_names, self.mch_bone_names, self.collision_bone_names):
-			target_name = self.target_bone_names[0]
-			target_bone = pose_bones[target_name]
+		for fk_name, mch_name, collision_name, pin_name in zip(self.fk_bone_names, self.mch_bone_names, self.collision_bone_names, self.pin_bone_names):
+			target_bone = pose_bones[pin_name]
 
 			collision_bone = pose_bones[collision_name]
 			local = target_bone.bone.matrix_local.inverted() @ collision_bone.bone.head_local
 
 			floor = collision_bone.constraints.new('FLOOR')
 			floor.target = obj
-			floor.subtarget = target_name
-			floor.floor_location = 'FLOOR_X'
-			floor.offset = local.x
-			floor.use_rotation = False
+			floor.subtarget = pin_name
+			floor.floor_location = 'FLOOR_Y'
+			floor.offset = local.y + 0.02
+			floor.use_rotation = True
+			floor.owner_space = 'POSE'
+			floor.target_space = 'POSE'
 
 			track = pose_bones[mch_name].constraints.new('DAMPED_TRACK')
 			track.target = obj
