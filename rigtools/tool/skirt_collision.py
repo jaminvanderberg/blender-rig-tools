@@ -34,12 +34,22 @@ class SkirtCollision:
 		edit_bones = armature_data.edit_bones
 		fk_bones = [edit_bones[name] for name in fk_names]
 
-		for fk_bone in fk_bones:
-			collision_name = generate_bone_name(fk_bone.name, bone_template("collision_target"))
+		total_length = sum(fk_bone.length for fk_bone in fk_bones)
+		target_spacing = total_length * 1.4 / len(fk_bones)
+		chain_origin = fk_bones[0].head.copy()
+		chain_direction = (fk_bones[-1].tail - chain_origin).normalized()
+
+		for index, fk_bone in enumerate(fk_bones):
+			collision_name = generate_bone_name(
+				fk_bone.name,
+				bone_template("collision_target"),
+			)
 			collision_bone = edit_bones.new(collision_name)
-			collision_bone.parent = fk_bones[0].parent # All collision targets parented to the parent of the chain
-			collision_bone.head = fk_bone.tail
-			collision_bone.tail = fk_bone.tail + Vector((0, fk_bone.length * 0.25, 0))
+			collision_bone.parent = fk_bones[0].parent
+
+			point = chain_origin + chain_direction * target_spacing * (index + 1)
+			collision_bone.head = point
+			collision_bone.tail = point + chain_direction * target_spacing * 0.1
 
 			if self.mch_bone_collection_name:
 				set_bone_collection(armature_data, collision_bone, self.mch_bone_collection_name)
@@ -94,7 +104,7 @@ class SkirtCollision:
 			floor.target = obj
 			floor.subtarget = pin_name
 			floor.floor_location = 'FLOOR_Y'
-			floor.offset = local.y + 0.02
+			floor.offset = local.y
 			floor.use_rotation = True
 			floor.owner_space = 'POSE'
 			floor.target_space = 'POSE'
