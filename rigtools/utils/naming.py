@@ -49,6 +49,7 @@ BONE = {
 	"collision_target": "MCH-COLLIDE-TGT-{name}",
 	"collision_source": "MCH-COLLIDE-{name}",
 	"skirt_ride": "MCH-SKIRT-RIDE-{name}",
+	"skirt_ride_target": "MCH-{name}-TGT-{org}",
 }
 
 COLLECTION = {

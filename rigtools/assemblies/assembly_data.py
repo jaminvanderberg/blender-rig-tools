@@ -108,6 +108,7 @@ class AssemblyData(PropertyGroup):
 	ik_parents: CollectionProperty(type=AssemblyParent)
 
 	options_json: StringProperty()
+	config_defaults_json: StringProperty()
 
 	def apply_tool(self, tool):
 		for bone_ref in tool.mechanism_bone_names:
@@ -139,6 +140,9 @@ class AssemblyData(PropertyGroup):
 
 	def get_options(self):
 		return json.loads(self.options_json)
+
+	def get_config_defaults(self):
+		return json.loads(self.config_defaults_json)
 
 	def get_chains(self):
 		return [[bone.name for bone in self.org_states]]

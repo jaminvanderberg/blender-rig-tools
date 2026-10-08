@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from math import degrees, radians
+import json
+from math import radians
 import bpy
-from mathutils import Vector
 from rigtools.preferences import get_preferences
-from rigtools.utils.bone import generate_mch_bones
-from rigtools.utils.naming import bone_template, generate_bone_name
-from rigtools.armature_settings import get_armature_settings
+from rigtools.utils.bone import duplicate_bone, generate_mch_bones
+from rigtools.utils.naming import bone_template, generate_bone_name, get_base_name
 from rigtools.utils.bone_collection import set_bone_collection
 
 @dataclass
@@ -25,10 +24,24 @@ class SkirtRide:
 
 		self.fk_name = None
 		self.mch_name = None
+		self.terms = []
 
 		self.mechanism_bone_names = []
 		self.property_names = []
-		self.object_names = []		
+		self.object_names = []
+
+	@staticmethod
+	def get_helper_name(self, fk_name, thigh_name):
+		thigh_base_name, thigh_side = get_base_name(thigh_name)
+		template = bone_template('skirt_ride_target').replace('{org}', thigh_base_name)
+		return generate_bone_name(fk_name, template)
+
+	@staticmethod
+	def bend_for_axis(forward_axis: str):
+		sign = -1 if forward_axis[0] == '-' else 1
+		bend_axis = 'ROT_Z' if forward_axis[1] == 'X' else 'ROT_X'
+		bend_sign = -sign if forward_axis[1] == 'X' else sign
+		return bend_axis, bend_sign
 
 	def edit_mode(self, context, fk_name):
 		self.fk_name = fk_name
@@ -36,87 +49,154 @@ class SkirtRide:
 		obj = context.object
 		armature_data = obj.data
 		edit_bones = armature_data.edit_bones
+		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
 
-		fk_bone = edit_bones.get(self.fk_name)
+		fk_bone = edit_bones[self.fk_name]
+		skirt_parent = fk_bone.parent
+		cone = radians(45)
 
-		self.mch_name = generate_mch_bones(armature_data, [fk_bone], bone_template('skirt_ride'), self.mch_bone_collection_name)[0]
+		pending = []
+		for i, leg in enumerate(self.legs):
+			thigh = edit_bones[leg.bone_name]
+			sign = -1 if forward_axis[0] == '-' else 1
+			forward = (thigh.x_axis if leg.forward_axis[1] == 'X' else thigh.z_axis) * sign
+
+			offset = fk_bone.head - thigh.head
+			flat = offset - thigh.y_axis * offset.dot(thigh.y_axis)
+			if flat.length_squared < 1e-12:
+				continue
+
+			angle = forward.angle(flat)
+			if angle >= cone:
+				continue
+
+			influence = ((1.0 - angle / cone) ** 2) * self.shrink_factor
+			if influence < 0.01:
+				continue
+
+			bend_axis, bend_sign = SkirtRide.bend_for_axis(leg.forward_axis)
+			pending.append((i, leg.bone_name, bend_axis, bend_sign, influence))
+
+		self.mch_name = generate_mch_bones(
+			armature_data,
+			[fk_bone],
+			bone_template('skirt_ride'),
+			self.mch_bone_collection_name,
+		)[0]
 		self.mechanism_bone_names.append(self.mch_name)
+
+		self.terms = []
+		for i, thigh_name, bend_axis, bend_sign, influence in pending:
+			thigh = edit_bones[thigh_name]
+			helper_name = self.get_helper_name(self.fk_name, thigh_name)
+			helper = duplicate_bone(armature_data, thigh, helper_name, 0.35)
+			helper.parent = skirt_parent
+			helper.use_connect = False
+
+			if self.mch_bone_collection_name:
+				set_bone_collection(
+					armature_data,
+					helper,
+					self.mch_bone_collection_name,
+					prefs.mch_parent_collection,
+				)
+
+			self.mechanism_bone_names.append(helper.name)
+			self.terms.append((helper.name, thigh_name, bend_axis, bend_sign, influence))
 
 		return self
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		pose_bones = obj.pose.bones
-		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
 
-		fk_bone = pose_bones[self.fk_name].bone
-		terms = []
+		if not self.terms:
+			return self
 
-		print(f"[skirt ride] {self.fk_name}")
-		print(f"  fk head_local {tuple(round(c, 4) for c in fk_bone.head_local)}")
+		for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms:
+			helper = pose_bones[helper_name]
+			track = helper.constraints.new('DAMPED_TRACK')
+			track.target = obj
+			track.subtarget = thigh_name
+			track.head_tail = 1.0
 
-		for i, leg in enumerate(self.legs):
-			thigh = pose_bones[leg.bone_name].bone
-			sign = -1 if leg.forward_axis[0] == '-' else 1
-			x_axis = thigh.matrix_local.col[0].xyz
-			y_axis = thigh.matrix_local.col[1].xyz
-			z_axis = thigh.matrix_local.col[2].xyz
-			forward = (x_axis if leg.forward_axis[1] == 'X' else z_axis) * sign
+		SkirtRide.build_driver(obj, self.mch_name, [
+			(helper_name, thigh_name, bend_axis, bend_sign, influence)
+			for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms
+		]
 
-			offset = fk_bone.head_local - thigh.head_local
-			flat = offset - y_axis * offset.dot(y_axis)
+		return self
 
-			angle = forward.angle(flat)
-			cone = radians(45)
-			if angle >= cone:
-				infuence = 0.0
-			else:
-				t = angle / cone
-				infuence = (1.0 - t) ** 2
+	@staticmethod
+	def build_driver(obj, mch_name: str, terms: list):
+		"""terms (helper_name, bend_axis, bend_sign, influence)"""
+		pose_bones = obj.pose.bones
+		pb = pose_bones[mch_name]
 
-			print(f"  leg {leg.bone_name} {leg.forward_axis}")
-			print(f"    thigh head_local {tuple(round(c, 4) for c in thigh.head_local)}")
-			print(f"    offset {tuple(round(c, 4) for c in offset)}")
-			print(f"    y_axis {tuple(round(c, 4) for c in y_axis)}")
-			print(f"    forward {tuple(round(c, 4) for c in forward)}")
-			print(f"    flat {tuple(round(c, 4) for c in flat)} len {flat.length:.4f}")
-			print(f"    angle {degrees(angle):.1f}  influence {infuence:.4f}")
+		if obj.animation_data:
+			data_path = f'pose.bones["{mch_name}"].scale'
+			for fcurve in list(obj.animation_data.drivers):
+				if fcurve.data_path == data_path and fcurve.array_index == 1:
+					obj.animation_data.drivers.remove(fcurve)
 
-			if infuence < 0.01:
-				print("    skip")
-				continue
+		if not terms:
+			return
 
-			bend_axis = 'ROT_Z' if leg.forward_axis[1] == 'X' else 'ROT_X'
-			bend_sign = -sign if leg.forward_axis[1] == 'X' else sign
-			terms.append((i, leg.bone_name, forward, infuence))
-
-		fcurve = pose_bones[self.mch_name].driver_add('scale', 1)
+		fcurve = pb.driver_add('scale', 1)
 		driver = fcurve.driver
 		driver.type = 'SCRIPTED'
 
 		parts = []
-		for index, bone_name, forward, influence in terms:
-			for row, component in enumerate("xyz"):
-				var = driver.variables.new()
-				var.name = f'leg{index}{component}'
-				var.type = 'SINGLE_PROP'
-				target = var.targets[0]
-				target.id = obj
-				target.data_path = f'pose.bones["{bone_name}"].matrix[{row}][1]'
-			parts.append(
-				f'max(0.0, (leg{index}x * {forward.x:.6f} + leg{index}y * {forward.y:.6f} + leg{index}z * {forward.z:.6f}) * {influence:.4f})'
-			)
+		for index, (helper_name, bend_axis, bend_sign, influence) in enumerate(terms):
+			var = driver.variables.new()
+			var.name = f'leg{index}'
+			var.type = 'TRANSFORMS'
+			target = var.targets[0]
+			target.id = obj
+			target.bone_target = helper_name
+			target.transform_type = bend_axis
+			target.transform_space = 'LOCAL_SPACE'
+			target.rotation_mode = 'SWING_TWIST_Y'
+			parts.append(f'max(0.0, {bend_sign} * leg{index} * {influence:.4f})')
 
-		driver.expression = f'max(0, 1 - {self.shrink_factor} * max({", ".join(parts)}))'
+		driver.expression = f'max(0, 1 - max({", ".join(parts)}))'
+
+	def save_config(self, assembly):
+		payload = {
+			"mch_name": self.mch_name,
+			"legs": [
+				{
+					"thigh_name": thigh_name,
+					"helper_name": helper_name,
+					"forward_axis": forward_axis,
+					"influence": influence,
+				}
+			],
+		}
+		options = assembly.get_options()
+		options["skirt_ride"] = payload
+		assembly.options_json = json.dumps(options)
+
+		defaults = assembly.get_config_defaults()
+		defaults["skirt_ride"] = payload
+		assembly.config_defaults_json = json.dumps(defaults)
+		return assembly
+
+	@staticmethod
+	def apply_config(context, assembly, old: dict, new: dict):
+		options = assembly.get_options()
+		influences = new.get("influences", {})
+		legs = options.get("legs", [])
 
 
-		print(f"  terms {len(terms)}  {driver.expression}")
+		for thigh_name, influence in influences.items():
+			helper_name = self.get_helper_name(self.fk_name, thigh_name)
+			helper = context.object.data.edit_bones[helper_name]
+			helper.scale_y = influence
 
-		return self

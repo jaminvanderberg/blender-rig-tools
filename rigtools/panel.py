@@ -33,5 +33,3 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 			layout.label(text="Chain Tools:")
 			layout.operator("rig.parent_along_chain", icon='CONSTRAINT_BONE')
 			layout.operator("rig.create_rotation_isolation", icon='CON_ROTLIKE')
-			layout.operator("rig.create_fk_tweak_chain", icon='CON_STRETCHTO')
-			layout.operator("rig.create_fk_ik_switch", icon='CON_CHILDOF')

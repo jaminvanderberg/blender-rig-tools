@@ -128,5 +128,10 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
 				assembly.apply_tool(tool)
+
+				save_config = getattr(tool, 'save_config', None)
+				if callable(save_config):
+					save_config(assembly)
+				
 	finally:
 		armature_data.use_mirror_x = original_mirror
