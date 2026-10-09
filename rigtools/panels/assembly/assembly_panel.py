@@ -137,10 +137,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			op.assembly_uid = assembly.uid
 
 			for config in iterate_configs(assembly):
-				row = col.row(align=True)
-				op = row.operator("rig.assembly_config", text=config.name, icon='MODIFIER')
-				op.assembly_uid = assembly.uid
-				op.config_id = config.id
+				config.draw(col, assembly, context)
 
 		if not assemblies:
 			layout.label(text="No assemblies selected", icon='STATUS_INFO')

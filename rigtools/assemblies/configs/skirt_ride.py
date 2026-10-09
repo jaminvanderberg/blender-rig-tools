@@ -40,47 +40,18 @@ class SkirtRideConfig:
 		return dict(defaults.get(SkirtRideConfig.id) or SkirtRideConfig.load(assembly))
 
 	@staticmethod
-	def sync_to_wm(wm, payload: dict):
-		wm.rigtools_skirt_ride_mch_name = payload.get("mch_name", "")
-		wm.rigtools_skirt_ride_legs.clear()
-		for leg in payload.get("legs", []):
-			slot = wm.rigtools_skirt_ride_legs.add()
-			slot.thigh_name = leg.get("thigh_name", "")
-			slot.helper_name = leg.get("helper_name", "")
-			slot.bend_axis = leg.get("bend_axis", "")
-			slot.bend_sign = int(leg.get("bend_sign", 1))
-			slot.influence = float(leg.get("influence", 0.0))
-
-	@staticmethod
-	def payload_from_wm(wm) -> dict:
-		return {
-			"mch_name": wm.rigtools_skirt_ride_mch_name,
-			"legs": [
-				{
-					"thigh_name": slot.thigh_name,
-					"helper_name": slot.helper_name,
-					"bend_axis": slot.bend_axis,
-					"bend_sign": slot.bend_sign,
-					"influence": slot.influence,
-				}
-				for slot in wm.rigtools_skirt_ride_legs
-			],
-		}
-
-	@staticmethod
 	def draw(layout, assembly, context):
-		wm = context.window_manager
-		if not wm.rigtools_skirt_ride_legs:
-			layout.label(text="No skirt ride legs in range", icon='INFO')
+		payload = assembly.get_options().get("skirt_ride") or {}
+		mch_name = payload.get("mch_name", "")
+		legs = payload.get("legs", [])
+		pb = context.object.pose.bones.get(mch_name) if mch_name else None
+		if not pb or not legs:
 			return
-		for slot in wm.rigtools_skirt_ride_legs:
-			label = slot.thigh_name or slot.helper_name or "Leg"
-			layout.prop(slot, "influence", text=label)
 
-	@staticmethod
-	def apply(context, assembly, old: dict, new: dict):
-		SkirtRide.apply_config(context, assembly, old, new)
-
+		col = layout.column(align=True)
+		col.label(text="Skirt Ride")
+		for leg in legs:
+			col.prop(pb, f'["{leg["thigh_name"]}"]', text=leg["thigh_name"], slider=True)
 
 classes = (
 	SkirtRideLegSlot,

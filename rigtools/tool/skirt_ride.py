@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 from math import cos, pi, radians
 import bpy
+from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
@@ -116,34 +117,25 @@ class SkirtRide:
 			track.subtarget = thigh_name
 			track.head_tail = 1.0
 
-		SkirtRide.build_driver(obj, self.mch_name, [
-			(helper_name, bend_axis, bend_sign, influence)
-			for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms
-		])
+		# Add influence properties to the MCH bone
+		pb = pose_bones[self.mch_name]
+		for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms:
+			rna_idprop_ui_create(
+				pb,
+				thigh_name,
+				default=influence,
+				min=0.0,
+				soft_max=2.0,
+			)
+			pb[thigh_name] = influence
 
-		return self
-
-	@staticmethod
-	def build_driver(obj, mch_name: str, terms: list):
-		"""terms (helper_name, bend_axis, bend_sign, influence)"""
-		pose_bones = obj.pose.bones
-		pb = pose_bones[mch_name]
-
-		if obj.animation_data:
-			data_path = f'pose.bones["{mch_name}"].scale'
-			for fcurve in list(obj.animation_data.drivers):
-				if fcurve.data_path == data_path and fcurve.array_index == 1:
-					obj.animation_data.drivers.remove(fcurve)
-
-		if not terms:
-			return
-
+		# Add driver to the MCH bone
 		fcurve = pb.driver_add('scale', 1)
 		driver = fcurve.driver
 		driver.type = 'SCRIPTED'
 
 		parts = []
-		for index, (helper_name, bend_axis, bend_sign, influence) in enumerate(terms):
+		for index, (helper_name, thigh_name, bend_axis, bend_sign, influence) in enumerate(self.terms):
 			var = driver.variables.new()
 			var.name = f'leg{index}'
 			var.type = 'TRANSFORMS'
@@ -153,9 +145,18 @@ class SkirtRide:
 			target.transform_type = bend_axis
 			target.transform_space = 'LOCAL_SPACE'
 			target.rotation_mode = 'SWING_TWIST_Y'
-			parts.append(f'max(0.0, {bend_sign} * leg{index} * {influence:.4f})')
+
+			var = driver.variables.new()
+			var.name = f'inf{index}'
+			var.type = 'SINGLE_PROP'
+			var.targets[0].id = obj
+			var.targets[0].data_path = f'pose.bones["{self.mch_name}"]["{thigh_name}"]'
+
+			parts.append(f'max(0.0, {bend_sign} * leg{index} * inf{index})')
 
 		driver.expression = f'max(0, 1 - max({", ".join(parts)}))'
+
+		return self
 
 	def save_config(self, assembly):
 		payload = {
@@ -163,9 +164,6 @@ class SkirtRide:
 			"legs": [
 				{
 					"thigh_name": thigh_name,
-					"helper_name": helper_name,
-					"bend_axis": bend_axis,
-					"bend_sign": bend_sign,
 					"influence": influence,
 				}
 				for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms
@@ -178,20 +176,4 @@ class SkirtRide:
 		defaults = assembly.get_config_defaults()
 		defaults["skirt_ride"] = payload
 		assembly.config_defaults_json = json.dumps(defaults)
-		return assembly
-
-	@staticmethod
-	def apply_config(context, assembly, old: dict, new: dict):
-		options = assembly.get_options()
-
-		legs = new["legs"]
-		mch_name = new["mch_name"]
-
-		SkirtRide.build_driver(context.object, mch_name, [
-			(leg["helper_name"], leg["bend_axis"], leg["bend_sign"], leg["influence"])
-			for leg in legs
-		])
-
-		options["skirt_ride"] = new
-		assembly.options_json = json.dumps(options)
 		return assembly
