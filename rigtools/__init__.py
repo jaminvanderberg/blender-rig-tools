@@ -25,6 +25,7 @@ from rigtools import parent_along_chain
 from rigtools import find_dependents
 from rigtools import weight_paint_proxy
 from rigtools.assemblies import assembly_data
+from rigtools.assemblies import config_registry
 from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
@@ -55,6 +56,7 @@ def register():
 	selection_panel.register()
 
 	assembly_data.register()
+	config_registry.register()
 	ik_panel.register()
 	fk_panel.register()
 	assembly_panel.register()
@@ -124,6 +126,7 @@ def unregister():
 	assembly_panel.unregister()
 	ik_panel.unregister()
 	fk_panel.unregister()
+	config_registry.unregister()
 	assembly_data.unregister()
 	visibility_panel.unregister()
 	snapping_operator.unregister()

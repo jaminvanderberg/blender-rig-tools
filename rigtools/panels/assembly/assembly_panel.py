@@ -1,5 +1,6 @@
 import bpy
 from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
+from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.utils.bone import get_selected_bones, select_bones
 
@@ -134,6 +135,12 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			op.assembly_uid = assembly.uid
 			op = row.operator("rig.delete_assembly", text="Delete", icon='TRASH')
 			op.assembly_uid = assembly.uid
+
+			for config in iterate_configs(assembly):
+				row = col.row(align=True)
+				op = row.operator("rig.assembly_config", text=config.name, icon='MODIFIER')
+				op.assembly_uid = assembly.uid
+				op.config_id = config.id
 
 		if not assemblies:
 			layout.label(text="No assemblies selected", icon='STATUS_INFO')

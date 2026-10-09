@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 import json
-from math import radians
+from math import cos, pi, radians
 import bpy
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
-from rigtools.utils.naming import bone_template, generate_bone_name, get_base_name
+from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.utils.bone_collection import set_bone_collection
 
 @dataclass
@@ -30,19 +30,6 @@ class SkirtRide:
 		self.property_names = []
 		self.object_names = []
 
-	@staticmethod
-	def get_helper_name(self, fk_name, thigh_name):
-		thigh_base_name, thigh_side = get_base_name(thigh_name)
-		template = bone_template('skirt_ride_target').replace('{org}', thigh_base_name)
-		return generate_bone_name(fk_name, template)
-
-	@staticmethod
-	def bend_for_axis(forward_axis: str):
-		sign = -1 if forward_axis[0] == '-' else 1
-		bend_axis = 'ROT_Z' if forward_axis[1] == 'X' else 'ROT_X'
-		bend_sign = -sign if forward_axis[1] == 'X' else sign
-		return bend_axis, bend_sign
-
 	def edit_mode(self, context, fk_name):
 		self.fk_name = fk_name
 
@@ -56,12 +43,12 @@ class SkirtRide:
 
 		fk_bone = edit_bones[self.fk_name]
 		skirt_parent = fk_bone.parent
-		cone = radians(45)
+		cone = radians(210)
 
 		pending = []
 		for i, leg in enumerate(self.legs):
 			thigh = edit_bones[leg.bone_name]
-			sign = -1 if forward_axis[0] == '-' else 1
+			sign = -1 if leg.forward_axis[0] == '-' else 1
 			forward = (thigh.x_axis if leg.forward_axis[1] == 'X' else thigh.z_axis) * sign
 
 			offset = fk_bone.head - thigh.head
@@ -73,11 +60,13 @@ class SkirtRide:
 			if angle >= cone:
 				continue
 
-			influence = ((1.0 - angle / cone) ** 2) * self.shrink_factor
+			t = angle / cone
+			influence = 0.5 * (1.0 + cos(pi * t)) * self.shrink_factor
 			if influence < 0.01:
 				continue
 
-			bend_axis, bend_sign = SkirtRide.bend_for_axis(leg.forward_axis)
+			bend_axis = 'ROT_Z' if leg.forward_axis[1] == 'X' else 'ROT_X'
+			bend_sign = -sign if leg.forward_axis[1] == 'X' else sign
 			pending.append((i, leg.bone_name, bend_axis, bend_sign, influence))
 
 		self.mch_name = generate_mch_bones(
@@ -91,7 +80,8 @@ class SkirtRide:
 		self.terms = []
 		for i, thigh_name, bend_axis, bend_sign, influence in pending:
 			thigh = edit_bones[thigh_name]
-			helper_name = self.get_helper_name(self.fk_name, thigh_name)
+			template = bone_template('skirt_ride_target').replace('{org}', thigh_name)
+			helper_name = generate_bone_name(self.fk_name, template)
 			helper = duplicate_bone(armature_data, thigh, helper_name, 0.35)
 			helper.parent = skirt_parent
 			helper.use_connect = False
@@ -127,9 +117,9 @@ class SkirtRide:
 			track.head_tail = 1.0
 
 		SkirtRide.build_driver(obj, self.mch_name, [
-			(helper_name, thigh_name, bend_axis, bend_sign, influence)
+			(helper_name, bend_axis, bend_sign, influence)
 			for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms
-		]
+		])
 
 		return self
 
@@ -174,9 +164,11 @@ class SkirtRide:
 				{
 					"thigh_name": thigh_name,
 					"helper_name": helper_name,
-					"forward_axis": forward_axis,
+					"bend_axis": bend_axis,
+					"bend_sign": bend_sign,
 					"influence": influence,
 				}
+				for helper_name, thigh_name, bend_axis, bend_sign, influence in self.terms
 			],
 		}
 		options = assembly.get_options()
@@ -191,12 +183,15 @@ class SkirtRide:
 	@staticmethod
 	def apply_config(context, assembly, old: dict, new: dict):
 		options = assembly.get_options()
-		influences = new.get("influences", {})
-		legs = options.get("legs", [])
 
+		legs = new["legs"]
+		mch_name = new["mch_name"]
 
-		for thigh_name, influence in influences.items():
-			helper_name = self.get_helper_name(self.fk_name, thigh_name)
-			helper = context.object.data.edit_bones[helper_name]
-			helper.scale_y = influence
+		SkirtRide.build_driver(context.object, mch_name, [
+			(leg["helper_name"], leg["bend_axis"], leg["bend_sign"], leg["influence"])
+			for leg in legs
+		])
 
+		options["skirt_ride"] = new
+		assembly.options_json = json.dumps(options)
+		return assembly
