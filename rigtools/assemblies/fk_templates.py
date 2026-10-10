@@ -79,7 +79,6 @@ FK_TEMPLATES = {
 			"add_rotation_isolation": True,
 			"add_skirt_collision": False,
 			"add_skirt_ride": False,
-			"skirt_ride_shrink_factor": 1.0,
 		},
 		redo_fields=(
 			"fk_widget",
@@ -91,7 +90,6 @@ FK_TEMPLATES = {
 			"add_tweak_bones",
 			"add_skirt_collision",
 			"add_skirt_ride",
-			"skirt_ride_shrink_factor",
 		),
 	),
 	"tail": FKTemplate(
@@ -178,7 +176,6 @@ REDO_PROPERTIES = {
 	"add_tweak_bones",
 	"add_skirt_collision",
 	"add_skirt_ride",
-	"skirt_ride_shrink_factor",
 }
 
 

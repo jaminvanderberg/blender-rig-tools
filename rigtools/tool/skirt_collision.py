@@ -1,3 +1,4 @@
+import json
 import bpy
 from mathutils import Vector
 from rigtools.preferences import get_preferences
@@ -5,12 +6,15 @@ from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings
 from rigtools.utils.bone_collection import set_bone_collection
+from rna_prop_ui import rna_idprop_ui_create
 
 class SkirtCollision:
 	def __init__(self, *,
+		property_name: str,
 		target_bone_names: list[str],
 		mch_bone_collection_name: str,
 	):
+		self.property_name = property_name
 		self.target_bone_names = target_bone_names
 		self.mch_bone_collection_name = mch_bone_collection_name
 
@@ -86,34 +90,104 @@ class SkirtCollision:
 		self.mechanism_bone_names.extend(mch_names)
 		self.mch_bone_names.extend(mch_names)
 
+		self.property_names.append(self.property_name)
+
 		return self
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		pose_bones = obj.pose.bones
+
 		settings = get_armature_settings(obj.data, context)
+		prop_bone = obj.pose.bones[settings.property_bone_name]
+		property_name = self.property_name
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
+
+		# Create the skirt collision property
+		if property_name not in prop_bone:
+			prop_bone[property_name] = 1.0
+			
+			rna_idprop_ui_create(
+				prop_bone,
+				property_name,
+				default=1.0,
+				min=0.0,
+				max=1.0
+			)
+			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)			
 
 		for fk_name, mch_name, collision_name, pin_name in zip(self.fk_bone_names, self.mch_bone_names, self.collision_bone_names, self.pin_bone_names):
 			target_bone = pose_bones[pin_name]
 
 			collision_bone = pose_bones[collision_name]
 			local = target_bone.bone.matrix_local.inverted() @ collision_bone.bone.head_local
+			rest_offset = local.y
 
 			floor = collision_bone.constraints.new('FLOOR')
 			floor.target = obj
 			floor.subtarget = pin_name
 			floor.floor_location = 'FLOOR_Y'
-			floor.offset = local.y
+			floor.offset = rest_offset
 			floor.use_rotation = True
 			floor.owner_space = 'POSE'
 			floor.target_space = 'POSE'
 
+			rna_idprop_ui_create(
+				collision_bone,
+				"influence",
+				default=1.0,
+				min=0.0,
+				max=2.0,
+				soft_max=1.0
+			)
+			collision_bone["influence"] = 1.0
+
+			fcurve = floor.driver_add("offset")
+			driver = fcurve.driver
+			driver.type = 'SCRIPTED'
+
+			# joint influence
+			var = driver.variables.new()
+			var.name = "inf"
+			var.type = "SINGLE_PROP"
+			var.targets[0].id = obj
+			var.targets[0].data_path = f'pose.bones["{collision_name}"]["influence"]'
+
+			# master influence
+			var = driver.variables.new()
+			var.name = "master"
+			var.type = "SINGLE_PROP"
+			var.targets[0].id = obj
+			var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{property_name}"]'
+
+			driver.expression = f"{rest_offset:.6f} * inf * master"
+
+			# Damped track
 			track = pose_bones[mch_name].constraints.new('DAMPED_TRACK')
 			track.target = obj
 			track.subtarget = collision_name
 
 		return self
+
+	def save_config(self, assembly):
+		payload = {
+			"property_name": self.property_name,
+			"joints": [
+				{
+					"fk_name": fk_name,
+					"collision_name": collision_name,
+					"influence": 1.0,
+				}
+				for fk_name, collision_name in zip(self.fk_bone_names, self.collision_bone_names)
+			]
+		}
+		options = assembly.get_options()
+		options["skirt_collision"] = payload
+		assembly.options_json = json.dumps(options)
+
+		defaults = assembly.get_config_defaults()
+		defaults["skirt_collision"] = payload
+		assembly.config_defaults_json = json.dumps(defaults)
+		return assembly		

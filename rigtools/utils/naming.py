@@ -64,6 +64,8 @@ PROPERTY = {
 	"rotation_isolation": "{name}.FK.rot.follow{side}",
 	"fk_ik_switch": "{name}.FK.IK{side}",
 	"ik_parent": "{name}.ik.parent{side}",
+	"skirt_collision": "{name}.collision{side}",
+	"skirt_ride": "{name}.ride{side}",
 }
 
 def bone_template(role):

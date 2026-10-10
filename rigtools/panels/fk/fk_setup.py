@@ -147,14 +147,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default=False
 	)
 
-	skirt_ride_shrink_factor: FloatProperty(
-		name="Skirt Ride Shrink Factor",
-		description="Factor to shrink the skirt ride.",
-		default=1.0,
-		min=0.0,
-		max=1.0,
-	)
-
 	@classmethod
 	def description(cls, context, properties):
 		if properties.template_id:
@@ -246,7 +238,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	##################################################################################################
 	# draw
 
-
 	def draw(self, context):
 		layout = self.layout
 		template = get_fk_template(self.template_id) if self.template_id else None
@@ -264,8 +255,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				return self.control_mode != 'TWEAK'
 			if field_name in ["rotation_follow_skip", "rotation_follow_relationship"]:
 				return self.create_rotation_follow_setup
-			if field_name in ["skirt_ride_shrink_factor"]:
-				return self.add_skirt_ride
 			return True
 
 		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
@@ -292,10 +281,9 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				draw.split_field(col, "Rotation Follow Relationship:", "rotation_follow_relationship"),
 			))
 		))
-		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride", "skirt_ride_shrink_factor"], lambda: (
+		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride"], lambda: (
 			draw.full_field(layout, "Add Skirt Collision", "add_skirt_collision"),
 			draw.full_field(layout, "Add Skirt Ride", "add_skirt_ride"),
-			draw.full_field(layout, "Skirt Ride Shrink Factor:", "skirt_ride_shrink_factor"),
 		))
 		
 	##################################################################################################
@@ -310,7 +298,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			chains, original_mode, original_mirror = get_assembly_chains(
 				context,
 				self.assembly_uid,
-				check_property_bone=self.add_rotation_isolation,
+				check_property_bone=self.add_rotation_isolation or self.add_skirt_collision,
 			)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
@@ -336,7 +324,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			skirt_collision_target_bone_names=['ORG-thigh.L'],
 			add_skirt_ride=self.add_skirt_ride,
 			skirt_ride_legs=[SkirtLeg(bone_name='ORG-thigh.L', forward_axis='+X'), SkirtLeg(bone_name='ORG-thigh.R', forward_axis='-X')],
-			skirt_ride_shrink_factor=self.skirt_ride_shrink_factor,
 		)
 
 		assembly_uid = self.assembly_uid

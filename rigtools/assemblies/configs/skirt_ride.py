@@ -1,20 +1,5 @@
 import json
 
-import bpy
-from bpy.props import CollectionProperty, FloatProperty, IntProperty, StringProperty
-from bpy.types import PropertyGroup
-
-from rigtools.tool.skirt_ride import SkirtRide
-
-
-class SkirtRideLegSlot(PropertyGroup):
-	thigh_name: StringProperty(name="Thigh")
-	helper_name: StringProperty(name="Helper")
-	bend_axis: StringProperty(name="Bend Axis")
-	bend_sign: IntProperty(name="Bend Sign")
-	influence: FloatProperty(name="Influence", min=0.0, soft_max=2.0)
-
-
 class SkirtRideConfig:
 	id = "skirt_ride"
 	name = "Skirt Ride"
@@ -53,6 +38,4 @@ class SkirtRideConfig:
 		for leg in legs:
 			col.prop(pb, f'["{leg["thigh_name"]}"]', text=leg["thigh_name"], slider=True)
 
-classes = (
-	SkirtRideLegSlot,
-)
+classes = ()

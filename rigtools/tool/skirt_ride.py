@@ -17,11 +17,11 @@ class SkirtRide:
 	def __init__(self, *,
 		mch_bone_collection_name: str,
 		legs: list[SkirtLeg],
-		shrink_factor: float,
 	):
 		self.legs = legs
-		self.shrink_factor = shrink_factor
 		self.mch_bone_collection_name = mch_bone_collection_name
+
+		self.shrink_factor = 0.5 # hard-coded default, user configures after creation
 
 		self.fk_name = None
 		self.mch_name = None
@@ -68,7 +68,20 @@ class SkirtRide:
 
 			bend_axis = 'ROT_Z' if leg.forward_axis[1] == 'X' else 'ROT_X'
 			bend_sign = -sign if leg.forward_axis[1] == 'X' else sign
-			pending.append((i, leg.bone_name, bend_axis, bend_sign, influence))
+			pending.append((i, leg.bone_name, bend_axis, bend_sign, influence, flat.length))
+
+		if len(pending) > 1:
+			d_min = min(d for *_, d in pending)
+			k = 3.0 # k = sharpness
+			weighted = []
+			for i, thigh_name, bend_axis, bend_sign, influence, d in pending:
+				influence *= (d_min / d) ** k
+				if influence < 0.01:
+					continue
+				weighted.append((i, thigh_name, bend_axis, bend_sign, influence))
+			pending = weighted
+		else:
+			pending = [entry[:-1] for entry in pending] # drop distance
 
 		self.mch_name = generate_mch_bones(
 			armature_data,
@@ -154,7 +167,7 @@ class SkirtRide:
 
 			parts.append(f'max(0.0, {bend_sign} * leg{index} * inf{index})')
 
-		driver.expression = f'max(0, 1 - max({", ".join(parts)}))'
+		driver.expression = f'max(0.1, 1 - max({", ".join(parts)}))'
 
 		return self
 

@@ -2,11 +2,12 @@ import bpy
 from bpy.props import StringProperty
 
 from rigtools.assemblies.assembly_data import find_assembly
-from rigtools.assemblies.configs.skirt_ride import SkirtRideConfig, SkirtRideLegSlot, classes as skirt_ride_classes
-
+from rigtools.assemblies.configs.skirt_ride import SkirtRideConfig, classes as skirt_ride_classes
+from rigtools.assemblies.configs.skirt_collision import SkirtCollisionConfig, classes as skirt_collision_classes
 
 CONFIGS = {
 	SkirtRideConfig.id: SkirtRideConfig,
+	SkirtCollisionConfig.id: SkirtCollisionConfig,
 }
 
 
@@ -70,6 +71,7 @@ class RIG_OT_assembly_config(bpy.types.Operator):
 classes = (
 	RIG_OT_assembly_config,
 	*skirt_ride_classes,
+	*skirt_collision_classes,
 )
 
 
@@ -79,13 +81,9 @@ def register():
 	wm = bpy.types.WindowManager
 	wm.rigtools_assembly_config_uid = StringProperty()
 	wm.rigtools_assembly_config_id = StringProperty()
-	wm.rigtools_skirt_ride_mch_name = StringProperty()
-	wm.rigtools_skirt_ride_legs = bpy.props.CollectionProperty(type=SkirtRideLegSlot)
 
 
 def unregister():
-	del bpy.types.WindowManager.rigtools_skirt_ride_legs
-	del bpy.types.WindowManager.rigtools_skirt_ride_mch_name
 	del bpy.types.WindowManager.rigtools_assembly_config_id
 	del bpy.types.WindowManager.rigtools_assembly_config_uid
 	for cls in reversed(classes):

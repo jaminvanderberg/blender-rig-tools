@@ -15,3 +15,7 @@ ik stretch like rigify
 Bone segments instead of twist bones?
 
 add ik parent menu
+
+setup leg selection for skirt collision and ride
+
+ik feet should default to self

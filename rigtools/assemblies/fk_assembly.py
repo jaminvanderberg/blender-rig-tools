@@ -31,7 +31,6 @@ class FKAssemblyOptions:
 	skirt_collision_target_bone_names: list[str] = field(default_factory=list)
 	add_skirt_ride: bool = False
 	skirt_ride_legs: list[SkirtLeg] = field(default_factory=list)
-	skirt_ride_shrink_factor: float = 1.0
 
 def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None):
 	armature_data = context.object.data
@@ -110,13 +109,18 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# SKIRT COLLISION
 			if options.add_skirt_collision and len(fk_names) > 0:
-				skirt_collision = SkirtCollision(target_bone_names=options.skirt_collision_target_bone_names, mch_bone_collection_name=mch_collection_name)
+				property_name = name_property("skirt_collision", options.limb_property_base_name, side)
+				skirt_collision = SkirtCollision(
+					property_name=property_name,
+					target_bone_names=options.skirt_collision_target_bone_names,
+					mch_bone_collection_name=mch_collection_name,
+				)
 				skirt_collision.edit_mode(context, fk_names)
 				assembly_chain.tools.append(skirt_collision)
 
 			# SKIRT RIDE
 			if options.add_skirt_ride and len(fk_names) > 0:
-				skirt_ride = SkirtRide(legs=options.skirt_ride_legs, shrink_factor=options.skirt_ride_shrink_factor, mch_bone_collection_name=mch_collection_name)
+				skirt_ride = SkirtRide(legs=options.skirt_ride_legs, mch_bone_collection_name=mch_collection_name)
 				skirt_ride.edit_mode(context, fk_names[0])
 				assembly_chain.tools.append(skirt_ride)
 
