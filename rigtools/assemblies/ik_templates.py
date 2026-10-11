@@ -74,6 +74,7 @@ IK_TEMPLATES = {
 		icon="CON_KINEMATIC",
 		options={
 			"limb_property_base_name": "leg",
+			"limb_type": "leg",
 			"add_tweak_bones": True,
 			"switch_property_type": "ENUM",
 			"add_rotation_isolation": True,

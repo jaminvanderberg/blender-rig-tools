@@ -17,9 +17,11 @@ class SkirtRide:
 	def __init__(self, *,
 		mch_bone_collection_name: str,
 		legs: list[SkirtLeg],
+		prior_configs: dict,
 	):
 		self.legs = legs
 		self.mch_bone_collection_name = mch_bone_collection_name
+		self.prior_config = prior_configs.get("skirt_ride", {})
 
 		self.shrink_factor = 0.5 # hard-coded default, user configures after creation
 
@@ -83,6 +85,13 @@ class SkirtRide:
 		else:
 			pending = [entry[:-1] for entry in pending] # drop distance
 
+		# Apply prior config
+		if self.prior_config:
+			pending = [
+				(i, thigh_name, bend_axis, bend_sign, self.prior_config.get(thigh_name, influence))
+				for i, thigh_name, bend_axis, bend_sign, influence in pending
+			]
+
 		self.mch_name = generate_mch_bones(
 			armature_data,
 			[fk_bone],
@@ -96,7 +105,7 @@ class SkirtRide:
 			thigh = edit_bones[thigh_name]
 			template = bone_template('skirt_ride_target').replace('{org}', thigh_name)
 			helper_name = generate_bone_name(self.fk_name, template)
-			helper = duplicate_bone(armature_data, thigh, helper_name, 0.35)
+			helper = duplicate_bone(armature_data, thigh, helper_name, 0.15)
 			helper.parent = skirt_parent
 			helper.use_connect = False
 

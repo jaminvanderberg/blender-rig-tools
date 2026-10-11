@@ -32,10 +32,11 @@ class FKAssemblyOptions:
 	add_skirt_ride: bool = False
 	skirt_ride_legs: list[SkirtLeg] = field(default_factory=list)
 
-def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None):
+def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None, prior_configs=None):
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
+	prior_configs = prior_configs or {}
 
 	assemblies = []
 
@@ -114,13 +115,18 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
 					mch_bone_collection_name=mch_collection_name,
+					prior_configs=prior_configs,
 				)
 				skirt_collision.edit_mode(context, fk_names)
 				assembly_chain.tools.append(skirt_collision)
 
 			# SKIRT RIDE
 			if options.add_skirt_ride and len(fk_names) > 0:
-				skirt_ride = SkirtRide(legs=options.skirt_ride_legs, mch_bone_collection_name=mch_collection_name)
+				skirt_ride = SkirtRide(
+					legs=options.skirt_ride_legs,
+					mch_bone_collection_name=mch_collection_name,
+					prior_configs=prior_configs
+				)
 				skirt_ride.edit_mode(context, fk_names[0])
 				assembly_chain.tools.append(skirt_ride)
 
@@ -139,3 +145,12 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				
 	finally:
 		armature_data.use_mirror_x = original_mirror
+
+		select_bones = []
+		if fk_names:
+			select_bones.append(fk_names[0])
+		else:
+			name = next((n for n in tweak.tweak_bone_names if n), None) or tweak.terminal_tweak_name
+			select_bones.append(name)
+
+		return select_bones

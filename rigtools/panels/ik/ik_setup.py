@@ -1,8 +1,8 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
-from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.ik_templates import (
 	get_ik_template,
 	resolve_ik_parents,
@@ -73,6 +73,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		name="Limb Property Base Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default=""
+	)
+
+	limb_type: StringProperty(
+		name="Limb Type",
+		description="Semantic limb type for assembly discovery (e.g. leg)",
+		default="",
+		options={'HIDDEN'},
 	)
 
 	add_tweak_bones: BoolProperty(
@@ -558,6 +565,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			limb_property_base_name=self.limb_property_base_name,
 			add_tweak_bones=self.add_tweak_bones,
 			switch_property_type=self.switch_property_type,
+			limb_type=self.limb_type,
 			add_rotation_isolation=self.add_rotation_isolation,
 			inherit_scale_from_root=self.inherit_scale_from_root,
 			override_collections=self.override_collections,
@@ -599,10 +607,19 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		assembly_uid = self.assembly_uid
 
 		def rebuild():
-			if assembly_uid:
-				delete_assembly(context, assembly_uid)
-
-			return create_ik_assembly(context, chains, self.template_id, self.template_name, options, replacement_uid = assembly_uid)
+			return reconfigure_assembly(
+				context, 
+				assembly_uid, 
+				lambda prior_configs: create_ik_assembly(
+					context,
+					chains,
+					self.template_id,
+					self.template_name,
+					options,
+					replacement_uid=assembly_uid,
+					prior_configs=prior_configs,
+				),
+			)
 
 		try:
 			tip_controls = run_assembly_transaction(rebuild)

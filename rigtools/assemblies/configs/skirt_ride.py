@@ -19,6 +19,19 @@ class SkirtRideConfig:
 		return dict(options.get("skirt_ride") or {})
 
 	@staticmethod
+	def snapshot(context, assembly) -> dict:
+		payload = SkirtRideConfig.load(assembly)
+		mch = context.object.pose.bones.get(payload.get("mch_name") or "")
+		if not mch:
+			return {}
+		out = {}
+		for leg in payload.get("legs", []):
+			thigh = leg["thigh_name"]
+			if thigh in mch:
+				out[thigh] = mch[thigh]
+		return out
+	
+	@staticmethod
 	def default(assembly) -> dict:
 		raw = getattr(assembly, "config_defaults_json", "") or "{}"
 		defaults = json.loads(raw)

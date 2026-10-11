@@ -1,12 +1,13 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
-from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
+from rigtools.utils.bone import select_bones
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
@@ -324,25 +325,31 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		assembly_uid = self.assembly_uid
 
 		def rebuild():
-			if assembly_uid:
-				delete_assembly(context, assembly_uid)
-
-			return create_torso_assembly(
-				context,
-				chains,
-				self.template_id,
-				self.template_name,
-				options,
-				replacement_uid=assembly_uid,
+			return reconfigure_assembly(
+				context, 
+				assembly_uid, 
+				lambda prior_configs: create_torso_assembly(
+					context,
+					chains,
+					self.template_id,
+					self.template_name,
+					options,
+					replacement_uid=assembly_uid,
+					prior_configs=prior_configs,
+				),
 			)
 
 		try:
-			run_assembly_transaction(rebuild)
+			torso_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror
 			return {'CANCELLED'}
+
+		if torso_controls:
+			bpy.ops.pose.select_all(action='DESELECT')
+			select_bones(context.object, torso_controls)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} torso assembl{'ies' if chain_count != 1 else 'y'}.")

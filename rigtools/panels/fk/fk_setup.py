@@ -1,18 +1,64 @@
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
+from bpy.props import (
+	StringProperty,
+	BoolProperty,
+	EnumProperty,
+	IntProperty,
+	CollectionProperty,
+)
 
+from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
-from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.template_draw import TemplateDraw
-from rigtools.preferences import get_preferences
+from rigtools.tool.skirt_legs import FORWARD_AXIS_ITEMS, scan_leg_assemblies
 from rigtools.tool.skirt_ride import SkirtLeg
+from rigtools.utils.bone import select_bones
 from rigtools.utils.naming import bone_template, guess_limb_name
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
 from rigtools.utils.widget import fk_widget_types
+
+
+class SkirtLegSlot(bpy.types.PropertyGroup):
+	thigh: StringProperty(name="Thigh", default="")
+	shin: StringProperty(name="Shin", default="")
+	forward_axis: EnumProperty(
+		name="Forward Axis",
+		items=FORWARD_AXIS_ITEMS,
+		default='+X',
+	)
+
+
+class RIG_OT_add_skirt_leg(bpy.types.Operator):
+	bl_idname = "rig.add_skirt_leg"
+	bl_label = "Add Skirt Leg"
+
+	def execute(self, context):
+		context.window_manager.rig_skirt_legs.add()
+		return {'FINISHED'}
+
+
+class RIG_OT_remove_skirt_leg(bpy.types.Operator):
+	bl_idname = "rig.remove_skirt_leg"
+	bl_label = "Remove Skirt Leg"
+	index: IntProperty()
+
+	def execute(self, context):
+		context.window_manager.rig_skirt_legs.remove(self.index)
+		return {'FINISHED'}
+
+
+def _fill_skirt_legs(context):
+	wm = context.window_manager
+	wm.rig_skirt_legs.clear()
+	for row in scan_leg_assemblies(context.object):
+		slot = wm.rig_skirt_legs.add()
+		slot.thigh = row["thigh"]
+		slot.shin = row["shin"]
+		slot.forward_axis = row["forward_axis"]
 
 
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
@@ -159,8 +205,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	# invoke
 
 	def _invoke_from_selection(self, context):
-		prefs = get_preferences()
-
 		try:
 			chains = find_chains_from_selection(context)
 		except ChainBranchingError as e:
@@ -208,6 +252,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		
 		options = assembly.get_options()
 		for key, value in options.items():
+			if not hasattr(self, key):
+				continue
 			setattr(self, key, value)
 
 		self.template_name = assembly.template_name
@@ -230,6 +276,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			return result
 
 		self.add_tweak_bones = (self.control_mode != 'FK')
+		_fill_skirt_legs(context)
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
@@ -255,6 +302,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				return self.control_mode != 'TWEAK'
 			if field_name in ["rotation_follow_skip", "rotation_follow_relationship"]:
 				return self.create_rotation_follow_setup
+			if field_name in ["skirt_legs"]:
+				return self.add_skirt_collision or self.add_skirt_ride
 			return True
 
 		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
@@ -281,9 +330,37 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				draw.split_field(col, "Rotation Follow Relationship:", "rotation_follow_relationship"),
 			))
 		))
-		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride"], lambda: (
+
+		def draw_skirt_legs(context, box):
+			if not draw.do_show("skirt_legs"):
+				return
+
+			legs = context.window_manager.rig_skirt_legs
+			show_axis = self.add_skirt_ride
+
+			leg_col = box.column(align=True)
+			header = leg_col.row(align=True)
+			header.label(text="Thigh")
+			if show_axis:
+				header.label(text="Forward")
+			header.label(text="", icon='BLANK1')
+
+			for i, leg in enumerate(legs):
+				row = leg_col.row(align=True)
+				row.prop_search(leg, "thigh", context.object.data, "bones", text="")
+				if show_axis:
+					row.prop(leg, "forward_axis", text="")
+				op = row.operator("rig.remove_skirt_leg", text="", icon='REMOVE')
+				op.index = i
+
+			box.operator("rig.add_skirt_leg", text="Add Leg", icon='ADD')
+
+		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride", "skirt_legs"], lambda: (
 			draw.full_field(layout, "Add Skirt Collision", "add_skirt_collision"),
 			draw.full_field(layout, "Add Skirt Ride", "add_skirt_ride"),
+			draw.box_section(layout, ["skirt_legs"], "Skirt Legs", 'BONE_DATA', lambda col: (
+				draw_skirt_legs(context, col),
+			)),
 		))
 		
 	##################################################################################################
@@ -292,6 +369,18 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	def execute(self, context):
 		if self.add_rotation_isolation and not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
+			return {'CANCELLED'}
+
+		if self.add_skirt_collision and not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required for skirt collision.")
+			return {'CANCELLED'}
+
+		skirt_slots = [
+			slot for slot in context.window_manager.rig_skirt_legs
+			if slot.thigh
+		]
+		if (self.add_skirt_collision or self.add_skirt_ride) and not skirt_slots:
+			self.report({'ERROR'}, "No skirt legs specified. Add leg assemblies or pick thigh bones.")
 			return {'CANCELLED'}
 
 		try:
@@ -321,33 +410,42 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			tweak_relationship=self.tweak_relationship,
 			add_rotation_isolation=self.add_rotation_isolation,
 			add_skirt_collision=self.add_skirt_collision,
-			skirt_collision_target_bone_names=['ORG-thigh.L'],
+			skirt_collision_target_bone_names=[slot.thigh for slot in skirt_slots],
 			add_skirt_ride=self.add_skirt_ride,
-			skirt_ride_legs=[SkirtLeg(bone_name='ORG-thigh.L', forward_axis='+X'), SkirtLeg(bone_name='ORG-thigh.R', forward_axis='-X')],
+			skirt_ride_legs=[
+				SkirtLeg(bone_name=slot.thigh, forward_axis=slot.forward_axis)
+				for slot in skirt_slots
+			],
 		)
 
 		assembly_uid = self.assembly_uid
 
 		def rebuild():
-			if assembly_uid:
-				delete_assembly(context, assembly_uid)
-
-			return create_fk_assembly(
-				context,
-				chains,
-				self.template_id,
-				self.template_name,
-				options,
-				replacement_uid=assembly_uid,
+			return reconfigure_assembly(
+				context, 
+				assembly_uid, 
+				lambda prior_configs: create_fk_assembly(
+					context,
+					chains,
+					self.template_id,
+					self.template_name,
+					options,
+					replacement_uid=assembly_uid,
+					prior_configs=prior_configs,
+				),
 			)
 
 		try:
-			run_assembly_transaction(rebuild)
+			fk_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror
 			return {'CANCELLED'}
+
+		if fk_controls:
+			bpy.ops.pose.select_all(action='DESELECT')
+			select_bones(context.object, fk_controls)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
@@ -356,6 +454,9 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 
 classes = (
+	SkirtLegSlot,
+	RIG_OT_add_skirt_leg,
+	RIG_OT_remove_skirt_leg,
 	RIG_OT_advanced_fk_tweak_setup,
 )
 
@@ -364,10 +465,12 @@ def register():
 	validate_fk_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	bpy.types.WindowManager.rig_skirt_legs = CollectionProperty(type=SkirtLegSlot)
 
 
 def unregister():
-	for cls in classes:
+	del bpy.types.WindowManager.rig_skirt_legs
+	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
 

@@ -23,6 +23,7 @@ class IKAssemblyOptions:
 	limb_property_base_name: str
 	add_tweak_bones: bool
 	switch_property_type: str
+	limb_type: str = ""
 	add_rotation_isolation: bool = True
 	inherit_scale_from_root: bool = False
 	override_collections: bool = True
@@ -51,13 +52,14 @@ class IKAssemblyOptions:
 	twist_bone_count: int = 4
 
 
-def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions, replacement_uid=None):
+def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions, replacement_uid=None, prior_configs=None):
 	"""find_side() throws an error if the side is not the same for all bones in the chain"""
 
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
 	edit_bones = armature_data.edit_bones
+	prior_configs = prior_configs or {}
 
 	assemblies = []
 	tip_controls = []

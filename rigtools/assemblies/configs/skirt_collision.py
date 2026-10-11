@@ -25,6 +25,17 @@ class SkirtCollisionConfig:
 		return dict(defaults.get(SkirtCollisionConfig.id) or SkirtCollisionConfig.load(assembly))
 
 	@staticmethod
+	def snapshot(context, assembly) -> dict:
+		payload = SkirtCollisionConfig.load(assembly)
+		pose_bones = context.object.pose.bones
+		out = {}
+		for joint in payload.get("joints", []):
+			pb = pose_bones.get(joint["collision_name"])
+			if pb and "influence" in pb:
+				out[joint["fk_name"]] = pb["influence"]
+		return out
+		
+	@staticmethod
 	def draw(layout, assembly, context):
 		payload = assembly.get_options().get("skirt_collision") or {}
 		joints = payload.get("joints", [])

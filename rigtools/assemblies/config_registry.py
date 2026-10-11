@@ -16,6 +16,16 @@ def iterate_configs(assembly):
 		if config.present(assembly):
 			yield config
 
+def snapshot_configs(context, assembly) -> dict:
+	stash = {}
+	for config in iterate_configs(assembly):
+		fn = getattr(config, "snapshot", None)
+		if not callable(fn):
+			continue
+		data = fn(context, assembly)
+		if data:
+			stash[config.id] = data
+	return stash
 
 class RIG_OT_assembly_config(bpy.types.Operator):
 	bl_idname = "rig.assembly_config"

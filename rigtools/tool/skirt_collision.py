@@ -1,22 +1,49 @@
 import json
 import bpy
-from mathutils import Vector
-from rigtools.preferences import get_preferences
 from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings
 from rigtools.utils.bone_collection import set_bone_collection
 from rna_prop_ui import rna_idprop_ui_create
 
+
+def _distance_to_bone_sq(point, bone):
+	axis = bone.tail - bone.head
+	length_sq = axis.length_squared
+	if length_sq < 1e-12:
+		return (point - bone.head).length_squared
+	t = max(0.0, min(1.0, (point - bone.head).dot(axis) / length_sq))
+	closest = bone.head + axis * t
+	return (point - closest).length_squared
+
+
+def _nearest_target(edit_bones, target_names, point):
+	best = None
+	best_dist = None
+	for name in target_names:
+		bone = edit_bones.get(name)
+		if not bone:
+			continue
+		dist = _distance_to_bone_sq(point, bone)
+		if best_dist is None or dist < best_dist:
+			best = bone
+			best_dist = dist
+	if best is None:
+		raise ValueError("No skirt collision target bones found.")
+	return best
+
+
 class SkirtCollision:
 	def __init__(self, *,
 		property_name: str,
 		target_bone_names: list[str],
 		mch_bone_collection_name: str,
+		prior_configs: dict,
 	):
 		self.property_name = property_name
 		self.target_bone_names = target_bone_names
 		self.mch_bone_collection_name = mch_bone_collection_name
+		self.prior_config = prior_configs.get("skirt_collision", {})
 
 		self.fk_bone_names = []
 		self.collision_bone_names = []
@@ -37,6 +64,9 @@ class SkirtCollision:
 
 		edit_bones = armature_data.edit_bones
 		fk_bones = [edit_bones[name] for name in fk_names]
+
+		if not self.target_bone_names:
+			raise ValueError("Skirt collision requires at least one target bone.")
 
 		total_length = sum(fk_bone.length for fk_bone in fk_bones)
 		target_spacing = total_length * 1.5 / len(fk_bones)
@@ -68,10 +98,9 @@ class SkirtCollision:
 			self.mechanism_bone_names.append(collision_bone.name)
 			self.collision_bone_names.append(collision_bone.name)
 
-			target = edit_bones[self.target_bone_names[0]]
+			target = _nearest_target(edit_bones, self.target_bone_names, point)
 			target_direction = (target.tail - target.head).normalized()
 
-			point = collision_bone.head
 			distance_along_target = (point - target.head).dot(target_direction)
 			axis_point = target.head + target_direction * distance_along_target
 
@@ -84,6 +113,12 @@ class SkirtCollision:
 			
 			self.mechanism_bone_names.append(pin.name)
 			self.pin_bone_names.append(pin.name)
+
+			if self.mch_bone_collection_name:
+				set_bone_collection(armature_data, pin, self.mch_bone_collection_name)
+			else:
+				for coll in fk_bone.collections:
+					coll.assign(pin)
 
 		mch_names = generate_mch_bones(armature_data, fk_bones, bone_template("mch"), self.mch_bone_collection_name)
 
@@ -142,7 +177,7 @@ class SkirtCollision:
 				max=2.0,
 				soft_max=1.0
 			)
-			collision_bone["influence"] = 1.0
+			collision_bone["influence"] = self.prior_config.get(fk_name, 1.0)
 
 			fcurve = floor.driver_add("offset")
 			driver = fcurve.driver
@@ -168,6 +203,16 @@ class SkirtCollision:
 			track = pose_bones[mch_name].constraints.new('DAMPED_TRACK')
 			track.target = obj
 			track.subtarget = collision_name
+
+			fcurve = track.driver_add("influence")
+			driver = fcurve.driver
+			driver.type = 'SCRIPTED'
+			var = driver.variables.new()
+			var.name = "master"
+			var.type = "SINGLE_PROP"
+			var.targets[0].id = obj
+			var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{property_name}"]'
+			driver.expression = f"master"
 
 		return self
 

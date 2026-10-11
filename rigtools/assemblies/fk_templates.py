@@ -90,6 +90,7 @@ FK_TEMPLATES = {
 			"add_tweak_bones",
 			"add_skirt_collision",
 			"add_skirt_ride",
+			"skirt_legs",
 		),
 	),
 	"tail": FKTemplate(
@@ -176,6 +177,7 @@ REDO_PROPERTIES = {
 	"add_tweak_bones",
 	"add_skirt_collision",
 	"add_skirt_ride",
+	"skirt_legs",
 }
 
 

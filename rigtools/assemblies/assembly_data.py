@@ -139,10 +139,10 @@ class AssemblyData(PropertyGroup):
 		return self
 
 	def get_options(self):
-		return json.loads(self.options_json)
+		return json.loads(self.options_json or "{}")
 
 	def get_config_defaults(self):
-		return json.loads(self.get("config_defaults_json", "{}"))
+		return json.loads(self.get("config_defaults_json") or "{}")
 
 	def get_chains(self):
 		return [[bone.name for bone in self.org_states]]
