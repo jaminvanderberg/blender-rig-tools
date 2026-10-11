@@ -13,7 +13,7 @@ class FKIKSwitch:
 		switch_property_name: str,
 		switch_property_type: str = 'ENUM', # 'ENUM' or 'FLOAT'
 		fk_widget_type: str = "CIRCLE",
-		fk_end_widget_type: str = "BOX",
+		fk_end_widget_type: str = "SAME",
 		fk_collection_name: str = None,
 		mch_collection_name: str = None,
 	):
@@ -124,7 +124,7 @@ class FKIKSwitch:
 
 			widget_type = (
 				self.fk_end_widget_type
-				if i == len(self.fk_bone_names) - 1
+				if i == len(self.fk_bone_names) - 1 and self.fk_end_widget_type != "SAME"
 				else self.fk_widget_type
 			)
 

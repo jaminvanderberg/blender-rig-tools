@@ -11,10 +11,12 @@ from rigtools.assemblies.ik_templates import (
 	validate_ik_templates,
 )
 from rigtools.assemblies.template_options import resolve_template_options
-from rigtools.panels.template_draw import TemplateDraw
+from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
+from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
+from rigtools.tool.skirt_ride import SkirtLeg
 from rigtools.tool.twist_bones import falloff_presets, twist_source_types
 from rigtools.utils.widget import fk_widget_types
 from rigtools.tool.ik_parent import IKParentTarget
@@ -144,6 +146,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=False
 	)
 
+	spline_skip_last: BoolProperty(
+		name="Skip Last Bone",
+		description="Skip the last bone in the chain for the IK spline",
+		default=False
+	)
+
 	twist_type: EnumProperty(
 		name="Twist Controllers",
 		description="Type of twist to create for the IK spline",
@@ -218,6 +226,58 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=False
 	)
 
+	create_master_controllers: BoolProperty(
+		name="Create FK Master Controllers / FK Follow",
+		description="Create master controllers along the FK chain.",
+		default=False
+	)
+
+	master_controllers_spacing: EnumProperty(
+		name="Master Controllers Spacing",
+		description="Spacing of the master controllers.",
+		items=[
+			('SINGLE', 'Single Controller', 'Use a single master controller'),
+			('INTERVAL', 'Interval', 'Use an interval between master controllers'),
+		],
+		default='SINGLE'
+	)
+
+	master_controllers_interval: IntProperty(
+		name="Interval",
+		description="Number of bones to skip before creating a master controller.",
+		options={'HIDDEN'}
+	)
+
+	master_controllers_interval_UI: IntProperty(
+		name="Interval",
+		description="Number of bones to skip before creating a master controller.",
+		default=3,
+		min=2,
+	)
+
+	master_controllers_skip_first: BoolProperty(
+		name="Skip First",
+		description="Skip the first bone when creating master controllers.",
+		default=False
+	)
+
+	master_controllers_type: EnumProperty(
+		name="Type",
+		description="Type of master controller to create.",
+		items=[
+			('FK', 'Use FK Bones', 'Use the existing FK bones as master controllers (FK follow)'),
+			('MASTER', 'Add Dedicated Masters', 'Create dedicated master controllers'),
+		],
+		default='FK'
+	)
+
+	master_controllers_widget: EnumProperty(
+		name="Master Controller Widget",
+		description="Type of widget to create for the master controllers.",
+		items=fk_widget_types,
+		default='CIRCLE'
+	)
+
 	use_twist_bones: BoolProperty(
 		name="Twist Bones",
 		description="Create deform twist bones along limb segments",
@@ -270,6 +330,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	add_foot_roll: BoolProperty(
 		name="Add Foot Roll",
 		description="Add foot roll to the IK/FK switch chain",
+		default=False
+	)
+
+	add_skirt_collision: BoolProperty(
+		name="Add Skirt Collision",
+		description="Add skirt collision to the FK bones.",
+		default=False
+	)
+
+	add_skirt_ride: BoolProperty(
+		name="Add Skirt Ride",
+		description="Short skirts typically ride up when the leg is lifted.",
 		default=False
 	)
 
@@ -342,6 +414,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		option_values = resolve_template_options(IKAssemblyOptions, template.options)
+		if option_values.get("fk_end_widget") == "SAME":
+			option_values["fk_end_widget"] = option_values["fk_widget"]
 		parent_names = option_values.pop("ik_parents", ())
 		twist_segments_raw = option_values.pop("twist_segments", ())
 
@@ -427,8 +501,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
-		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
-		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -443,6 +515,10 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		if result == {'CANCELLED'}:
 			return result
+
+		self.master_controllers_spacing = 'SINGLE' if self.master_controllers_interval <= 1 else 'INTERVAL'
+		self.master_controllers_interval_UI = self.master_controllers_interval if self.master_controllers_interval >= 2 else 3
+		fill_skirt_legs(context)
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
@@ -464,7 +540,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				return self.add_rotation_isolation
 			if field_name in ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"]:
 				return self.ik_type == 'IK'
-			if field_name in ["spline_control_count", "twist_type", "spline_skip_first"]:
+			if field_name in ["spline_control_count", "twist_type", "spline_skip_first", "spline_skip_last"]:
 				return self.ik_type == 'SPLINE'
 			if field_name in ["ik_parents"]:
 				return self.ik_parent
@@ -474,9 +550,26 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				return self.ik_type == 'IK'
 			if field_name in ["twist_bone_count", "twist_segments"]:
 				return self.use_twist_bones and self.ik_type == 'IK'
+			if field_name in ["skirt_legs"]:
+				return self.add_skirt_collision or self.add_skirt_ride
+			if field_name in ["tip_widget"]:
+				return self.ik_type == 'IK' or (self.ik_type == 'SPLINE' and self.spline_skip_last)
+			if field_name in ["create_master_controllers"]:
+				return True
+			if field_name in ["master_controllers_spacing", "master_controllers_skip_first", "master_controllers_type"]:
+				return self.create_master_controllers
+			if field_name in ["master_controllers_interval_UI"]:
+				return self.create_master_controllers and self.master_controllers_spacing == 'INTERVAL'
+			if field_name in ["master_controllers_widget"]:
+				return self.create_master_controllers and self.master_controllers_type == 'MASTER'
 			return True
 
-		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
+		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible,
+			related_fields={
+				"master_controllers_spacing": "master_controllers_interval",
+				"master_controllers_interval_UI": "master_controllers_interval",
+			}
+		)
 
 		draw.box_section(layout, ["limb_property_base_name", "switch_property_type", "fk_widget", "tip_widget", "add_tweak_bones", "tweak_relationship"], 
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
@@ -497,6 +590,22 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			draw.full_field(layout, "Add Rotation Isolation", "add_rotation_isolation"),
 			draw.full_field(layout, "Inherit Scale From Root", "inherit_scale_from_root"),
 		))
+		draw.draw_section(layout, ["create_master_controllers"], lambda: (
+			draw.full_field(layout, "Create FK Master Controllers / FK Follow", "create_master_controllers"),
+			draw.box_section(layout, ["master_controllers_spacing", "master_controllers_interval_UI", "master_controllers_skip_first", "master_controllers_type"],
+				"", "NONE", lambda col: (
+
+				draw.draw_section(col, ["master_controllers_type", "master_controllers_spacing", "master_controllers_interval_UI", "master_controllers_skip_first"], lambda: (
+					draw.expand_field(col, "master_controllers_type"),
+					draw.expand_field(col, "master_controllers_spacing"),
+					draw.full_field(col, "Interval", "master_controllers_interval_UI"),
+					draw.full_field(col, "Skip First", "master_controllers_skip_first"),
+				)),
+				draw.draw_section(col, ["master_controllers_widget"], lambda: (
+					draw.split_field(col, "Master Controller Widget:", "master_controllers_widget"),
+				)),
+			))
+		))
 		draw.draw_section(layout, ["ik_type", "ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll", "spline_control_count", "twist_type", "spline_skip_first"], lambda: (
 			draw.full_field(layout, "IK Type", "ik_type"),
 			draw.box_section(layout, ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"], "IK Settings", 'CON_KINEMATIC', lambda col: (
@@ -505,10 +614,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				draw.full_field(col, "Enable IK Stretch", "enable_ik_stretch"),
 				draw.full_field(col, "Add Foot Roll", "add_foot_roll"),
 			)),
-			draw.box_section(layout, ["spline_control_count", "twist_type", "spline_skip_first"], "Spline IK Settings", 'CON_SPLINEIK', lambda col: (
+			draw.box_section(layout, ["spline_control_count", "twist_type", "spline_skip_first", "spline_skip_last"], "Spline IK Settings", 'CON_SPLINEIK', lambda col: (
 				draw.full_field(col, "Spline Control Count", "spline_control_count"),
 				draw.split_field(col, "Twist Type", "twist_type"),
-				draw.full_field(col, "Spline Skip First", "spline_skip_first"),
+				draw.split_row(col, [
+					SplitSection(label="Skip First", prop="spline_skip_first"),
+					SplitSection(label="Skip Last", prop="spline_skip_last"),
+				])
 			)),
 		))
 
@@ -610,17 +722,27 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				)),
 			)),
 		))
-		
+
+		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride", "skirt_legs"], lambda: (
+			draw.full_field(layout, "Add Skirt Collision", "add_skirt_collision"),
+			draw.full_field(layout, "Add Skirt Ride", "add_skirt_ride"),
+			draw.box_section(layout, ["skirt_legs"], "", "NONE", lambda col: (
+				draw_skirt_legs(context, col, show_axis=self.add_skirt_ride),
+			)),
+		))
 
 	##################################################################################################
 	# execute
 	
 	def execute(self, context):
-		rollback = getattr(self, "_fresh_invoke", False)
-		self._fresh_invoke = False
-
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
+			self.assembly_uid = ""
+			return {'CANCELLED'}
+
+		skirt_slots = list(iter_skirt_leg_slots(context))
+		if (self.add_skirt_collision or self.add_skirt_ride) and not skirt_slots:
+			self.report({'ERROR'}, "No skirt legs specified. Add leg assemblies or pick thigh bones.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
 
@@ -639,6 +761,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				context.object.data.use_mirror_x = original_mirror
 				return {'CANCELLED'}
 
+		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = IKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
 			add_tweak_bones=self.add_tweak_bones,
@@ -651,11 +774,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			enable_ik_stretch=self.enable_ik_stretch,
 			spline_control_count=self.spline_control_count,
 			spline_skip_first=self.spline_skip_first,
+			spline_skip_last=self.spline_skip_last,
 			twist_type=self.twist_type,
 			tweak_relationship=self.tweak_relationship,
 			fk_widget=self.fk_widget,
 			tip_widget=self.tip_widget,
-			fk_end_widget=self.fk_end_widget,
+			fk_end_widget=self.fk_end_widget if self.fk_end_widget != "SAME" else self.fk_widget,
 			enable_snapping=self.enable_snapping,
 			ik_parent=self.ik_parent,
 			ik_parents=[
@@ -679,6 +803,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				]
 			) if self.use_twist_bones else [],
 			add_foot_roll=self.add_foot_roll,
+			add_skirt_collision=self.add_skirt_collision,
+			skirt_collision_target_bone_names=[slot.thigh for slot in skirt_slots],
+			add_skirt_ride=self.add_skirt_ride,
+			skirt_ride_legs=[
+				SkirtLeg(bone_name=slot.thigh, forward_axis=slot.forward_axis)
+				for slot in skirt_slots
+			],
+			create_master_controllers=self.create_master_controllers,
+			master_controllers_interval=interval,
+			master_controllers_skip_first=self.master_controllers_skip_first,
+			master_controllers_type=self.master_controllers_type,
+			master_controllers_widget=self.master_controllers_widget,
 		)
 
 	
@@ -700,7 +836,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			)
 
 		try:
-			tip_controls = run_assembly_transaction(rebuild, rollback=rollback)
+			tip_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)

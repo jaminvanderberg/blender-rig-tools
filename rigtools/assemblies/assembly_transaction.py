@@ -3,19 +3,17 @@ import bpy
 class AssemblyTransactionError(RuntimeError):
 	pass
 
-def run_assembly_transaction(operation, *, rollback=True):
-	if rollback:
-		bpy.ops.ed.undo_push(message="Before assembly rebuild")
+def _rollback():
+	wm = bpy.context.window_manager
+	with bpy.context.temp_override(window=wm.windows[0]):
+		bpy.ops.object.mode_set(mode='POSE')
+		bpy.ops.ed.undo_push(message="Failed assembly rebuild")
+		bpy.ops.ed.undo()
 
+def run_assembly_transaction(operation, *, rollback=True):
 	try:
 		return operation()
 	except Exception as e:
-		message = str(e)
 		if rollback:
-			try:
-				bpy.ops.ed.undo()
-			except Exception as rollback_error:
-				raise AssemblyTransactionError(
-					f"{message}; rollback failed: {rollback_error}"
-				) from rollback_error
-		raise AssemblyTransactionError(message) from None
+			bpy.app.timers.register(_rollback)
+		raise AssemblyTransactionError(str(e)) from None

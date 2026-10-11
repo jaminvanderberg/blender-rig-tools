@@ -30,6 +30,7 @@ BONE = {
 	"ik_pole_vis": "VIS-{name}.pole",
 	"ik_mch": "MCH-IK-{name}",
 	"control": "{name}",
+	"fk_master": "{name}.master.{i}",
 	"foot_roll": "{name}.roll",
 	"vis": "VIS-{name}",
 	"mch": "MCH-{name}",
@@ -51,11 +52,13 @@ BONE = {
 	"collision_source": "MCH-COLLIDE-{name}",
 	"skirt_ride": "MCH-SKIRT-RIDE-{name}",
 	"skirt_ride_target": "MCH-{name}-TGT-{org}",
+	"fk_follow": "MCH-FOLLOW-{name}",
 }
 
 COLLECTION = {
 	"ik": "{Name}.IK{side}",
 	"fk": "{Name}.FK{side}",
+	"fk_master": "{Name}.FK.Master{side}",
 	"control": "{Name}{side}",
 	"tweak": "{Name}.Tweak{side}",
 	"mch": "MCH-{Name}",
@@ -74,6 +77,11 @@ def bone_template(role):
 
 
 def name_bone(role, source_name, *, strip_name=True, strip_numbers=False, index=None, **tokens):
+	"""Name a bone from a fixed tool role in BONE.
+	Looks up bone_template(role), substitutes any **tokens into the template (e.g. type=, i=),
+	then runs generate_bone_name. Use this for mch/tweak/spline/etc.
+	index: 1-based value for {i}/{a}/{A} in the template (see generate_bone_name).
+	"""	
 	template = BONE[role]
 	for key, value in tokens.items():
 		template = template.replace("{" + key + "}", str(value))
@@ -179,6 +187,12 @@ def strip_bone_tags(base_name, context=None):
 
 
 def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False, index=None):
+	"""Apply a naming template to a source bone name.
+	Strips side (.L/.R) first, optionally strips tags (ORG/DEF/…) and trailing
+	numbers, formats template with {name} and optional {i}/{a}/{A}, then
+	re-appends the side suffix.
+	Use when the template is caller-supplied. For fixed roles, prefer name_bone.
+	"""	
 	name = org_name
 	base_name, extension = get_base_name(name)
 

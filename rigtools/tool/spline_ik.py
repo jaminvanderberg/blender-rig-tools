@@ -85,7 +85,7 @@ class SplineIK:
 
 			source = name_source[0] if name_source else edit_bones[bones[seg_index]].name
 			ref_bone = edit_bones[bones[seg_index]]
-			spline_bone_name = name_bone("ik_spline", source, i=pos_name)
+			spline_bone_name = name_bone("ik_spline", source, i=pos_name, strip_numbers=True)
 			spline_bone = edit_bones.new(spline_bone_name)
 			spline_bone.head = pos
 			direction = (points[seg_index + 1] - points[seg_index]).normalized()

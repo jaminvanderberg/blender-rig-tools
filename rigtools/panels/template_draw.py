@@ -5,19 +5,25 @@ class SplitSection:
 	label: str
 	prop: str
 	icon: str = "NONE"
+	expand: bool = False
+	enabled: bool = True
 
 class TemplateDraw:
-	def __init__(self, op, template, *, split_size=0.6, visible_func=None):
+	def __init__(self, op, template, *, split_size=0.6, visible_func=None, related_fields={}):
 		self.op = op
 		self.template = template
 		self.split_size = split_size
 		self.visible_func = visible_func
 		self._prev = False
+		self.related_fields = related_fields
 
 	def is_allowed(self, field_name):
 		if not self.template:
 			return True
-		return field_name in self.template.redo_fields
+		if field_name in self.template.redo_fields:
+			return True
+		related = self.related_fields.get(field_name)
+		return bool(related and related in self.template.redo_fields)
 
 	def do_show(self, field_name):
 		if not self.is_allowed(field_name):
@@ -48,6 +54,12 @@ class TemplateDraw:
 			return
 		layout.prop(self.op, prop, text=label)
 
+	def expand_field(self, layout, prop):
+		if not self.do_show(prop):
+			return
+		row = layout.row(align=True)
+		row.prop(self.op, prop, expand=True)
+
 	def split_row(self, layout, sections: list[SplitSection]):
 		if not self.do_show_any([section.prop for section in sections]):
 			return
@@ -55,7 +67,12 @@ class TemplateDraw:
 		for section in sections:
 			if not self.do_show(section.prop):
 				continue
-			row.prop(self.op, section.prop, text=section.label, icon=section.icon)
+			sub = row.row(align=True)
+			sub.enabled = section.enabled
+			if section.expand:
+				sub.prop(self.op, section.prop, icon=section.icon, expand=True)
+			else:
+				sub.prop(self.op, section.prop, text=section.label, icon=section.icon)
 		
 	def draw_section(self, layout, fields, draw_func):
 		if not self.do_show_any(fields):
@@ -69,7 +86,8 @@ class TemplateDraw:
 		if not self.do_show_any(fields):
 			return
 		box = layout.box()
-		box.label(text=label, icon=icon)
+		if label:
+			box.label(text=label, icon=icon)
 		col = box.column()
 		self._prev = False
 		draw_func(col)

@@ -4,7 +4,6 @@ from bpy.props import (
 	BoolProperty,
 	EnumProperty,
 	IntProperty,
-	CollectionProperty,
 )
 
 from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
@@ -13,53 +12,14 @@ from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
 from rigtools.panels.template_draw import TemplateDraw
-from rigtools.tool.skirt_legs import FORWARD_AXIS_ITEMS, scan_leg_assemblies
+from rigtools.utils.skirt_legs import FORWARD_AXIS_ITEMS, scan_leg_assemblies
 from rigtools.tool.skirt_ride import SkirtLeg
 from rigtools.utils.bone import select_bones
 from rigtools.utils.naming import bone_template, guess_limb_name
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
 from rigtools.utils.widget import fk_widget_types
-
-
-class SkirtLegSlot(bpy.types.PropertyGroup):
-	thigh: StringProperty(name="Thigh", default="")
-	shin: StringProperty(name="Shin", default="")
-	forward_axis: EnumProperty(
-		name="Forward Axis",
-		items=FORWARD_AXIS_ITEMS,
-		default='+X',
-	)
-
-
-class RIG_OT_add_skirt_leg(bpy.types.Operator):
-	bl_idname = "rig.add_skirt_leg"
-	bl_label = "Add Skirt Leg"
-
-	def execute(self, context):
-		context.window_manager.rig_skirt_legs.add()
-		return {'FINISHED'}
-
-
-class RIG_OT_remove_skirt_leg(bpy.types.Operator):
-	bl_idname = "rig.remove_skirt_leg"
-	bl_label = "Remove Skirt Leg"
-	index: IntProperty()
-
-	def execute(self, context):
-		context.window_manager.rig_skirt_legs.remove(self.index)
-		return {'FINISHED'}
-
-
-def _fill_skirt_legs(context):
-	wm = context.window_manager
-	wm.rig_skirt_legs.clear()
-	for row in scan_leg_assemblies(context.object):
-		slot = wm.rig_skirt_legs.add()
-		slot.thigh = row["thigh"]
-		slot.shin = row["shin"]
-		slot.forward_axis = row["forward_axis"]
-
 
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	"""Setup FK/Tweak setup with advanced options"""
@@ -115,27 +75,56 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default=False
 	)
 
-	create_rotation_follow_setup: BoolProperty(
-		name="Create Rotation Follow Setup",
-		description="Create a rotation follow setup along the FK chain.",
+	create_master_controllers: BoolProperty(
+		name="Create FK Master Controllers / FK Follow",
+		description="Create master controllers along the FK chain.",
 		default=True
 	)
 
-	rotation_follow_skip: IntProperty(
-		name="Rotation Follow Skip",
-		description="Number of bones to skip before creating a rotation follow setup.",
-		default=1,
-		min=0,
+	master_controllers_spacing: EnumProperty(
+		name="Master Controllers Spacing",
+		description="Spacing of the master controllers.",
+		items=[
+			('SINGLE', 'Single Controller', 'Use a single master controller'),
+			('INTERVAL', 'Interval', 'Use an interval between master controllers'),
+		],
+		default='SINGLE'
 	)
 
-	rotation_follow_relationship: EnumProperty(
-		name="Rotation Follow Relationship",
-		description="Type of relationship for the rotation follow setup.",
+	master_controllers_interval: IntProperty(
+		name="Interval",
+		description="Number of bones to skip before creating a master controller.",
+		options={'HIDDEN'}
+	)
+
+	master_controllers_interval_UI: IntProperty(
+		name="Interval",
+		description="Number of bones to skip before creating a master controller.",
+		default=3,
+		min=2,
+	)
+
+	master_controllers_skip_first: BoolProperty(
+		name="Skip First",
+		description="Skip the first bone when creating master controllers.",
+		default=False
+	)
+
+	master_controllers_type: EnumProperty(
+		name="Type",
+		description="Type of master controller to create.",
 		items=[
-			('COPY_ROTATION', 'Copy Rotation', 'Copy rotation from the master bone'),
-			('COPY_TRANSFORMS', 'Copy Transforms', 'Copy transforms from the master bone'),
+			('FK', 'Use FK Bones', 'Use the existing FK bones as master controllers (FK follow)'),
+			('MASTER', 'Add Dedicated Masters', 'Create dedicated master controllers'),
 		],
-		default='COPY_ROTATION'
+		default='FK'
+	)
+
+	master_controllers_widget: EnumProperty(
+		name="Master Controller Widget",
+		description="Type of widget to create for the master controllers.",
+		items=fk_widget_types,
+		default='CIRCLE'
 	)
 
 	fk_collection_name: StringProperty(
@@ -260,8 +249,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
-		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
-		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -278,7 +265,9 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			return result
 
 		self.add_tweak_bones = (self.control_mode != 'FK')
-		_fill_skirt_legs(context)
+		self.master_controllers_spacing = 'SINGLE' if self.master_controllers_interval <= 1 else 'INTERVAL'
+		self.master_controllers_interval_UI = self.master_controllers_interval if self.master_controllers_interval >= 2 else 3
+		fill_skirt_legs(context)
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
@@ -306,9 +295,22 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				return self.create_rotation_follow_setup
 			if field_name in ["skirt_legs"]:
 				return self.add_skirt_collision or self.add_skirt_ride
+			if field_name in ["create_master_controllers"]:
+				return self.control_mode != 'TWEAK'
+			if field_name in ["master_controllers_spacing", "master_controllers_skip_first", "master_controllers_type"]:
+				return self.control_mode != 'TWEAK' and self.create_master_controllers
+			if field_name in ["master_controllers_interval_UI"]:
+				return self.control_mode != 'TWEAK' and self.create_master_controllers and self.master_controllers_spacing == 'INTERVAL'
+			if field_name in ["master_controllers_widget"]:
+				return self.control_mode != 'TWEAK' and self.create_master_controllers and self.master_controllers_type == 'MASTER'
 			return True
 
-		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
+		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible, 
+			related_fields={
+				"master_controllers_spacing": "master_controllers_interval",
+				"master_controllers_interval_UI": "master_controllers_interval",
+			}
+		)
 
 		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"], 
 			"FK Chain Settings:", "SETTINGS", lambda col: (
@@ -324,44 +326,28 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				draw.full_field(col, "Skip First Tweak", "skip_first_tweak"),
 			)),
 		))
-		draw.draw_section(layout, ["add_rotation_isolation", "create_rotation_follow_setup", "rotation_follow_skip", "rotation_follow_relationship"], lambda: (
-			draw.full_field(layout, "Add Rotation Isolation", "add_rotation_isolation"),
-			draw.full_field(layout, "Create Rotation Follow Setup", "create_rotation_follow_setup"),
-			draw.box_section(layout, ["rotation_follow_skip", "rotation_follow_relationship"], "Rotation Follow Setup:", 'CONSTRAINT', lambda col: (
-				draw.full_field(col, "Rotation Follow Skip:", "rotation_follow_skip"),
-				draw.split_field(col, "Rotation Follow Relationship:", "rotation_follow_relationship"),
+		draw.draw_section(layout, ["create_master_controllers"], lambda: (
+			draw.full_field(layout, "Create FK Master Controllers / FK Follow", "create_master_controllers"),
+			draw.box_section(layout, ["master_controllers_spacing", "master_controllers_interval_UI", "master_controllers_skip_first", "master_controllers_type"], 
+				"", "NONE", lambda col: (
+		
+				draw.draw_section(col, ["master_controllers_type", "master_controllers_spacing", "master_controllers_interval_UI", "master_controllers_skip_first"], lambda: (
+					draw.expand_field(col, "master_controllers_type"),
+					draw.expand_field(col, "master_controllers_spacing"),
+					draw.full_field(col, "Interval", "master_controllers_interval_UI"),
+					draw.full_field(col, "Skip First", "master_controllers_skip_first"),
+				)),
+				draw.draw_section(col, ["master_controllers_widget"], lambda: (
+					draw.split_field(col, "Master Controller Widget:", "master_controllers_widget"),
+				)),
 			))
 		))
-
-		def draw_skirt_legs(context, box):
-			if not draw.do_show("skirt_legs"):
-				return
-
-			legs = context.window_manager.rig_skirt_legs
-			show_axis = self.add_skirt_ride
-
-			leg_col = box.column(align=True)
-			header = leg_col.row(align=True)
-			header.label(text="Thigh")
-			if show_axis:
-				header.label(text="Forward")
-			header.label(text="", icon='BLANK1')
-
-			for i, leg in enumerate(legs):
-				row = leg_col.row(align=True)
-				row.prop_search(leg, "thigh", context.object.data, "bones", text="")
-				if show_axis:
-					row.prop(leg, "forward_axis", text="")
-				op = row.operator("rig.remove_skirt_leg", text="", icon='REMOVE')
-				op.index = i
-
-			box.operator("rig.add_skirt_leg", text="Add Leg", icon='ADD')
 
 		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride", "skirt_legs"], lambda: (
 			draw.full_field(layout, "Add Skirt Collision", "add_skirt_collision"),
 			draw.full_field(layout, "Add Skirt Ride", "add_skirt_ride"),
-			draw.box_section(layout, ["skirt_legs"], "Skirt Legs", 'BONE_DATA', lambda col: (
-				draw_skirt_legs(context, col),
+			draw.box_section(layout, ["skirt_legs"], "", "NONE", lambda col: (
+				draw_skirt_legs(context, col, show_axis=self.add_skirt_ride),
 			)),
 		))
 		
@@ -369,9 +355,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	# execute
 
 	def execute(self, context):
-		rollback = getattr(self, "_fresh_invoke", False)
-		self._fresh_invoke = False
-
 		if self.add_rotation_isolation and not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
 			return {'CANCELLED'}
@@ -384,10 +367,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			self.report({'ERROR'}, "Limb property base name is required for skirt ride.")
 			return {'CANCELLED'}
 
-		skirt_slots = [
-			slot for slot in context.window_manager.rig_skirt_legs
-			if slot.thigh
-		]
+		skirt_slots = list(iter_skirt_leg_slots(context))
 		if (self.add_skirt_collision or self.add_skirt_ride) and not skirt_slots:
 			self.report({'ERROR'}, "No skirt legs specified. Add leg assemblies or pick thigh bones.")
 			return {'CANCELLED'}
@@ -405,15 +385,18 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		if self.control_mode != 'TWEAK':
 			self.control_mode = 'FK/TWEAK' if self.add_tweak_bones else 'FK'
 
+		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = FKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
 			control_mode=self.control_mode,
 			fk_bone_template=bone_template('fk'),
 			skip_first_tweak=self.skip_first_tweak,
 			fk_widget=self.fk_widget,
-			create_rotation_follow_setup=self.create_rotation_follow_setup,
-			rotation_follow_skip=self.rotation_follow_skip,
-			rotation_follow_relationship=self.rotation_follow_relationship,
+			create_master_controllers=self.create_master_controllers,
+			master_controllers_interval=interval,
+			master_controllers_skip_first=self.master_controllers_skip_first,
+			master_controllers_type=self.master_controllers_type,
+			master_controllers_widget=self.master_controllers_widget,
 			fk_collection_name=self.fk_collection_name,
 			tweak_collection_name=self.tweak_collection_name,
 			tweak_relationship=self.tweak_relationship,
@@ -445,7 +428,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			)
 
 		try:
-			fk_controls = run_assembly_transaction(rebuild, rollback=rollback)
+			fk_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
@@ -463,25 +446,17 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 
 classes = (
-	SkirtLegSlot,
-	RIG_OT_add_skirt_leg,
-	RIG_OT_remove_skirt_leg,
 	RIG_OT_advanced_fk_tweak_setup,
 )
-
 
 def register():
 	validate_fk_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
-	bpy.types.WindowManager.rig_skirt_legs = CollectionProperty(type=SkirtLegSlot)
-
 
 def unregister():
-	del bpy.types.WindowManager.rig_skirt_legs
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
-
 
 if __name__ == "__main__":
 	try:

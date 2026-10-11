@@ -26,6 +26,7 @@ from rigtools import find_dependents
 from rigtools import weight_paint_proxy
 from rigtools.assemblies import assembly_data
 from rigtools.assemblies import config_registry
+from rigtools.panels import skirt_legs as skirt_legs_panel
 from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
@@ -57,6 +58,7 @@ def register():
 
 	assembly_data.register()
 	config_registry.register()
+	skirt_legs_panel.register()
 	ik_panel.register()
 	fk_panel.register()
 	assembly_panel.register()
@@ -126,6 +128,7 @@ def unregister():
 	assembly_panel.unregister()
 	ik_panel.unregister()
 	fk_panel.unregister()
+	skirt_legs_panel.unregister()
 	config_registry.unregister()
 	assembly_data.unregister()
 	visibility_panel.unregister()

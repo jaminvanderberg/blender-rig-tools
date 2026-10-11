@@ -254,8 +254,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
-		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
-		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -360,9 +358,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	# execute
 
 	def execute(self, context):
-		rollback = getattr(self, "_fresh_invoke", False)
-		self._fresh_invoke = False
-
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
@@ -413,7 +408,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			)
 
 		try:
-			torso_controls = run_assembly_transaction(rebuild, rollback=rollback)
+			torso_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
