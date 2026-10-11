@@ -5,8 +5,8 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
-from rigtools.twist_bones import get_twist_chain, set_twist_parent
-from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided, generate_mch_bones, match_orientation
+from rigtools.twist_bones import create_twist_chain, get_twist_chain
+from rigtools.utils.bone import duplicate_bone, generate_mch_bones, match_orientation
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
@@ -118,17 +118,13 @@ class TorsoFK:
 		# Neck twist bones
 		if self.neck_twist_bone_count > 0:
 			for i in range(first_neck_bone_index, len(org_bone_names) - 1):
-				twist_names = get_twist_chain(armature_data, org_bone_names[i], use_edit_bones=True)
 				org_bone = edit_bones[org_bone_names[i]]
+				twist_names = get_twist_chain(armature_data, org_bone.name, use_edit_bones=True)
 				if not twist_names:
-					twist_names = duplicate_bone_subdivided(
-						context, org_bone, self.neck_twist_bone_count, bone_template("twist")
-					)
-					for twist_name in twist_names:
-						set_twist_parent(armature_data, twist_name, org_bone_names[i])
+					twist_names = create_twist_chain(context, org_bone, self.neck_twist_bone_count)
 				elif len(twist_names) != self.neck_twist_bone_count:
 					raise ValueError(
-						f"Twist chain for {org_bone_names[i]} must have {self.neck_twist_bone_count} bones"
+						f"Twist chain for {org_bone.name} must have {self.neck_twist_bone_count} bones"
 					)
 				self.twist_bones[i] = twist_names
 
@@ -142,17 +138,13 @@ class TorsoFK:
 
 		# Chest twist bones
 		if self.chest_twist_bone_count > 0:
-			twist_names = get_twist_chain(armature_data, org_bone_names[chest_bone_index], use_edit_bones=True)
 			org_bone = edit_bones[org_bone_names[chest_bone_index]]
+			twist_names = get_twist_chain(armature_data, org_bone.name, use_edit_bones=True)
 			if not twist_names:
-				twist_names = duplicate_bone_subdivided(
-					context, org_bone, self.chest_twist_bone_count, bone_template("twist")
-				)
-				for twist_name in twist_names:
-					set_twist_parent(armature_data, twist_name, org_bone_names[chest_bone_index])
+				twist_names = create_twist_chain(context, org_bone, self.chest_twist_bone_count)
 			elif len(twist_names) != self.chest_twist_bone_count:
 				raise ValueError(
-					f"Twist chain for {org_bone_names[chest_bone_index]} must have {self.chest_twist_bone_count} bones"
+					f"Twist chain for {org_bone.name} must have {self.chest_twist_bone_count} bones"
 				)
 
 			self.twist_bones[chest_bone_index] = twist_names

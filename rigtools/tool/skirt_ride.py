@@ -3,6 +3,7 @@ import json
 from math import cos, pi, radians
 import bpy
 from rna_prop_ui import rna_idprop_ui_create
+from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
@@ -15,10 +16,12 @@ class SkirtLeg:
 
 class SkirtRide:
 	def __init__(self, *,
+		property_name: str,
 		mch_bone_collection_name: str,
 		legs: list[SkirtLeg],
 		prior_configs: dict,
 	):
+		self.property_name = property_name
 		self.legs = legs
 		self.mch_bone_collection_name = mch_bone_collection_name
 		self.prior_config = prior_configs.get("skirt_ride", {})
@@ -125,9 +128,25 @@ class SkirtRide:
 	def pose_mode(self, context):
 		obj = context.object
 		pose_bones = obj.pose.bones
+		settings = get_armature_settings(obj.data, context)
+		prop_bone = pose_bones[settings.property_bone_name]
+		property_name = self.property_name
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
+
+		if property_name not in prop_bone:
+			prop_bone[property_name] = 1.0
+			rna_idprop_ui_create(
+				prop_bone,
+				property_name,
+				default=1.0,
+				min=0.0,
+				max=1.0,
+			)
+			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)
+
+		self.property_names.append(property_name)
 
 		if not self.terms:
 			return self
@@ -156,6 +175,12 @@ class SkirtRide:
 		driver = fcurve.driver
 		driver.type = 'SCRIPTED'
 
+		var = driver.variables.new()
+		var.name = "master"
+		var.type = 'SINGLE_PROP'
+		var.targets[0].id = obj
+		var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{property_name}"]'
+
 		parts = []
 		for index, (helper_name, thigh_name, bend_axis, bend_sign, influence) in enumerate(self.terms):
 			var = driver.variables.new()
@@ -176,12 +201,13 @@ class SkirtRide:
 
 			parts.append(f'max(0.0, {bend_sign} * leg{index} * inf{index})')
 
-		driver.expression = f'max(0.1, 1 - max({", ".join(parts)}))'
+		driver.expression = f'max(0.1, 1 - master * max({", ".join(parts)}))'
 
 		return self
 
 	def save_config(self, assembly):
 		payload = {
+			"property_name": self.property_name,
 			"mch_name": self.mch_name,
 			"legs": [
 				{

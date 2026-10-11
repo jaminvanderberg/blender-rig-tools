@@ -1,9 +1,11 @@
+from enum import Enum
 import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator, Panel
 
 from rigtools.heel_pivots import RIG_OT_set_heel_pivot, get_heel_pivot, get_heel_pivot_feet, set_heel_pivot
-from rigtools.utils.naming import flip_side_name, same_side_names
+from rigtools.utils.bone import duplicate_bone_subdivided
+from rigtools.utils.naming import bone_template, flip_side_name, same_side_names
 
 TWIST_MAP_KEY = "rigtools_twist_parents"
 
@@ -122,6 +124,92 @@ def get_twist_chain(armature, parent_name, *, use_edit_bones=False):
 
 	return order
 
+def create_twist_chain(context, org_bone, twist_bone_count):
+	edit_bones = context.object.data.edit_bones
+	def_names = duplicate_bone_subdivided(
+		context, org_bone, twist_bone_count, bone_template("twist_def")
+	)
+	org_names = duplicate_bone_subdivided(
+		context, org_bone, twist_bone_count, bone_template("twist_org")
+	)
+	for (def_name, org_name) in zip(def_names, org_names):
+		# DEF bones are parented to the ORG bone
+		# this removed the need for a constraint, or for locating the DEF parent bone
+		def_bone = edit_bones[def_name]
+		def_bone.use_deform = True
+		def_bone.use_connect = False
+		def_bone.parent = edit_bones[org_name]
+
+		set_twist_parent(context.object.data, org_name, org_bone.name)
+
+	return org_names
+
+class TwistChainStatus(Enum):
+	MISSING = "Missing"
+	OK = "OK"
+	WRONG_COUNT = "Wrong Count"
+	BRANCHED = "Branched"
+
+def snapshot_twist_status(armature, parent_names, *, use_edit_bones=False, require_chain=True):
+	"""Capture twist registration per parent at invoke time.
+
+	Returns {parent_name: {"count": int, "ok": bool}} for parents that have
+	at least one registered twist bone. ok reflects chain topology when
+	require_chain is True; assembly/reconfigure passes False because tweaks
+	have already rewritten parenting.
+	"""
+	out = {}
+	for parent_name in parent_names:
+		registered = get_twist_bones(armature, parent_name, use_edit_bones=use_edit_bones)
+		count = len(registered)
+		if count == 0:
+			continue
+		ok = True
+		if require_chain:
+			try:
+				get_twist_chain(armature, parent_name, use_edit_bones=use_edit_bones)
+			except ValueError:
+				ok = False
+		out[parent_name] = {"count": count, "ok": ok}
+	return out
+
+def evaluate_twist_snapshot(snapshot, expected):
+	"""Compare an invoke snapshot to current (parent, count) expectations.
+
+	expected: iterable of (org_name, count)
+	Returns (status, icon, message). status is TwistChainStatus or None
+	when there are no expected segments.
+	"""
+	statuses = []
+	for parent_name, count in expected:
+		entry = snapshot.get(parent_name)
+		if not entry:
+			statuses.append(TwistChainStatus.MISSING)
+			continue
+		if not entry.get("ok", True):
+			statuses.append(TwistChainStatus.BRANCHED)
+			continue
+		if entry.get("count", 0) != count:
+			statuses.append(TwistChainStatus.WRONG_COUNT)
+			continue
+		statuses.append(TwistChainStatus.OK)
+
+	if not statuses:
+		return (None, 'STATUS_INFO', "No twist segments")
+
+	if all(s == TwistChainStatus.OK for s in statuses):
+		return (TwistChainStatus.OK, 'STATUS_INFO', "All twist bones present")
+	if all(s == TwistChainStatus.MISSING for s in statuses):
+		return (TwistChainStatus.MISSING, 'STATUS_INFO_FILLED', "Twist bones will be created")
+	if any(s == TwistChainStatus.BRANCHED for s in statuses):
+		return (TwistChainStatus.BRANCHED, 'STATUS_ERROR_FILLED', "Twist bones are not parented correctly")
+	if any(s == TwistChainStatus.WRONG_COUNT for s in statuses):
+		return (TwistChainStatus.WRONG_COUNT, 'STATUS_ERROR_FILLED', "Twist segments have the wrong number of bones")
+	return (
+		TwistChainStatus.MISSING,
+		'STATUS_WARNING_FILLED',
+		"Some twist segments are present, but others are missing.  This is usually an error.",
+	)
 
 def get_active_bone(context):
 	"""Bone datablock for the active edit or pose bone."""

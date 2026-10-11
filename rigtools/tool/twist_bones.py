@@ -5,9 +5,9 @@ from dataclasses import dataclass
 import bpy
 
 from rigtools.tool.fk_tweak_chain import FKTweakChain
-from rigtools.twist_bones import get_twist_chain, set_twist_parent, prune_twist_map
-from rigtools.utils.bone import duplicate_bone, duplicate_bone_subdivided
-from rigtools.utils.naming import bone_template, name_bone
+from rigtools.twist_bones import create_twist_chain, get_twist_chain, prune_twist_map
+from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.naming import name_bone
 
 def _linear(t):  return 1.0 - t
 def _smooth(t): return 1.0 - (3.0 * t*t - 2.0 * t*t*t)
@@ -106,15 +106,9 @@ class TwistBones:
 		for segment in self.segments:
 			org_bone = edit_bones[org_bone_names[segment.index]]
 
-			print(f"Checking twist chain for {org_bone.name}")
 			twist_names = get_twist_chain(obj.data, org_bone.name, use_edit_bones=True)
-			print(f"Twist names: {twist_names}")
 			if not twist_names:
-				twist_names = duplicate_bone_subdivided(
-					context, org_bone, self.twist_bone_count, bone_template("twist")
-				)
-				for twist_name in twist_names:
-					set_twist_parent(obj.data, twist_name, org_bone.name)
+				twist_names = create_twist_chain(context, org_bone, self.twist_bone_count)
 			elif len(twist_names) != self.twist_bone_count:
 				raise ValueError(
 					f"Twist chain for {org_bone.name} must have {self.twist_bone_count} bones"

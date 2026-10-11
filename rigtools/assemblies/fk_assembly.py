@@ -122,7 +122,9 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# SKIRT RIDE
 			if options.add_skirt_ride and len(fk_names) > 0:
+				property_name = name_property("skirt_ride", options.limb_property_base_name, side)
 				skirt_ride = SkirtRide(
+					property_name=property_name,
 					legs=options.skirt_ride_legs,
 					mch_bone_collection_name=mch_collection_name,
 					prior_configs=prior_configs

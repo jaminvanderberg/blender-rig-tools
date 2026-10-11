@@ -1,3 +1,4 @@
+import json
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
@@ -11,6 +12,7 @@ from rigtools.assemblies.ik_templates import (
 )
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.template_draw import TemplateDraw
+from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.tool.twist_bones import falloff_presets, twist_source_types
@@ -237,6 +239,20 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	dialog_chains_json: StringProperty(
+		name="Dialog Chains",
+		description="Bone chains captured at invoke for dialog/redo UI",
+		default="[]",
+		options={'HIDDEN', 'SKIP_SAVE'}
+	)
+
+	dialog_twist_json: StringProperty(
+		name="Dialog Twist Status",
+		description="Twist registration snapshot captured at invoke",
+		default="{}",
+		options={'HIDDEN', 'SKIP_SAVE'}
+	)
+
 	template_id: StringProperty(
 		name="Template ID",
 		description="IK template to apply on invoke",
@@ -267,6 +283,30 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	
 	##################################################################################################
 	# invoke
+	def _twist_parent_names(self, chains, segments):
+		if segments:
+			names = []
+			for chain in chains:
+				for seg in segments:
+					if 0 <= seg.index < len(chain):
+						names.append(chain[seg.index])
+			return names
+		return [name for chain in chains for name in chain]
+
+	def _store_dialog_chains(self, chains):
+		self.dialog_chains_json = json.dumps(chains)
+
+	def _store_twist_snapshot(self, context, chains, *, require_chain):
+		use_edit = context.object.mode == 'EDIT'
+		parents = self._twist_parent_names(chains, context.window_manager.rig_twist_segments)
+		snapshot = snapshot_twist_status(
+			context.object.data,
+			parents,
+			use_edit_bones=use_edit,
+			require_chain=require_chain,
+		)
+		self.dialog_twist_json = json.dumps(snapshot)
+
 	def _invoke_from_selection(self, context):
 		wm = context.window_manager
 		if len(wm.rig_ik_parents) == 0:
@@ -288,6 +328,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			self.report({'ERROR'}, "No chains selected.")
 			return {'CANCELLED'}
 
+		self._store_dialog_chains(chains)
+		self._store_twist_snapshot(context, chains, require_chain=True)
 		limb_name = guess_limb_name(chains[0][0], context)
 		self.limb_property_base_name = limb_name
 		self.template_name = "Advanced"
@@ -315,17 +357,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		self.add_ik_control_as_pole_parent = include_self
 
+		try:
+			chains = find_chains_from_selection(context)
+		except ChainBranchingError as error:
+			self.report({'ERROR'}, str(error))
+			return {'CANCELLED'}
+
+		if not chains:
+			self.report({'ERROR'}, "No chains selected.")
+			return {'CANCELLED'}
+
+		self._store_dialog_chains(chains)
 		if not self.limb_property_base_name:
-			try:
-				chains = find_chains_from_selection(context)
-			except ChainBranchingError as error:
-				self.report({'ERROR'}, str(error))
-				return {'CANCELLED'}
-
-			if not chains:
-				self.report({'ERROR'}, "No chains selected.")
-				return {'CANCELLED'}
-
 			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
 
 		wm = context.window_manager
@@ -343,6 +386,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.source = segment.source
 			slot.falloff = segment.falloff
 
+		self._store_twist_snapshot(context, chains, require_chain=True)
 		self.template_name = template.label
 
 	def _invoke_from_assembly(self, context):
@@ -359,6 +403,9 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			if hasattr(self, key):
 				setattr(self, key, value)
 
+		chains = assembly.get_chains()
+		self._store_dialog_chains(chains)
+
 		wm = context.window_manager
 		wm.rig_ik_parents.clear()
 		for parent in assembly.ik_parents:
@@ -374,10 +421,14 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.source = segment.source
 			slot.falloff = segment.falloff
 
+		# Assembly already rewrote twist parenting under tweaks; count only.
+		self._store_twist_snapshot(context, chains, require_chain=False)
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
+		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
+		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -496,6 +547,29 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			)),
 		))
 
+		def draw_twist_status(context, layout):
+			if not self.use_twist_bones:
+				return
+
+			chains = json.loads(self.dialog_chains_json or "[]")
+			if not chains:
+				layout.label(text="No chains selected.", icon='ERROR')
+				return
+
+			expected = []
+			for chain in chains:
+				for seg in context.window_manager.rig_twist_segments:
+					if 0 <= seg.index < len(chain):
+						expected.append((chain[seg.index], self.twist_bone_count))
+
+			snapshot = json.loads(self.dialog_twist_json or "{}")
+			status, icon, message = evaluate_twist_snapshot(snapshot, expected)
+			if self.assembly_uid and status == TwistChainStatus.OK:
+				return
+
+			row = layout.row()
+			row.label(text=message, icon=icon)
+
 		def draw_twist_segments(context, box):
 			if not draw.do_show("twist_segments"):
 				return
@@ -528,6 +602,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
 			draw.box_section(layout, ["twist_segments"], "Twist Segments", 'BONE_DATA', lambda col: (
 				draw.draw_section(col, ["twist_bone_count"], lambda: (
+					draw_twist_status(context, col),
 					draw.full_field(col, "Twist Bone Count", "twist_bone_count"),
 				)),
 				draw.draw_section(col, ["twist_segments"], lambda: (
@@ -541,6 +616,9 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	# execute
 	
 	def execute(self, context):
+		rollback = getattr(self, "_fresh_invoke", False)
+		self._fresh_invoke = False
+
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
 			self.assembly_uid = ""
@@ -622,7 +700,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			)
 
 		try:
-			tip_controls = run_assembly_transaction(rebuild)
+			tip_controls = run_assembly_transaction(rebuild, rollback=rollback)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)

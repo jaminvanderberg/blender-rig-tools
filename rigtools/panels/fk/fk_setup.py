@@ -260,6 +260,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
+		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
+		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -367,12 +369,19 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	# execute
 
 	def execute(self, context):
+		rollback = getattr(self, "_fresh_invoke", False)
+		self._fresh_invoke = False
+
 		if self.add_rotation_isolation and not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
 			return {'CANCELLED'}
 
 		if self.add_skirt_collision and not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required for skirt collision.")
+			return {'CANCELLED'}
+
+		if self.add_skirt_ride and not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required for skirt ride.")
 			return {'CANCELLED'}
 
 		skirt_slots = [
@@ -387,7 +396,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			chains, original_mode, original_mirror = get_assembly_chains(
 				context,
 				self.assembly_uid,
-				check_property_bone=self.add_rotation_isolation or self.add_skirt_collision,
+				check_property_bone=self.add_rotation_isolation or self.add_skirt_collision or self.add_skirt_ride,
 			)
 		except Exception as e:
 			self.report({'ERROR'}, str(e))
@@ -436,7 +445,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			)
 
 		try:
-			fk_controls = run_assembly_transaction(rebuild)
+			fk_controls = run_assembly_transaction(rebuild, rollback=rollback)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)

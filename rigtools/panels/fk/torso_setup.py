@@ -1,3 +1,4 @@
+import json
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
@@ -7,6 +8,7 @@ from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
+from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.bone import select_bones
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.twist_bones import falloff_presets
@@ -80,6 +82,20 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	dialog_chains_json: StringProperty(
+		name="Dialog Chains",
+		description="Bone chains captured at invoke for dialog/redo UI",
+		default="[]",
+		options={'HIDDEN', 'SKIP_SAVE'}
+	)
+
+	dialog_twist_json: StringProperty(
+		name="Dialog Twist Status",
+		description="Twist registration snapshot captured at invoke",
+		default="{}",
+		options={'HIDDEN', 'SKIP_SAVE'}
+	)
+
 	template_id: StringProperty(
 		name="Template ID",
 		description="Torso template to apply on invoke",
@@ -148,6 +164,37 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	##################################################################################################
 	# invoke
 
+	def _torso_twist_expected(self, chains):
+		"""(parent, count) pairs matching TorsoFK neck/chest twist parents."""
+		expected = []
+		if not self.use_twist_bones:
+			return expected
+		for chain in chains:
+			n = len(chain)
+			first_neck = n - self.neck_bone_count - 1
+			chest = first_neck - 1
+			if self.neck_twist_bone_count > 0:
+				for i in range(first_neck, n - 1):
+					if 0 <= i < n:
+						expected.append((chain[i], self.neck_twist_bone_count))
+			if self.chest_twist_bone_count > 0 and 0 <= chest < n:
+				expected.append((chain[chest], self.chest_twist_bone_count))
+		return expected
+
+	def _store_dialog_chains(self, chains):
+		self.dialog_chains_json = json.dumps(chains)
+
+	def _store_twist_snapshot(self, context, chains, *, require_chain):
+		use_edit = context.object.mode == 'EDIT'
+		parents = [parent for parent, _count in self._torso_twist_expected(chains)]
+		snapshot = snapshot_twist_status(
+			context.object.data,
+			parents,
+			use_edit_bones=use_edit,
+			require_chain=require_chain,
+		)
+		self.dialog_twist_json = json.dumps(snapshot)
+
 	def _invoke_from_selection(self, context):
 		try:
 			chains = find_chains_from_selection(context)
@@ -159,6 +206,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			self.report({'ERROR'}, "No chains selected.")
 			return {'CANCELLED'}
 
+		self._store_dialog_chains(chains)
+		self._store_twist_snapshot(context, chains, require_chain=True)
 		self.template_name = "Advanced"
 
 	def _invoke_from_template(self, context):
@@ -171,17 +220,19 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		for key, value in option_values.items():
 			setattr(self, key, value)
 
+		try:
+			chains = find_chains_from_selection(context)
+		except ChainBranchingError as error:
+			self.report({'ERROR'}, str(error))
+			return {'CANCELLED'}
+
+		if not chains:
+			self.report({'ERROR'}, "No chains selected.")
+			return {'CANCELLED'}
+
+		self._store_dialog_chains(chains)
+		self._store_twist_snapshot(context, chains, require_chain=True)
 		if not self.limb_property_base_name:
-			try:
-				chains = find_chains_from_selection(context)
-			except ChainBranchingError as error:
-				self.report({'ERROR'}, str(error))
-				return {'CANCELLED'}
-
-			if not chains:
-				self.report({'ERROR'}, "No chains selected.")
-				return {'CANCELLED'}
-
 			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
 
 		self.template_name = template.label
@@ -196,10 +247,15 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		for key, value in options.items():
 			setattr(self, key, value)
 
+		chains = assembly.get_chains()
+		self._store_dialog_chains(chains)
+		self._store_twist_snapshot(context, chains, require_chain=False)
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
 
 	def invoke(self, context, event):
+		# Fresh user run (dialog/panel). Redo skips invoke — no nested undo there.
+		self._fresh_invoke = True
 		show_dialog = True
 
 		if self.assembly_uid:
@@ -250,9 +306,23 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				draw.split_field(col, "Neck Bone Count:", "neck_bone_count"),
 			)),
 		))
+		def draw_twist_status(col):
+			if not self.use_twist_bones:
+				return
+			chains = json.loads(self.dialog_chains_json or "[]")
+			if not chains:
+				col.label(text="No chains selected.", icon='ERROR')
+				return
+			snapshot = json.loads(self.dialog_twist_json or "{}")
+			status, icon, message = evaluate_twist_snapshot(snapshot, self._torso_twist_expected(chains))
+			if self.assembly_uid and status == TwistChainStatus.OK:
+				return
+			col.label(text=message, icon=icon)
+
 		draw.draw_section(layout, ["use_twist_bones", "neck_twist_bone_count", "chest_twist_bone_count"], lambda: (
 			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
 			draw.box_section(layout, ["neck_twist_bone_count", "chest_twist_bone_count"], "Twist Bones:", 'MOD_SCREW', lambda col: (
+				draw_twist_status(col),
 				draw.full_field(col, "Neck Twist Bone Count:", "neck_twist_bone_count"),
 				draw.full_field(col, "Chest Twist Bone Count:", "chest_twist_bone_count"),
 			)),
@@ -290,6 +360,9 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	# execute
 
 	def execute(self, context):
+		rollback = getattr(self, "_fresh_invoke", False)
+		self._fresh_invoke = False
+
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
@@ -340,7 +413,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			)
 
 		try:
-			torso_controls = run_assembly_transaction(rebuild)
+			torso_controls = run_assembly_transaction(rebuild, rollback=rollback)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
