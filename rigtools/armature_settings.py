@@ -1,10 +1,19 @@
 import bpy
 from rigtools.preferences import get_preferences
 
+# Schema version for armature-stored rigtools data. Independent of addon bl_info version.
+CURRENT_RIG_DATA_VERSION = 1
+
 class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 	is_initialized: bpy.props.BoolProperty(
 		name="Is Initialized",
 		default=False,
+		options={'HIDDEN'}
+	)
+	rig_data_version: bpy.props.IntProperty(
+		name="Rig Data Version",
+		description="Schema version of rigtools data stored on this armature",
+		default=0,
 		options={'HIDDEN'}
 	)
 	root_bone_name: bpy.props.StringProperty(
@@ -60,6 +69,7 @@ def get_armature_settings(armature_data, context):
 
 def initialize_armature_settings(armature_data, context):
 	settings = armature_data.rigtools
+	was_initialized = settings.is_initialized
 
 	prefs = get_preferences()
 	settings.root_bone_name = prefs.root_bone_name
@@ -71,7 +81,13 @@ def initialize_armature_settings(armature_data, context):
 	settings.do_create_widgets = prefs.do_create_widgets
 	settings.widget_collection = prefs.widget_collection
 	settings.widget_template = prefs.widget_template
+	if not was_initialized and not armature_data.rigtools_assemblies:
+		settings.rig_data_version = CURRENT_RIG_DATA_VERSION
 	settings.is_initialized = True
+
+
+def needs_rig_upgrade(armature_data):
+	return armature_data.rigtools.rig_data_version < CURRENT_RIG_DATA_VERSION
 
 class RIG_OT_initialize_armature_settings(bpy.types.Operator):
 	bl_idname = "rig.initialize_armature_settings"
@@ -101,6 +117,16 @@ class RIG_PT_armature_settings(bpy.types.Panel):
 			return
 
 		layout = self.layout
+		if needs_rig_upgrade(context.object.data):
+			row = layout.row()
+			row.alert = True
+			row.operator(
+				"rig.upgrade_rig",
+				text=f"Upgrade Rig (v{settings.rig_data_version} → v{CURRENT_RIG_DATA_VERSION})",
+				icon='FILE_REFRESH',
+			)
+			layout.separator()
+
 		col = layout.column(align=True)
 		col.prop(settings, "root_bone_name")
 		col.prop(settings, "torso_bone_name")

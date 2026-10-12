@@ -1,4 +1,5 @@
 import bpy
+from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
 from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
@@ -100,6 +101,18 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 
 	def draw(self, context):
 		layout = self.layout
+
+		armature_data = context.object.data
+		if needs_rig_upgrade(armature_data):
+			settings = armature_data.rigtools
+			row = layout.row()
+			row.alert = True
+			row.operator(
+				"rig.upgrade_rig",
+				text=f"Upgrade Rig (v{settings.rig_data_version} → v{CURRENT_RIG_DATA_VERSION})",
+				icon='FILE_REFRESH',
+			)
+			layout.separator()
 
 		bones = get_selected_bones(context)
 		assemblies = find_assemblies(context.object.data, [b.name for b in bones])

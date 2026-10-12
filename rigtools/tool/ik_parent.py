@@ -72,16 +72,18 @@ class IKParent:
 		prop_bone = pose_bones.get(settings.property_bone_name)
 
 		parents = list(self.parents)
+		default = 0
 		if self.self_parent_mch and self.self_parent_name:
 			parents.append(IKParentTarget(label=self.self_parent_label, bone=self.self_parent_name))
+			default = len(parents) - 1
 
 		labels = [parent.label for parent in parents]
 		if self.property_name not in prop_bone:
-			prop_bone[self.property_name] = 0
+			prop_bone[self.property_name] = default
 			rna_idprop_ui_create(
 				prop_bone,
 				self.property_name,
-				default=0,
+				default=default,
 				min=0,
 				max=len(labels) - 1,
 				items=[(str(i), label, label) for i, label in enumerate(labels)]

@@ -15,6 +15,10 @@ def _related_meshes(armature_obj, view_layer):
 	def consider(obj):
 		if obj.name in seen:
 			return
+		if obj.type != 'MESH':
+			return
+		if "rigtools_helper" in obj:
+			return
 		seen.add(obj.name)
 		meshes.append(obj)
 	

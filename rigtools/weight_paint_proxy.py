@@ -305,6 +305,7 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			mesh.update()
 
 			obj = bpy.data.objects.new(mesh_name, mesh)
+			obj["rigtools_helper"] = True
 			context.collection.objects.link(obj)
 
 			if self.armature_modifier:

@@ -158,6 +158,10 @@ class SplineIK:
 		curve_obj.rotation_euler = (0.0, 0.0, 0.0)
 		curve_obj.scale = (1.0, 1.0, 1.0)
 
+		curve_obj.hide_set(True)
+		curve_obj.hide_render = True
+		curve_obj["rigtools_helper"] = True
+
 		spline = curve_data.splines.new('BEZIER')
 		spline.bezier_points.add(len(self.control_names) - 1)
 
