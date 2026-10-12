@@ -1,10 +1,8 @@
 import bpy
-from rigtools.rig_ui.property_item import find_property_item
 from rigtools.utils.bone import duplicate_chain
-from rigtools.utils.naming import generate_bone_name, bone_template, guess_property_label
+from rigtools.utils.naming import generate_bone_name, bone_template
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
-from bpy.props import StringProperty
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import get_widget_collection, create_fk_widget
@@ -86,12 +84,6 @@ class FKIKSwitch:
 				max=1.0
 			)
 			prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
-
-		item = find_property_item(context.object.data, prop_name)
-		if not item:
-			item = obj.data.rig_ui_properties.add()
-			item.property_name = prop_name
-			item.label = guess_property_label(prop_name, context)
 
 		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
 			fk_bone = pose_bones[fk_bone_name]
