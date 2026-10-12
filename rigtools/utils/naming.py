@@ -303,11 +303,31 @@ def unique_assembly_name(armature_data, name):
 	return f"{name}.{i}"
 
 
-def guess_assembly_name(armature_data, chain, property_base, side="", context=None):
+def side_display_name(side):
 	separators = get_separator_string()
-	short_side = re.match(rf'[{re.escape(separators)}]([LR])$', side, re.IGNORECASE)
-	letter = short_side.group(1) if short_side else ""
-	side_name = SIDE_NAMES.get(letter)
+	short_side = re.match(
+		rf'[{re.escape(separators)}]([LR])(?:\.\d+)?$',
+		side or "",
+		re.IGNORECASE,
+	)
+	if not short_side:
+		return ""
+	return SIDE_NAMES.get(short_side.group(1).upper(), "")
+
+
+def limb_group_label(property_base, side=""):
+	base = (property_base or "").strip()
+	if not base:
+		return ""
+	side_name = side_display_name(side)
+	label = base.capitalize()
+	if side_name:
+		return f"{side_name} {label}"
+	return label
+
+
+def guess_assembly_name(armature_data, chain, property_base, side="", context=None):
+	side_name = side_display_name(side)
 
 	instance = guess_assembly_instance(chain[0], context)
 	

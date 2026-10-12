@@ -88,7 +88,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			side = find_side(chain)
 
 			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name, side)
-			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, replacement_uid)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, side=side, uid=replacement_uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 

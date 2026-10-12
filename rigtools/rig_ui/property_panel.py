@@ -4,6 +4,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.rig_ui.snapping_data import find_snap_chain
 from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.naming import limb_group_label
 
 ROLE_DATA = {
 	"FK_IK_SWITCH": {"label": "FK > IK Switch", "order": 1},
@@ -19,35 +20,53 @@ def get_selected_assemblies(context):
 	assemblies = find_assemblies(context.object.data, selected_names)
 	return sorted(assemblies, key=lambda x: x.name)
 
+def _group_label(assembly):
+	base = (assembly.get_options().get("limb_property_base_name") or "").strip()
+	label = limb_group_label(base, assembly.side)
+	if label:
+		return label
+	return assembly.name
+
 def _iterate_assemblies(context, prop_bone):
+	groups = {}
 	for assembly in get_selected_assemblies(context):
-		properties = []
-		snaps = []
+		label = _group_label(assembly)
+		key = label.lower()
+		group = groups.get(key)
+		if group is None:
+			group = {"label": label, "properties": {}, "snaps": {}}
+			groups[key] = group
+
 		for property in assembly.properties:
 			if property.name.startswith("_"):
 				continue
 			if property.name not in prop_bone.keys():
 				continue
-			properties.append({
-				"name": property.name,
-				"role": property.role,
-				"qualifier": property.qualifier,
-			})
+			if property.name not in group["properties"]:
+				group["properties"][property.name] = {
+					"name": property.name,
+					"role": property.role,
+					"qualifier": property.qualifier,
+				}
 
 			snap = find_snap_chain(context.active_object.data, property.name)
-			if snap:
-				snaps.append({
+			if snap and snap.switch_property not in group["snaps"]:
+				group["snaps"][snap.switch_property] = {
 					"name": snap.switch_property,
-				})
+					"label": assembly.name,
+				}
 
-		properties.sort(
+	for key in sorted(groups):
+		group = groups[key]
+		properties = sorted(
+			group["properties"].values(),
 			key=lambda p: (
 				ROLE_DATA.get(p["role"], {}).get("order", 999),
 				p["name"],
-			)
+			),
 		)
-
-		yield assembly.name, properties, snaps
+		snaps = list(group["snaps"].values())
+		yield group["label"], properties, snaps
 
 class RIG_OT_set_id_float(bpy.types.Operator):
 	"""Set a float ID property on the properties bone."""
@@ -150,9 +169,9 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 
 			for snap in snaps:
 				col = layout.column(align=True)
-				op = col.operator("rig.snap_ik_to_fk", text=name + " IK > FK", icon='SNAP_ON')
+				op = col.operator("rig.snap_ik_to_fk", text=snap["label"] + " IK > FK", icon='SNAP_ON')
 				op.switch_property = snap["name"]
-				op = col.operator("rig.snap_fk_to_ik", text=name + " FK > IK", icon='SNAP_ON')
+				op = col.operator("rig.snap_fk_to_ik", text=snap["label"] + " FK > IK", icon='SNAP_ON')
 				op.switch_property = snap["name"]
 
 	def draw_float_with_buttons(self, col, prop_bone, prop, label, buttons):

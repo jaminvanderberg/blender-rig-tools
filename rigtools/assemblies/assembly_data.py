@@ -91,6 +91,7 @@ class AssemblyParent(PropertyGroup):
 class AssemblyData(PropertyGroup):
 	uid: StringProperty()
 	name: StringProperty()
+	side: StringProperty()
 	assembly_type: EnumProperty(items=[
 		('FK', "FK", ""),
 		('IK', "IK", ""),
@@ -158,10 +159,11 @@ class AssemblyData(PropertyGroup):
 	def get_chains(self):
 		return [[bone.name for bone in self.org_states]]
 
-def create_assembly_data(obj, org_bones, name, assembly_type, template_id, template_name, options, uid=None):
+def create_assembly_data(obj, org_bones, name, assembly_type, template_id, template_name, options, side="", uid=None):
 	assembly_data = obj.data.rigtools_assemblies.add()
 	assembly_data.uid = uid or str(uuid.uuid4())
 	assembly_data.name = name
+	assembly_data.side = side
 	assembly_data.assembly_type = assembly_type
 	assembly_data.options_json = _options_to_json(options)
 	assembly_data.template_id = template_id
