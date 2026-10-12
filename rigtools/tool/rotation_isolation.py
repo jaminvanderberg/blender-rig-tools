@@ -10,12 +10,14 @@ from rna_prop_ui import rna_idprop_ui_create
 class RotationIsolation:
 	def __init__(self, *,
 		property_name: str,
+		property_qualifier: str = "",
 		mch_collection_name: str | None = None,
 		include_scale: bool = True,
 		disable_scale: bool = False,
 		inherit_scale_from_root: bool = False,
 	):
 		self.property_name = property_name
+		self.property_qualifier = property_qualifier
 		self.mch_collection_name = mch_collection_name
 		self.include_scale = include_scale
 		self.disable_scale = disable_scale
@@ -77,7 +79,7 @@ class RotationIsolation:
 			self.mechanism_bone_names.append(socket_bone.name)
 			self.mechanism_bone_names.append(int_bone.name)
 			
-		self.property_names.append(self.property_name)
+		self.property_names.append((self.property_name, "ROTATION_ISOLATION", self.property_qualifier))
 
 		return self
 

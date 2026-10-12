@@ -146,7 +146,7 @@ class SkirtRide:
 			)
 			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)
 
-		self.property_names.append(property_name)
+		self.property_names.append((property_name, "SKIRT_RIDE"))
 
 		if not self.terms:
 			return self

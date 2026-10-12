@@ -125,7 +125,7 @@ class SkirtCollision:
 		self.mechanism_bone_names.extend(mch_names)
 		self.mch_bone_names.extend(mch_names)
 
-		self.property_names.append(self.property_name)
+		self.property_names.append((self.property_name, "SKIRT_COLLISION"))
 
 		return self
 

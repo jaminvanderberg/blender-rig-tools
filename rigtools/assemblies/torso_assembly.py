@@ -80,6 +80,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 			)
 			neck_rotation_isolation = RotationIsolation(
 				property_name = neck_property_name,
+				property_qualifier = "Neck",
 				inherit_scale_from_root = options.neck_inherit_scale_from_root,
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)
@@ -97,6 +98,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 
 			head_rotation_isolation = RotationIsolation(
 				property_name = head_property_name,
+				property_qualifier = "Head",
 				inherit_scale_from_root = options.head_inherit_scale_from_root,
 				mch_collection_name = mch_collection_name if options.override_collections else None,
 			)

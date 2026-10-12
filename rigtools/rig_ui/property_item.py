@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty, BoolProperty
+from bpy.props import StringProperty
 
 class RigUIPropertyItem(bpy.types.PropertyGroup):
 	property_name: StringProperty()

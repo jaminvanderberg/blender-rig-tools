@@ -55,7 +55,7 @@ class IKParent:
 			self.parent_bone_names.append(parent_bone.name)
 
 		self.mechanism_bone_names.extend(self.parent_bone_names)
-		self.property_names.append(self.property_name)
+		self.property_names.append((self.property_name, "IK_PARENT"))
 
 		if self.add_ik_control_as_pole_parent:
 			self.self_parent_mch = self.parent_bone_names[1]

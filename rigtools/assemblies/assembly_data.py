@@ -78,6 +78,8 @@ class OrgState(PropertyGroup):
 
 class AssemblyProperty(PropertyGroup):
 	name: StringProperty()
+	role: StringProperty()
+	qualifier: StringProperty()
 
 class AssemblyObject(PropertyGroup):
 	name: StringProperty()
@@ -120,8 +122,17 @@ class AssemblyData(PropertyGroup):
 		for prop in tool.property_names:
 			if not prop:
 				continue
+			if isinstance(prop, str):
+				name, role, qualifier = prop, "", ""
+			elif len(prop) == 2:
+				name, role = prop
+				qualifier = ""
+			else:
+				name, role, qualifier = prop
 			row = self.properties.add()
-			row.name = prop
+			row.name = name
+			row.role = role
+			row.qualifier = qualifier
 
 		for obj in tool.object_names:
 			if not obj:
