@@ -2,10 +2,17 @@ import bpy
 from bpy.props import StringProperty
 
 from rigtools.assemblies.assembly_data import find_assembly
+from rigtools.assemblies.configs.ik_parent import (
+	IkParentConfig,
+	classes as ik_parent_classes,
+	register as register_ik_parent_wm,
+	unregister as unregister_ik_parent_wm,
+)
 from rigtools.assemblies.configs.skirt_ride import SkirtRideConfig, classes as skirt_ride_classes
 from rigtools.assemblies.configs.skirt_collision import SkirtCollisionConfig, classes as skirt_collision_classes
 
 CONFIGS = {
+	IkParentConfig.id: IkParentConfig,
 	SkirtRideConfig.id: SkirtRideConfig,
 	SkirtCollisionConfig.id: SkirtCollisionConfig,
 }
@@ -60,9 +67,11 @@ class RIG_OT_assembly_config(bpy.types.Operator):
 		if not config or not assembly:
 			return
 		self.layout.label(text=config.name)
-		if config.description:
-			self.layout.label(text=config.description, icon='INFO')
-		config.draw(self.layout, assembly, context)
+		draw_dialog = getattr(config, "draw_dialog", None)
+		if callable(draw_dialog):
+			draw_dialog(self.layout, assembly, context)
+		else:
+			config.draw(self.layout, assembly, context)
 
 	def execute(self, context):
 		wm = context.window_manager
@@ -72,14 +81,19 @@ class RIG_OT_assembly_config(bpy.types.Operator):
 			self.report({'ERROR'}, "Config or assembly not found")
 			return {'CANCELLED'}
 
-		old = config.load(assembly)
-		new = config.payload_from_wm(wm)
-		config.apply(context, assembly, old, new)
+		try:
+			old = config.load(assembly)
+			new = config.payload_from_wm(wm)
+			config.apply(context, assembly, old, new)
+		except Exception as e:
+			self.report({'ERROR'}, str(e))
+			return {'CANCELLED'}
 		return {'FINISHED'}
 
 
 classes = (
 	RIG_OT_assembly_config,
+	*ik_parent_classes,
 	*skirt_ride_classes,
 	*skirt_collision_classes,
 )
@@ -91,9 +105,11 @@ def register():
 	wm = bpy.types.WindowManager
 	wm.rigtools_assembly_config_uid = StringProperty()
 	wm.rigtools_assembly_config_id = StringProperty()
+	register_ik_parent_wm()
 
 
 def unregister():
+	unregister_ik_parent_wm()
 	del bpy.types.WindowManager.rigtools_assembly_config_id
 	del bpy.types.WindowManager.rigtools_assembly_config_uid
 	for cls in reversed(classes):

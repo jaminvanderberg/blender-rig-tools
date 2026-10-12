@@ -4,6 +4,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty,
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.heel_pivots import get_heel_pivot
 from rigtools.assemblies.ik_templates import (
 	get_ik_template,
 	resolve_ik_parents,
@@ -754,12 +755,29 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		for chain in chains:
+			print("chain", chain)
 			if len(chain) == 1:
 				self.report({'ERROR'}, "All chains must have at least 2 bones.")
 				bpy.ops.object.mode_set(mode=original_mode)
 				self.assembly_uid = ""
 				context.object.data.use_mirror_x = original_mirror
 				return {'CANCELLED'}
+			if self.add_foot_roll and self.ik_type == 'IK':
+				if len(chain) <= self.ik_bone_count:
+					self.report({'ERROR'}, "Foot roll requires at least one bone past the IK chain for the foot.")
+					bpy.ops.object.mode_set(mode=original_mode)
+					self.assembly_uid = ""
+					context.object.data.use_mirror_x = original_mirror
+					return {'CANCELLED'}
+
+				foot_name = chain[self.ik_bone_count - 1]
+				heel_pivot = get_heel_pivot(context.object.data, foot_name)
+				if not heel_pivot or heel_pivot not in context.object.data.edit_bones:
+					self.report({'ERROR'}, f"Foot roll requires a heel pivot on '{foot_name}'.")
+					bpy.ops.object.mode_set(mode=original_mode)
+					self.assembly_uid = ""
+					context.object.data.use_mirror_x = original_mirror
+					return {'CANCELLED'}
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = IKAssemblyOptions(
