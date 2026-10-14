@@ -10,14 +10,12 @@ from rigtools.utils.widget import get_widget_collection, create_fk_widget
 class FKIKSwitch:
 	def __init__(self, *,
 		switch_property_name: str,
-		switch_property_type: str = 'ENUM', # 'ENUM' or 'FLOAT'
 		fk_widget_type: str = "CIRCLE",
 		fk_end_widget_type: str = "SAME",
 		fk_collection_name: str = None,
 		mch_collection_name: str = None,
 	):
 		self.switch_property_name = switch_property_name
-		self.switch_property_type = switch_property_type
 		self.fk_widget_type = fk_widget_type
 		self.fk_end_widget_type = fk_end_widget_type
 		self.fk_collection_name = fk_collection_name

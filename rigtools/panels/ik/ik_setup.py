@@ -99,16 +99,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=True
 	)
 	
-	switch_property_type: EnumProperty(
-		name="Switch Property Type",
-		description="Type of the switch property",
-		items=[
-			('ENUM', "Enum", "Enum property; dropdown with 'FK' and 'IK' options"),
-			('FLOAT', "Float", "A float slider with values between 0.0 and 1.0"),
-		],
-		default='ENUM'
-	)
-
 	ik_type: EnumProperty(
 		name="IK Type",
 		description="Type of IK to create",
@@ -572,12 +562,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "switch_property_type", "fk_widget", "tip_widget", "add_tweak_bones", "tweak_relationship"], 
+		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "tip_widget", "add_tweak_bones", "tweak_relationship"], 
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "switch_property_type", "fk_widget", "tip_widget"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "fk_widget", "tip_widget"], lambda: (
 				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
-				draw.split_field(col, "Switch Property Type:", "switch_property_type"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 				draw.split_field(col, "FK End Widget:", "fk_end_widget"),
 				draw.split_field(col, "Tip Widget:", "tip_widget"),
@@ -755,7 +744,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		for chain in chains:
-			print("chain", chain)
+
 			if len(chain) == 1:
 				self.report({'ERROR'}, "All chains must have at least 2 bones.")
 				bpy.ops.object.mode_set(mode=original_mode)
@@ -783,7 +772,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		options = IKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
 			add_tweak_bones=self.add_tweak_bones,
-			switch_property_type=self.switch_property_type,
 			limb_type=self.limb_type,
 			add_rotation_isolation=self.add_rotation_isolation,
 			inherit_scale_from_root=self.inherit_scale_from_root,

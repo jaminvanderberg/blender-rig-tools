@@ -120,5 +120,6 @@ Useful when you want a custom twist layout before generating an assembly:
 ## Related
 
 - [Assemblies](assemblies.md)
-- Inverse Kinematics Assemblies (Arm / Leg twist options)
-- Forward Kinematics Assemblies (Torso twist options)
+- [Inverse Kinematics Assemblies](ik_assemblies.md) (Arm / Leg twist options)
+- [Forward Kinematics Assemblies](fk_assemblies.md#torso) (Torso twist options)
+- [Twist Bones tool](tools/twist_bones.md)

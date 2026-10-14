@@ -18,10 +18,6 @@ class RIG_PT_ik_panel(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 
-		op = layout.operator("rig.advanced_ik_setup", icon='SETTINGS')
-		op.template_id = ""
-		op.assembly_uid = ""
-
 		layout.label(text="Templates")
 		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
 		grid.operator_context = 'INVOKE_DEFAULT'

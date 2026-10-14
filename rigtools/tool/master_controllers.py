@@ -133,8 +133,8 @@ class MasterControllers:
 					master_bone.custom_shape = wgt
 					self.object_names.append(wgt.name)
 
-				# Bone Colors
-				master_bone.color.palette = prefs.control_bone_color
+			# Bone Colors
+			master_bone.color.palette = prefs.control_bone_color
 			# Make the controller bone thicker
 			master_bone.custom_shape_wire_width = 1.5
 

@@ -20,12 +20,14 @@ def find_assemblies(arm, bone_names):
 def get_assembly_chains(context, assembly_uid=None, check_property_bone=True) -> tuple[list[list[str]], str, bool]:
 	""" Switches mode to edit mode
 		Returns: list of chains of bones names, original mode, original mirror_x
-		Raises ValueError if the object is not an armature, or in object mode, or no edit bones are selected,
+		Raises ValueError if the object is not an armature, or in object mode, or no bones are selected,
 		or the property bone is not found.
 	"""
 	obj = context.object
 	if not obj or obj.type != 'ARMATURE':
 		raise ValueError("Active object must be an armature.")
+
+	armature_data = obj.data
 
 	if obj.mode == 'OBJECT':
 		raise ValueError("Can't use from Object mode")
@@ -34,7 +36,20 @@ def get_assembly_chains(context, assembly_uid=None, check_property_bone=True) ->
 	if check_property_bone and settings.property_bone_name not in obj.pose.bones:
 		raise ValueError(f"Property bone '{settings.property_bone_name}' not found.")
 
-	armature_data = obj.data
+	if assembly_uid:
+		assembly = find_assembly(obj, assembly_uid)
+		if not assembly:
+			raise ValueError(f"Assembly '{assembly_uid}' not found.")
+		chains = assembly.get_chains()
+	else:
+		# Find all of the indivual bone chains
+		try:
+			chains = find_chains_from_selection(context)
+		except Exception as e:
+			raise ValueError(str(e))
+
+	if not chains:
+		raise ValueError("No bones selected. Select at least one bone.")			
 
 	# Switch to edit mode
 	original_mode = obj.mode
@@ -43,27 +58,6 @@ def get_assembly_chains(context, assembly_uid=None, check_property_bone=True) ->
 
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
-
-	if assembly_uid:
-		assembly = find_assembly(obj, assembly_uid)
-		if not assembly:
-			armature_data.use_mirror_x = original_mirror
-			raise ValueError(f"Assembly '{assembly_uid}' not found.")
-		chains = assembly.get_chains()
-		return chains, original_mode, original_mirror
-
-	if not context.selected_editable_bones:
-		bpy.ops.object.mode_set(mode=original_mode)
-		armature_data.use_mirror_x = original_mirror
-		raise ValueError("No edit bones selected. Select at least one bone.")
-
-	# Find all of the indivual bone chains
-	try:
-		chains = find_chains_from_selection(context)
-	except Exception as e:
-		bpy.ops.object.mode_set(mode=original_mode)
-		armature_data.use_mirror_x = original_mirror
-		raise ValueError(str(e))
 
 	return chains, original_mode, original_mirror
 

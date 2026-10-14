@@ -214,6 +214,7 @@ class SplineIK:
 		spline_constraint = last_mch_bone.constraints.new('SPLINE_IK')
 		spline_constraint.target = self.spline_object
 		spline_constraint.chain_count = len(self.mch_bone_names) - 1 if self.skip_first else len(self.mch_bone_names)
+		spline_constraint.xz_scale_mode = 'BONE_ORIGINAL'
 
 		ik_names = self.mch_bone_names[1 if self.skip_first else 0:]
 

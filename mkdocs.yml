@@ -11,6 +11,21 @@ nav:
   - Twist Bones: twist_bones.md
   - ORG & DEF: org_def.md
   - Rig UI: rig_ui.md
+  - Tools:
+    - FK/IK Switching: tools/fk_ik_switch.md
+    - FK Chain: tools/fk_chain.md
+    - FK Tweak Chain: tools/fk_tweak_chain.md
+    - Standard IK: tools/standard_ik.md
+    - Spline IK: tools/spline_ik.md
+    - Twist Bones (tool): tools/twist_bones.md
+    - Rotation Isolation: tools/rotation_isolation.md
+    - Rotation Follow: tools/rotation_follow.md
+    - Master Controllers: tools/master_controllers.md
+    - Foot Roll: tools/foot_roll.md
+    - IK Parent Switching: tools/ik_parent.md
+    - Skirt Collision: tools/skirt_collision.md
+    - Skirt Ride: tools/skirt_ride.md
+    - Torso FK: tools/torso_fk.md
 
 markdown_extensions:
   - admonition

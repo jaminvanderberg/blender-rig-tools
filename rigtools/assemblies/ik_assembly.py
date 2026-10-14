@@ -25,7 +25,6 @@ from rigtools.tool.skirt_ride import SkirtLeg, SkirtRide
 class IKAssemblyOptions:
 	limb_property_base_name: str
 	add_tweak_bones: bool
-	switch_property_type: str
 	limb_type: str = ""
 	add_rotation_isolation: bool = True
 	inherit_scale_from_root: bool = False
@@ -148,7 +147,6 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
 			fk_ik_switch = FKIKSwitch(
 				switch_property_name = switch_property_name,
-				switch_property_type = options.switch_property_type,
 				fk_widget_type = options.fk_widget,
 				fk_end_widget_type = options.fk_end_widget,
 				fk_collection_name = fk_collection_name if options.override_collections else None,

@@ -18,11 +18,6 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 
-		op = layout.operator("rig.advanced_fk_setup", icon='CON_STRETCHTO')
-		op.template_id = ""
-		op.assembly_uid = ""
-
-		layout.label(text="Templates")
 		op = layout.operator("rig.advanced_torso_setup", text="Torso", icon='MOD_CLOTH')
 		op.template_id = "torso"
 		op.assembly_uid = ""
