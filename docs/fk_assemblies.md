@@ -33,20 +33,18 @@ The spline IK assemblies are available, but are generally special-case uses.  Co
 
 | Template | Best for | Notes |
 | --- | --- | --- |
+| **Torso** | Spine–neck–head | Master torso/hips/chest/head; optional neck/chest twists |
 | **Simple FK** | Generic FK chains | Tweaks + FK follow from the second bone; isolation off by default |
 | **FK Only** | FK without tweaks | No tweak bones; FK follow from the second bone |
 | **Skirt FK** | Skirts / cloth chains | Rectangle widgets; isolation on; skirt collision on; ride off |
 | **Tail** | Tails | Named `tail`; isolation on; master controllers every 3 bones |
 | **Finger** | Fingers | Skips the first tweak (metacarpal-friendly); FK follow |
-| **Tweak Only** | Deform polish without FK | Tweaks only |
-| **Torso** | Spine–neck–head | Master torso/hips/chest/head; optional neck/chest twists |
 
 ## Tools and Settings
 
 - [FK/Tweak controls](tools/fk_chain.md)
 - [FK Tweak Chain](tools/fk_tweak_chain.md)
 - [Rotation Isolation](tools/rotation_isolation.md)
-- [Rotation Follow](tools/rotation_follow.md)
 - [FK Master Controls](tools/master_controllers.md)
 - [Torso FK](tools/torso_fk.md)
 - [Twist Bones](tools/twist_bones.md)
@@ -74,7 +72,7 @@ The default torso configuration includes 6 bones: ORG-hips, ORG-spine.01, ORG-sp
     Torso writes the hips/chest/torso/head control names into armature settings so later
     [IK parent](tools/ik_parent.md) targets can find them. Set up torso before other IK assemblies.
 
-The torso includes the option for [twist bones](tools/twist_bones.md) on the chest and neck. The chest twist bones won't actually twist (see [torso FK](tools/torso_fk.md) for more information), they just provide an addition tweak controller on the chest.  The neck twist bones do twist, following the head.  The default fall-off setting is "root" (slight softer than "sharp").  It is recommended to use the default setting of 1 neck bone with 2 twist bones for most humanoid characters.  For characters with longer necks, see [torso FK](tools/torso_fk.md).
+The torso includes the option for [twist bones](tools/twist_bones.md) on the chest and neck. The chest twist bones won't actually twist (see [torso FK](tools/torso_fk.md) for more information), they just provide an additional tweak controller on the chest.  The neck twist bones do twist, following the head.  The default fall-off setting is "root" (slightly softer than "sharp").  It is recommended to use the default setting of 1 neck bone with 2 twist bones for most humanoid characters.  For characters with longer necks, see [torso FK](tools/torso_fk.md).
 
 ### Simple FK
 
@@ -95,7 +93,7 @@ Same idea as Simple FK, but without tweak bones — especially useful for short 
 ### Skirt FK
 
 !!! tip "Requires"
-    Skirt collision / ride reference leg bones.  Setup a leg assemblies first for easier setup.
+    Skirt collision / ride reference leg bones.  Setup both leg assemblies first for easier setup.
 
 The Skirt FK assembly is intended for skirts and dresses. There is also a [Skirt - Spline](ik_assemblies.md#skirt-spline) IK template when you specifically want spline IK; Skirt FK is usually preferable.
 
@@ -121,18 +119,6 @@ The Finger assembly is a compact FK chain for fingers. It skips the first tweak 
 - [Master Controllers](tools/master_controllers.md) are enabled as FK follow from the second bone (skip first).
 
 Apply fingers separately after an [Arm](ik_assemblies.md#arm) assembly; the arm template does not build palms or fingers.
-
-### Tweak Only
-
-!!! warning
-    Tweak-only create an incomplete chain that is generally not suitable for a final rig.  It requires additional controls to be added manually.
-
-Tweak Only builds the tweak layer without FK controls.  This leaves the chain an incomplete state: the tweak bones are parented to each other in a chain.  This is often undesirable. This assembly is available as a building block where the intent is to reparent the tweak controls later.
-
-I'm not sure how useful this assembly is as a tool.  It may be dropped in the future.
-
-- Creates tweak bones only.
-- No FK controls, master controllers, or rotation isolation.
 
 ## Related
 

@@ -155,24 +155,6 @@ FK_TEMPLATES = {
 			"master_controllers_skip_first",
 		),
 	),
-	"tweak": FKTemplate(
-		label="Tweak Only",
-		description="Tweak bones parented in a chain, without FK controls.",
-		icon="PARTICLE_POINT",
-		options={
-			"limb_property_base_name": "",
-			"control_mode": "TWEAK",
-			"skip_first_tweak": False,
-			"fk_widget": "NONE",
-			"create_master_controllers": False,
-			"tweak_relationship": "STRETCH_TO",
-			"add_rotation_isolation": False,
-		},
-		redo_fields=(
-			"limb_property_base_name",
-			"tweak_relationship",
-		),
-	),
 }
 
 
