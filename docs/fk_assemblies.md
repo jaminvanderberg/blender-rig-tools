@@ -1,8 +1,5 @@
 # Forward Kinematics Assemblies
 
-!!! info
-    This is AI-generated documentation that has not yet been human reviewed.
-
 FK assemblies build control chains without a full IK stack: FK bones, optional tweaks,
 optional rotation isolation / master controllers (rotation follow), and a dedicated
 **Torso** template for spine–neck–head.
@@ -19,9 +16,18 @@ There are also options for skirt collision and ride on the Skirt FK template.
 
 1. Select one or more linear chains (typically **ORG** bones — see [ORG & DEF](org_def.md)).
 2. Open the **Forward Kinematics** section of the Rig Tools n-panel.
-3. Click an FK template button (or **Torso** for the spine–neck–head assembly).
+3. Click an FK template button.
 
-Prefer templates. The advanced generators expose more options than you usually need.
+## When to use FK vs IK
+
+| Use FK assemblies | Use IK assemblies |
+| --- | --- |
+| Fingers, tails, simple cloth, hair strands | Arms, legs, anything that needs poles / IK goals |
+| You only want FK + tweaks | You need FK/IK switching and snapping |
+| Torso / spine–neck–head | Spline IK skirts/hair/tails when you specifically want splines |
+
+Use FK assemblies when you have simple mechanisms that don't require IK.  Generally, arm and legs should use IK assemblies.
+The spline IK assemblies are available, but are generally special-case uses.  Consider using FK first for hair, cloth, tails, etc., and switch to IK if you can't get the results you want.
 
 ## Templates
 
@@ -49,6 +55,27 @@ Prefer templates. The advanced generators expose more options than you usually n
 
 ## Template details
 
+### Torso
+
+!!! note
+    The torso assembly includes the head and neck, not just the spine. All head and neck bones should be included in the selection.
+
+Torso is a special assembly type with a [torso FK](tools/torso_fk.md) tool that is specifically built for constructing a torso.
+
+The default torso configuration includes 6 bones: ORG-hips, ORG-spine.01, ORG-spine.02, ORG-chest, ORG-neck, and ORG-head (or similar).  The hips and spine.01 are the lower torso bones, and will be controlled by a **hips** controller. The spine.02 and chest bones are the upper torso bones, and will be controlled by a **chest** controller.  These default settings are configurable.  For more information, see [torso FK](tools/torso_fk.md).
+
+- Builds master controls: **torso**, **hips**, **chest**, plus FK along the spine/neck and a **head** control (names from [armature settings](org_def.md#armature-settings)).
+- Optional [tweaks](tools/fk_tweak_chain.md) along the chain (including over [twist](tools/twist_bones.md) subdivisions).
+- Optional **neck** and **chest** [twist bones](tools/twist_bones.md).
+- Optional [neck / head rotation isolation](tools/rotation_isolation.md) (separate properties; on by default).
+- Neck falloff so neck twists / FKs can ease toward the head (default: root).
+
+!!! note
+    Torso writes the hips/chest/torso/head control names into armature settings so later
+    [IK parent](tools/ik_parent.md) targets can find them. Set up torso before other IK assemblies.
+
+The torso includes the option for [twist bones](tools/twist_bones.md) on the chest and neck. The chest twist bones won't actually twist (see [torso FK](tools/torso_fk.md) for more information), they just provide an addition tweak controller on the chest.  The neck twist bones do twist, following the head.  The default fall-off setting is "root" (slight softer than "sharp").  It is recommended to use the default setting of 1 neck bone with 2 twist bones for most humanoid characters.  For characters with longer necks, see [torso FK](tools/torso_fk.md).
+
 ### Simple FK
 
 The Simple FK assembly is a general-purpose FK chain with tweaks. Use it for hair strands, cloth strips, or any chain that does not need a specialized template.
@@ -59,7 +86,7 @@ The Simple FK assembly is a general-purpose FK chain with tweaks. Use it for hai
 
 ### FK Only
 
-Same idea as Simple FK, but without tweak bones — useful when you want animator FK controls without the deform polish layer.
+Same idea as Simple FK, but without tweak bones — especially useful for short (1-2 bone) chains.
 
 - Creates FK controls only (no tweaks).
 - [Master Controllers](tools/master_controllers.md) are enabled as FK follow from the second bone (skip first).
@@ -68,7 +95,7 @@ Same idea as Simple FK, but without tweak bones — useful when you want animato
 ### Skirt FK
 
 !!! tip "Requires"
-    Skirt collision / ride options may reference leg and torso bones. Prefer having a [torso](#torso) (and legs, if using ride) set up first when enabling those features.
+    Skirt collision / ride reference leg bones.  Setup a leg assemblies first for easier setup.
 
 The Skirt FK assembly is intended for skirts and dresses. There is also a [Skirt - Spline](ik_assemblies.md#skirt-spline) IK template when you specifically want spline IK; Skirt FK is usually preferable.
 
@@ -92,49 +119,20 @@ The Finger assembly is a compact FK chain for fingers. It skips the first tweak 
 
 - Creates an [FK/Tweak chain](tools/fk_chain.md) with circle widgets; skips the first tweak by default.
 - [Master Controllers](tools/master_controllers.md) are enabled as FK follow from the second bone (skip first).
-- [Rotation Isolation](tools/rotation_isolation.md) is available but off by default.
 
 Apply fingers separately after an [Arm](ik_assemblies.md#arm) assembly; the arm template does not build palms or fingers.
 
 ### Tweak Only
 
-Tweak Only builds the tweak layer without FK controls — useful for deform polish on a chain that is already driven elsewhere, or when you only want mid-chain adjustments.
+!!! warning
+    Tweak-only create an incomplete chain that is generally not suitable for a final rig.  It requires additional controls to be added manually.
 
-- Creates tweak bones only (Stretch To by default).
+Tweak Only builds the tweak layer without FK controls.  This leaves the chain an incomplete state: the tweak bones are parented to each other in a chain.  This is often undesirable. This assembly is available as a building block where the intent is to reparent the tweak controls later.
+
+I'm not sure how useful this assembly is as a tool.  It may be dropped in the future.
+
+- Creates tweak bones only.
 - No FK controls, master controllers, or rotation isolation.
-
-### Torso
-
-Torso is its own assembly type (still under the FK panel), not a simple FK chain template.
-
-!!! tip "Requires"
-    A single spine-style chain that includes lower torso, chest/upper torso, neck, and head ORGs
-    in one linear selection (exact counts are options).
-
-The Torso assembly builds the core body controls that later IK assemblies parent to.
-
-- Builds master controls: **torso**, **hips**, **chest**, plus FK along the spine/neck and a **head** control (names from [armature settings](org_def.md#armature-settings)).
-- Optional [tweaks](tools/fk_tweak_chain.md) along the chain (including over [twist](tools/twist_bones.md) subdivisions).
-- Optional **neck** and **chest** [twist bones](tools/twist_bones.md).
-- Optional [neck / head rotation isolation](tools/rotation_isolation.md) (separate properties; on by default).
-- Neck falloff so neck twists / FKs can ease toward the head (default: root).
-
-Typical humanoid defaults: 2 lower-torso bones, 1 neck bone, twist bones on, neck/head isolation on.
-
-!!! note
-    Torso writes the hips/chest/torso/head control names into armature settings so later
-    [IK parent](tools/ik_parent.md) targets on arms/legs can find them. Set up torso before arm/leg IK assemblies.
-
-## When to use FK vs IK
-
-| Use FK assemblies | Use IK assemblies |
-| --- | --- |
-| Fingers, tails, simple cloth, hair strands | Arms, legs, anything that needs poles / IK goals |
-| You only want FK + tweaks | You need FK/IK switching and snapping |
-| Torso / spine–neck–head | Spline IK skirts/hair/tails when you specifically want splines |
-
-You can stack assemblies (e.g. torso first, then arms that parent-switch to chest/head).
-Dependencies block deleting an assembly that another still references.
 
 ## Related
 

@@ -149,7 +149,6 @@ FK_TEMPLATES = {
 			"fk_widget",
 			"skip_first_tweak",
 			"tweak_relationship",
-			"add_rotation_isolation",
 			"add_tweak_bones",
 			"create_master_controllers",
 			"master_controllers_type",
