@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.tool.finger_curl import FingerCurl
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.master_controllers import MasterControllers
 from rigtools.tool.skirt_collision import SkirtCollision
@@ -22,12 +23,16 @@ class FKAssemblyOptions:
 	fk_collection_name: str = '' # This will override the default
 	tweak_collection_name: str = '' # This will override the default
 	tweak_relationship: str = 'STRETCH_TO'
+	normalize_fk_widget_scale: bool = False
+	fk_widget_taper: float = 0.0
 	add_rotation_isolation: bool = True
 	override_collections: bool = True
 	add_skirt_collision: bool = False
 	skirt_collision_target_bone_names: list[str] = field(default_factory=list)
 	add_skirt_ride: bool = False
 	skirt_ride_legs: list[SkirtLeg] = field(default_factory=list)
+	add_finger_curl: bool = False
+	finger_curl_axis: str = 'AUTO'
 
 	create_master_controllers: bool = False
 	master_controllers_interval: int = 0
@@ -82,6 +87,8 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					fk_collection_name=fk_collection_name,
 					tweak_collection_name=tweak_collection_name,
 					tweak_relationship=options.tweak_relationship,
+					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
+					fk_widget_taper=options.fk_widget_taper,
 				)
 				tweak.edit_mode(armature_data, chain)
 				assembly_chain.tools.append(tweak)
@@ -92,6 +99,8 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					fk_bone_template=options.fk_bone_template,
 					fk_widget=options.fk_widget,
 					fk_collection_name=fk_collection_name,
+					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
+					fk_widget_taper=options.fk_widget_taper,
 				)
 				fk.edit_mode(armature_data, chain)
 				assembly_chain.tools.append(fk)
@@ -116,6 +125,15 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				)
 				master_controllers.edit_mode(context, fk_names, name_source=chain)
 				assembly_chain.tools.append(master_controllers)
+
+			# FINGER CURL
+			if options.add_finger_curl and len(fk_names) > 0:
+				finger_curl = FingerCurl(
+					curl_axis=options.finger_curl_axis,
+					mch_collection_name=mch_collection_name,
+				)
+				finger_curl.edit_mode(context, fk_names)
+				assembly_chain.tools.append(finger_curl)
 
 			# SKIRT COLLISION
 			if options.add_skirt_collision and len(fk_names) > 0:
@@ -158,10 +176,18 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 		armature_data.use_mirror_x = original_mirror
 
 		select_bones = []
-		if fk_names:
-			select_bones.append(fk_names[0])
-		else:
-			name = next((n for n in tweak.tweak_bone_names if n), None) or tweak.terminal_tweak_name
-			select_bones.append(name)
+		for assembly_chain in assemblies:
+			for tool in assembly_chain.tools:
+				control = getattr(tool, 'control_bone_name', None)
+				if control:
+					select_bones.append(control)
+					break
 
-		return select_bones
+		if not select_bones:
+			if fk_names:
+				select_bones.append(fk_names[0])
+			else:
+				name = next((n for n in tweak.tweak_bone_names if n), None) or tweak.terminal_tweak_name
+				select_bones.append(name)
+
+	return select_bones

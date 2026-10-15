@@ -16,7 +16,9 @@ class FKTweakChain:
 		tweak_collection_name: str = "",
 		fk_collection_name: str = "",
 		tweak_relationship: str = "STRETCH_TO",
-		tweak_scale: float = 0.25
+		tweak_scale: float = 0.25,
+		normalize_fk_widget_scale: bool = False,
+		fk_widget_taper: float = 0.0
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
@@ -26,6 +28,8 @@ class FKTweakChain:
 		self.fk_collection_name = fk_collection_name
 		self.tweak_relationship = tweak_relationship
 		self.tweak_scale = tweak_scale
+		self.normalize_fk_widget_scale = normalize_fk_widget_scale
+		self.fk_widget_taper = fk_widget_taper
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -177,12 +181,21 @@ class FKTweakChain:
 
 		# Widgets
 		coll = get_widget_collection(context, settings.widget_collection)
+		n = len(self.fk_bone_names)
+		avg = sum(pose_bones[name].length for name in self.fk_bone_names) / n if n else 0.0
 		if settings.do_create_widgets and self.fk_widget != "NONE":
-			for fk_name in self.fk_bone_names:
+			for i, fk_name in enumerate(self.fk_bone_names):
 				fk_bone = pose_bones[fk_name]
 				widget_name = generate_bone_name(fk_name, settings.widget_template)
 				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
 				fk_bone.custom_shape = wgt
+
+				if self.normalize_fk_widget_scale:
+					s = avg / fk_bone.length
+					if n > 1 and self.fk_widget_taper:
+						t = i / (n - 1)
+						s *= 1.0 - self.fk_widget_taper * t
+					fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
 
 				self.object_names.append(wgt.name)
 

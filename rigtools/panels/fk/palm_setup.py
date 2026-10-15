@@ -4,7 +4,7 @@ import math
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
-from rigtools.assemblies import reconfigure_assembly
+from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
@@ -67,39 +67,38 @@ def sort_palm_names(context, names, mode, invert):
 
 def fill_palm_order(context, mode, invert):
 	wm = context.window_manager
-	wm.rig_palm_order.clear()
+	left = [s.left for s in wm.rig_palm_order if s.left]
+	right = [s.right for s in wm.rig_palm_order if s.right]
 
-	by_side = find_palm_chains_from_selection(context)
-	if not by_side:
-		return
+	if not left and not right:
+		by_side = find_palm_chains_from_selection(context)
+		if not by_side:
+			return
+		left = by_side.get("L") or by_side.get("C") or []
+		right = by_side.get("R") or []
 
-	has_l = "L" in by_side
-	has_r = "R" in by_side
-	has_c = "C" in by_side
+		if "C" in by_side and (("L" in by_side) or ("R" in by_side)):
+			raise ValueError("Can't mix unsuffixed palm bones with .L/.R bones.")
 
-	if has_c and (has_l or has_r):
-		raise ValueError("Can't mix unsuffixed palm bones with .L/.R bones.")
-
-	if has_l and has_r:
-		left = sort_palm_names(context, by_side['L'], mode, invert)
+	right_set = set(right)
+	if left and right:
+		left = sort_palm_names(context, left, mode, invert)
 		right = []
 		for name in left:
 			flipped = flip_side_name(name)
-			if not flipped or flipped not in by_side['R']:
+			if not flipped or flipped not in right_set:
 				raise ValueError(f"No matching right bone found for {name}")
 			right.append(flipped)
-		if set(right) != set(by_side['R']):
+		if set(right) != right_set:
 			raise ValueError("Left/Right palm bones don't mirror.")
-	elif has_l:
-		left = sort_palm_names(context, by_side['L'], mode, invert)
+	elif left:
+		left = sort_palm_names(context, left, mode, invert)
 		right = []
-	elif has_r:
-		left = []
-		right = sort_palm_names(context, by_side['R'], mode, invert)
 	else:
-		left = sort_palm_names(context, by_side['C'], mode, invert)
-		right = []
+		left = []
+		right = sort_palm_names(context, right, mode, invert)
 
+	wm.rig_palm_order.clear()
 	for i in range(max(len(left), len(right))):
 		slot = wm.rig_palm_order.add()
 		slot.left = left[i] if i < len(left) else ""
@@ -116,13 +115,13 @@ def _order_settings_changed(self, context):
 
 def _palm_order_mode_items(self, context):
 	items = []
-	if self.rig_palm_name_order_valid:
-		items.append(('NAME', "Name", "Order by trailing letter/number"))
+	if getattr(self, "rig_palm_name_order_valid", True):
+		items.append(('NAME', "Name", "Order by trailing letter/number", 1))
 	items.extend([
-		('X', 'X', "Order by X axis"),
-		('Y', 'Y', "Order by Y axis"),
-		('Z', 'Z', "Order by Z axis"),
-		('MANUAL', 'Manual', "Manual order"),
+		('X', 'X', "Order by X axis", 2),
+		('Y', 'Y', "Order by Y axis", 3),
+		('Z', 'Z', "Order by Z axis", 4),
+		('MANUAL', 'Manual', "Manual order", 5),
 	])
 	return items
 
@@ -160,14 +159,14 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	index_falloff_type: EnumProperty(
 		name="Index Falloff Type",
 		description="Type of falloff for the index",
-		items=falloff_presets,
+		items=falloff_presets + [('NONE', "None", "No falloff", '', 5)],
 		default='SHARP'
 	)
 
 	pinky_falloff_type: EnumProperty(
 		name="Pinky Falloff Type",
 		description="Type of falloff for the pinky",
-		items=falloff_presets,
+		items=falloff_presets + [('NONE', "None", "No falloff", '', 5)],
 		default='LINEAR'
 	)
 
@@ -243,6 +242,18 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
 
+		wm = context.window_manager
+		wm.rig_palm_order.clear()
+		chain = assembly.get_chains()[0]
+		side = assembly.side
+		for name in chain:
+			slot = wm.rig_palm_order.add()
+			if "R" in side.upper():
+				slot.right = name
+			else:
+				slot.left = name
+		wm.rig_palm_order_mode = 'MANUAL'
+
 	def invoke(self, context, event):
 		show_dialog = True
 
@@ -259,20 +270,21 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		if result == {'CANCELLED'}:
 			return result
 
-		by_side = find_palm_chains_from_selection(context)
-		names = [n for group in by_side.values() for n in group]
-		if not names:
-			self.report({'ERROR'}, "No chains selected.")
-			return {'CANCELLED'}
+		if not self.assembly_uid:
+			by_side = find_palm_chains_from_selection(context)
+			names = [n for group in by_side.values() for n in group]
+			if not names:
+				self.report({'ERROR'}, "No chains selected.")
+				return {'CANCELLED'}
 
-		wm = context.window_manager
-		if any(math.isinf(get_chain_order_key(n)) for n in names):
-			wm.rig_palm_name_order_valid = False
-			wm.rig_palm_order_mode = 'Y'
-		else:
-			wm.rig_palm_name_order_valid = True
-			wm.rig_palm_order_mode = 'NAME'
-		wm.rig_palm_order_invert = False
+			wm = context.window_manager
+			if any(math.isinf(get_chain_order_key(n)) for n in names):
+				wm.rig_palm_name_order_valid = False
+				wm.rig_palm_order_mode = 'Y'
+			else:
+				wm.rig_palm_name_order_valid = True
+				wm.rig_palm_order_mode = 'NAME'
+			wm.rig_palm_order_invert = False
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
@@ -340,10 +352,10 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 				down.index = i
 				down.direction = 1
 
-			box = layout.box()
-			box.label(text="Order:", icon="EMPTY_AXIS")
-			col = box.column()
-			draw_palm_order(col)
+		box = layout.box()
+		box.label(text="Order:", icon="EMPTY_AXIS")
+		col = box.column()
+		draw_palm_order(col)
 
 
 	##################################################################################################
@@ -368,10 +380,8 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			if not assembly:
 				self.report({'ERROR'}, f"Assembly '{self.assembly_uid}' not found.")
 				return {'CANCELLED'}
-			chains = assembly.get_chains()
-		else:
-			chains = get_palm_chains(context)
 
+		chains = get_palm_chains(context)
 		if not chains:
 			raise ValueError("No bones selected. Select at least one bone.")			
 
@@ -436,11 +446,11 @@ def register():
 	validate_palm_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	bpy.types.WindowManager.rig_palm_name_order_valid = BoolProperty(default=True)
 	bpy.types.WindowManager.rig_palm_order = CollectionProperty(type=PalmOrderSlot)
 	bpy.types.WindowManager.rig_palm_order_mode = EnumProperty(
 		name="Order",
 		items=_palm_order_mode_items,
-		default='Y',
 		update=_order_settings_changed
 	)
 	bpy.types.WindowManager.rig_palm_order_invert = BoolProperty(
@@ -449,7 +459,6 @@ def register():
 		default=False,
 		update=_order_settings_changed
 	)
-	bpy.types.WindowManager.rig_palm_name_order_valid = BoolProperty(default=True)
 
 
 def unregister():

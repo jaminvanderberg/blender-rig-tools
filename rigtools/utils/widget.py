@@ -736,6 +736,30 @@ def create_pill_widget(widget_name, collection):
 	collection.objects.link(wgt)
 	return wgt	
 
+def create_paddle_widget(widget_name, collection):
+	verts = [
+        (0.000000, 0.000000, 0.000000),
+        (0.000000, 0.800000, 0.000000),
+        (0.000000, 0.800000, 0.100000),
+        (0.000000, 1.000000, 0.100000),
+        (0.000000, 1.000000, -0.100000),
+        (0.000000, 0.800000, -0.100000),
+	]
+	edges = [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 4),
+        (4, 5),
+        (1, 5),
+	]
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
+	collection.objects.link(wgt)
+	return wgt	
+
 """
 import bpy
 

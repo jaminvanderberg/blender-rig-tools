@@ -4,6 +4,7 @@ from bpy.props import (
 	BoolProperty,
 	EnumProperty,
 	IntProperty,
+	FloatProperty,
 )
 
 from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
@@ -13,7 +14,7 @@ from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembl
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
-from rigtools.panels.template_draw import TemplateDraw
+from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.utils.skirt_legs import FORWARD_AXIS_ITEMS, scan_leg_assemblies
 from rigtools.tool.skirt_ride import SkirtLeg
 from rigtools.utils.bone import select_bones
@@ -182,6 +183,39 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default=False
 	)
 
+	add_finger_curl: BoolProperty(
+		name="Add Finger Curl",
+		description="Add finger curl to the FK bones.",
+		default=False
+	)
+
+	finger_curl_axis: EnumProperty(
+		name="Finger Curl Axis",
+		description="Axis for the finger curl.",
+		items=[
+			('AUTO', 'Auto', 'Auto detect axis for curl'),
+			('X', 'X', 'Use +X axis for curl'),
+			('-X', '-X', 'Use -X axis for curl'),
+			('Z', 'Z', 'Use +Z axis for curl'),
+			('-Z', '-Z', 'Use -Z axis for curl'),
+		],
+		default='AUTO'
+	)
+
+	normalize_fk_widget_scale: BoolProperty(
+		name="Normalize FK Widget Scale",
+		description="Normalize the scale of the FK widgets.",
+		default=False
+	)
+
+	fk_widget_taper: FloatProperty(
+		name="FK Widget Taper",
+		description="Shrink FK widgets toward the tip when normalize is on (0 = flat, 1 = tip vanishes).",
+		default=0.0,
+		min=0.0,
+		max=0.8,
+	)
+	
 	@classmethod
 	def description(cls, context, properties):
 		if properties.template_id:
@@ -303,6 +337,10 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				return self.control_mode != 'TWEAK' and self.create_master_controllers and self.master_controllers_spacing == 'INTERVAL'
 			if field_name in ["master_controllers_widget"]:
 				return self.control_mode != 'TWEAK' and self.create_master_controllers and self.master_controllers_type == 'MASTER'
+			if field_name in ["add_finger_curl"]:
+				return self.control_mode != 'TWEAK'
+			if field_name in ["finger_curl_axis"]:
+				return self.add_finger_curl
 			return True
 
 		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible, 
@@ -341,6 +379,10 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 					draw.split_field(col, "Master Controller Widget:", "master_controllers_widget"),
 				)),
 			))
+		))
+		draw.draw_section(layout, ["add_finger_curl", "finger_curl_axis"], lambda: (
+			draw.full_field(layout, "Add Finger Curl", "add_finger_curl"),
+			draw.split_field(layout, "Finger Curl Axis:", "finger_curl_axis", expand=True, split_size=0.4),
 		))
 
 		draw.draw_section(layout, ["add_skirt_collision", "add_skirt_ride", "skirt_legs"], lambda: (
@@ -408,6 +450,10 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				SkirtLeg(bone_name=slot.thigh, forward_axis=slot.forward_axis)
 				for slot in skirt_slots
 			],
+			add_finger_curl=self.add_finger_curl,
+			finger_curl_axis=self.finger_curl_axis,
+			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
+			fk_widget_taper=self.fk_widget_taper,
 		)
 
 		assembly_uid = self.assembly_uid

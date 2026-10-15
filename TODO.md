@@ -1,4 +1,3 @@
 ik stretch like rigify
 
-palm
-rigify fingers
+hand.FK collection

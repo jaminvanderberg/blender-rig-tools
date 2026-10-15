@@ -131,6 +131,8 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 					template = f"FK - {template}"
 				case 'TORSO':
 					op_id = "rig.advanced_torso_setup"
+				case 'PALM':
+					op_id = "rig.advanced_palm_setup"
 				case _:
 					op_id = ""
 

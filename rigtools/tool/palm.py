@@ -1,4 +1,5 @@
 import bpy
+from rigtools.preferences import get_preferences
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.utils.bone import generate_mch_bones
@@ -63,6 +64,7 @@ class Palm:
 	def pose_mode(self, context):
 		obj = context.object
 		pose_bones = obj.pose.bones
+		prefs = get_preferences()
 
 		self.fk_chain.pose_mode(context)
 		self.object_names.extend(self.fk_chain.object_names)
@@ -82,13 +84,24 @@ class Palm:
 				c.target = obj
 				c.subtarget = pinky
 				c.target_space = c.owner_space = 'LOCAL'
-				c.influence = twist_influence(self.pinky_falloff_type, (n - 1) - i, n - 1)
+				c.influence = twist_influence(self.pinky_falloff_type, (n - 1) - i, n - 1, reverse=False)
 
 			if self.index_falloff_type != "NONE":
 				c = mch.constraints.new('COPY_ROTATION')
 				c.target = obj
 				c.subtarget = index
 				c.target_space = c.owner_space = 'LOCAL'
-				c.influence = twist_influence(self.index_falloff_type, i, n - 1)
+				c.influence = twist_influence(self.index_falloff_type, i, n - 1, reverse=False)
+
+		# Bone Colors
+		if self.index_falloff_type != "NONE":
+			pb = pose_bones[index]
+			pb.color.palette = prefs.control_bone_color
+			pb.custom_shape_wire_width = 1.5
+
+		if self.pinky_falloff_type != "NONE":
+			pb = pose_bones[pinky]
+			pb.color.palette = prefs.control_bone_color		
+			pb.custom_shape_wire_width = 1.5
 
 		return self

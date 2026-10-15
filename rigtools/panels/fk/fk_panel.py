@@ -33,7 +33,7 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 			operator.template_id = template_id
 			operator.assembly_uid = ""
 
-		layout.separtor()
+		layout.separator()
 		layout.label(text="Special")
 
 		op = layout.operator("rig.advanced_palm_setup", text="Palm", icon='ARMATURE_DATA')

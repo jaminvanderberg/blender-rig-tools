@@ -129,9 +129,33 @@ FK_TEMPLATES = {
 			"add_tweak_bones",
 		),
 	),
+	"finger_curl": FKTemplate(
+		label="Finger (Curl)",
+		description="FK finger chain with curl controllers (Rigify style).",
+		icon="VIEW_PAN",
+		options={
+			"limb_property_base_name": "hand",
+			"control_mode": "FK/TWEAK",
+			"skip_first_tweak": True,
+			"fk_widget": "CIRCLE",
+			"add_finger_curl": True,
+			"finger_curl_axis": "AUTO",
+			"tweak_relationship": "STRETCH_TO",
+			"add_rotation_isolation": False,
+			"normalize_fk_widget_scale": True,
+			"fk_widget_taper": 0.2,
+		},
+		redo_fields=(
+			"fk_widget",
+			"skip_first_tweak",
+			"tweak_relationship",
+			"add_tweak_bones",
+			"finger_curl_axis",
+		),
+	),
 	"finger": FKTemplate(
-		label="Finger",
-		description="Compact FK finger chain. Skips the first tweak.",
+		label="Finger (FK)",
+		description="FK finger chain with master controller on second knuckle.",
 		icon="VIEW_PAN",
 		options={
 			"limb_property_base_name": "hand",
@@ -144,6 +168,8 @@ FK_TEMPLATES = {
 			"master_controllers_type": "FK",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": False,
+			"normalize_fk_widget_scale": True,
+			"fk_widget_taper": 0.2,
 		},
 		redo_fields=(
 			"fk_widget",
@@ -174,6 +200,8 @@ REDO_PROPERTIES = {
 	"add_skirt_collision",
 	"add_skirt_ride",
 	"skirt_legs",
+	"add_finger_curl",
+	"finger_curl_axis",
 }
 
 

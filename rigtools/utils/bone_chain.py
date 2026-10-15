@@ -114,6 +114,48 @@ def get_length_weighted_midpoint(context, chain):
 		length += bone.length
 	return center / length
 
+def find_curl_axis(bones, axis: str = "AUTO"):
+	names = [getattr(b, "name", str(b)) for b in bones]
+	print(f"[find_curl_axis] bones={names} requested={axis!r}")
+
+	if axis != "AUTO":
+		name = axis.lstrip("+-")
+		sign = -1 if axis.startswith("-") else 1
+		print(f"[find_curl_axis] manual → axis={name} sign={sign}")
+		return name, sign
+
+	first, last = bones[0], bones[-1]
+	chain = last.tail - first.head
+	normal = first.y_axis.cross(chain)
+	threshold = first.length * 0.1
+
+	print(f"[find_curl_axis] first={first.name} last={last.name}")
+	print(f"[find_curl_axis] first.head={first.head} last.tail={last.tail}")
+	print(f"[find_curl_axis] first.y={first.y_axis} chain={chain}")
+	print(f"[find_curl_axis] normal={normal} length={normal.length:.6f} threshold={threshold:.6f}")
+
+	if normal.length < threshold:
+		# No significant curl, use +X axis
+		print("[find_curl_axis] straight chain → fallback +X")
+		return "X", 1
+
+	normal.normalize()
+
+	candidates = (
+		("X", 1, first.x_axis),
+		("X", -1, -first.x_axis),
+		("Z", 1, first.z_axis),
+		("Z", -1, -first.z_axis),
+	)
+	scored = [(n, s, normal.dot(v)) for n, s, v in candidates]
+	for n, s, dot in scored:
+		label = f"{'-' if s < 0 else '+'}{n}"
+		print(f"[find_curl_axis]   {label}: dot={dot:.6f}")
+
+	name, sign, best_dot = max(scored, key=lambda c: c[2])
+	print(f"[find_curl_axis] winner → axis={name} sign={sign} dot={best_dot:.6f}")
+	return name, sign
+
 ###############################################################################################
 # Hierarchy
 

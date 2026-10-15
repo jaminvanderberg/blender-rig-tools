@@ -40,14 +40,20 @@ class TemplateDraw:
 			return self.template.field_labels[field_name]
 		return default_label
 
-	def split_field(self, layout, label, prop):
+	def split_field(self, layout, label, prop, *, expand=False, split_size=0):
+		if split_size == 0:
+			split_size = self.split_size
+			
 		if not self.do_show(prop):
 			return
-		split = layout.split(align=True, factor=self.split_size)
+		split = layout.split(align=True, factor=split_size)
 		row = split.row(align=True)
 		row.label(text=self.get_field_label(prop, label), translate=False)
 		row = split.row(align=True)
-		row.prop(self.op, prop, text="")
+		if expand:
+			row.prop(self.op, prop, expand=expand)
+		else:
+			row.prop(self.op, prop, text="")
 		
 	def full_field(self, layout, label, prop):
 		if not self.do_show(prop):
