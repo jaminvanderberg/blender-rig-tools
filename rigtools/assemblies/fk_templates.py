@@ -134,7 +134,7 @@ FK_TEMPLATES = {
 		description="Compact FK finger chain. Skips the first tweak.",
 		icon="VIEW_PAN",
 		options={
-			"limb_property_base_name": "finger",
+			"limb_property_base_name": "hand",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",

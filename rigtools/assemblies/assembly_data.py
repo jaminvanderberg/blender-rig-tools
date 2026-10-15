@@ -90,6 +90,7 @@ class AssemblyData(PropertyGroup):
 		('FK', "FK", ""),
 		('IK', "IK", ""),
 		('TORSO', "TORSO", ""),
+		('PALM', "PALM", ""),
 	])
 	template_id: StringProperty()
 	template_name: StringProperty()

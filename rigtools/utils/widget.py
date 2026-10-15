@@ -136,6 +136,7 @@ fk_widget_types = [
 	('RECTANGLE', 'Rectangle', 'Create a rectangle widget'),
 	('FK', 'FK Shape', 'Create a FK widget'),
 	('BOX', 'Box', 'Create a box widget'),
+	('PILL', 'Pill', 'Create a pill widget'),
 	('IK', 'IK Shape', 'Create an IK widget'),
 	('NONE', 'None', 'No widget'),
 ]
@@ -152,6 +153,8 @@ def create_fk_widget(widget_type, widget_name, collection):
 			return create_box_widget(widget_name, collection)
 		case 'IK':
 			return create_ik_widget(widget_name, collection)
+		case 'PILL':
+			return create_pill_widget(widget_name, collection)
 		case _:
 			return None
 
@@ -657,6 +660,74 @@ def create_ik_widget(widget_name, collection):
         (12, 17),
         (13, 0),
         (18, 7),
+	]
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
+	collection.objects.link(wgt)
+	return wgt	
+
+def create_pill_widget(widget_name, collection):
+	verts = [
+        (0.000000, 0.050000, 0.000000),
+        (0.000000, 0.125000, -0.075000),
+        (0.000000, 0.052556, -0.019411),
+        (0.000000, 0.060048, -0.037500),
+        (0.000000, 0.071967, -0.053033),
+        (0.000000, 0.087500, -0.064952),
+        (0.000000, 0.105589, -0.072444),
+        (0.000000, 0.050000, 0.000000),
+        (0.000000, 0.125000, 0.075000),
+        (0.000000, 0.052556, 0.019411),
+        (0.000000, 0.060048, 0.037500),
+        (0.000000, 0.071967, 0.053033),
+        (0.000000, 0.087500, 0.064952),
+        (0.000000, 0.105589, 0.072444),
+        (0.000000, 0.875000, 0.075000),
+        (0.000000, 0.950000, 0.000000),
+        (0.000000, 0.894412, 0.072444),
+        (0.000000, 0.912500, 0.064952),
+        (0.000000, 0.928033, 0.053033),
+        (0.000000, 0.939952, 0.037500),
+        (0.000000, 0.947444, 0.019411),
+        (0.000000, 0.950000, 0.000000),
+        (0.000000, 0.875000, -0.075000),
+        (0.000000, 0.947444, -0.019411),
+        (0.000000, 0.939952, -0.037500),
+        (0.000000, 0.928033, -0.053033),
+        (0.000000, 0.912500, -0.064952),
+        (0.000000, 0.894412, -0.072444),
+	]
+	edges = [
+        (0, 2),
+        (2, 3),
+        (3, 4),
+        (4, 5),
+        (5, 6),
+        (6, 1),
+        (7, 9),
+        (9, 10),
+        (10, 11),
+        (11, 12),
+        (12, 13),
+        (13, 8),
+        (14, 16),
+        (16, 17),
+        (17, 18),
+        (18, 19),
+        (19, 20),
+        (20, 15),
+        (21, 23),
+        (23, 24),
+        (24, 25),
+        (25, 26),
+        (26, 27),
+        (27, 22),
+        (0, 7),
+        (1, 22),
+        (8, 14),
+        (15, 21),
 	]
 	mesh = bpy.data.meshes.new(widget_name)
 	mesh.from_pydata(verts, edges, [])
