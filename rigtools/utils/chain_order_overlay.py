@@ -24,11 +24,7 @@ def _draw_order_overlay():
 	if not chains:
 		return
 
-	# Flat list of chains (rename/weight-paint) vs list of groups (palm)
-	if chains[0] and isinstance(chains[0][0], str):
-		groups = [chains]
-	else:
-		groups = chains
+	groups = chains
 
 	region = context.region
 	rv3d = context.region_data

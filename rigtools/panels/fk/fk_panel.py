@@ -1,7 +1,7 @@
 import bpy
 
 from rigtools.assemblies.fk_templates import FK_TEMPLATES
-from rigtools.panels.fk import fk_setup, torso_setup
+from rigtools.panels.fk import fk_setup, palm_setup, torso_setup
 
 
 class RIG_PT_fk_panel(bpy.types.Panel):
@@ -33,6 +33,13 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 			operator.template_id = template_id
 			operator.assembly_uid = ""
 
+		layout.separtor()
+		layout.label(text="Special")
+
+		op = layout.operator("rig.advanced_palm_setup", text="Palm", icon='ARMATURE_DATA')
+		op.template_id = "palm"
+		op.assembly_uid = ""
+
 
 classes = (
 	RIG_PT_fk_panel,
@@ -45,11 +52,13 @@ def register():
 
 	fk_setup.register()
 	torso_setup.register()
+	palm_setup.register()
 
 
 def unregister():
 	fk_setup.unregister()
 	torso_setup.unregister()
+	palm_setup.unregister()
 
 	for cls in classes:
 		bpy.utils.unregister_class(cls)

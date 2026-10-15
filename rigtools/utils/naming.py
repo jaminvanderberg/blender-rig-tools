@@ -1,3 +1,4 @@
+import math
 import re
 import string
 from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
@@ -336,3 +337,23 @@ def guess_assembly_name(armature_data, chain, property_base, side="", context=No
 	else:
 		name = f"{property_base.capitalize()}{instance}"
 	return unique_assembly_name(armature_data, name)
+
+
+def get_chain_order_key(bone_name, context=None):
+	base, _ = get_base_name(bone_name)
+	base = strip_bone_tags(base, context)
+	tokens = _tokens(base, context)
+
+	letter = None
+	number = None
+	for token in tokens:
+		if letter is None and len(token) == 1 and token.isalpha():
+			letter = token.lower()
+		elif number is None and token.isdigit():
+			number = int(token)
+
+	if letter is not None:
+		return ord(letter) - ord('a')
+	if number is not None:
+		return number
+	return math.inf

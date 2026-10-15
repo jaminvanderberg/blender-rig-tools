@@ -1,29 +1,142 @@
 from collections import defaultdict
 import json
+import math
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
+from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies import reconfigure_assembly
 from rigtools.assemblies.assembly_data import find_assembly
-from rigtools.assemblies.palm_assembly import PalmAssemblyOptions
-from rigtools.assemblies.palm_templates import get_palm_template
+from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
+from rigtools.assemblies.palm_templates import get_palm_template, validate_palm_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.template_draw import TemplateDraw
 from rigtools.tool.twist_bones import falloff_presets
-from rigtools.utils import chain_order_overlay, _draw_order_overlay
-from rigtools.utils.bone import get_selected_bones
-from rigtools.utils.naming import get_base_name
+from rigtools.utils.bone import get_selected_bones, select_bones
+from rigtools.utils.bone_chain import sort_chains
+from rigtools.utils.naming import flip_side_name, get_base_name, get_chain_order_key
 from rigtools.utils.widget import fk_widget_types
+
+class PalmOrderSlot(bpy.types.PropertyGroup):
+	left: StringProperty(default="")
+	right: StringProperty(default="")
+
+class RIG_OT_move_palm_order(bpy.types.Operator):
+	"""Move the palm order"""
+	bl_idname = "rig.move_palm_order"
+	bl_label = "Move Palm Order"
+	bl_options = {'INTERNAL'}
+
+	index: IntProperty()
+	direction: IntProperty() # -1 or 1
+
+	def execute(self, context):
+		slots = context.window_manager.rig_palm_order
+		j = self.index + self.direction
+		if self.index < 0 or j < 0 or j >= len(slots):
+			return {'CANCELLED'}
+
+		slots.move(self.index, j)
+
+		context.window_manager.rig_palm_order_mode = 'MANUAL'
+		return {'FINISHED'}	
 
 def find_palm_chains_from_selection(context):
 	selected_bones = get_selected_bones(context)
 	if not selected_bones:
-		return []
+		return {}
 
 	by_side = defaultdict(list)
 	for bone in selected_bones:
 		_base, side = get_base_name(bone.name)
-		by_side[side].append(bone.name)
+		key = "L" if "L" in side.upper() else ("R" if "R" in side.upper() else "C")
+		by_side[key].append(bone.name)
 		
-	return [by_side[key] for key in by_side.keys()]
+	return by_side
+
+def sort_palm_names(context, names, mode, invert):
+	if mode == 'NAME':
+		ordered = sorted(names, key=get_chain_order_key)
+	else:
+		chains = sort_chains(context, [[n] for n in names], 'LINEAR', mode, 0.0, False)
+		ordered = [c[0] for c in chains]
+
+	if invert:
+		ordered = list(reversed(ordered))
+	return ordered
+
+def fill_palm_order(context, mode, invert):
+	wm = context.window_manager
+	wm.rig_palm_order.clear()
+
+	by_side = find_palm_chains_from_selection(context)
+	if not by_side:
+		return
+
+	has_l = "L" in by_side
+	has_r = "R" in by_side
+	has_c = "C" in by_side
+
+	if has_c and (has_l or has_r):
+		raise ValueError("Can't mix unsuffixed palm bones with .L/.R bones.")
+
+	if has_l and has_r:
+		left = sort_palm_names(context, by_side['L'], mode, invert)
+		right = []
+		for name in left:
+			flipped = flip_side_name(name)
+			if not flipped or flipped not in by_side['R']:
+				raise ValueError(f"No matching right bone found for {name}")
+			right.append(flipped)
+		if set(right) != set(by_side['R']):
+			raise ValueError("Left/Right palm bones don't mirror.")
+	elif has_l:
+		left = sort_palm_names(context, by_side['L'], mode, invert)
+		right = []
+	elif has_r:
+		left = []
+		right = sort_palm_names(context, by_side['R'], mode, invert)
+	else:
+		left = sort_palm_names(context, by_side['C'], mode, invert)
+		right = []
+
+	for i in range(max(len(left), len(right))):
+		slot = wm.rig_palm_order.add()
+		slot.left = left[i] if i < len(left) else ""
+		slot.right = right[i] if i < len(right) else ""
+
+def _order_settings_changed(self, context):
+	order_mode = context.window_manager.rig_palm_order_mode
+	if order_mode == 'MANUAL':
+		return
+	try:
+		fill_palm_order(context, order_mode, context.window_manager.rig_palm_order_invert)
+	except ValueError as e:
+		print(e)
+
+def _palm_order_mode_items(self, context):
+	items = []
+	if self.rig_palm_name_order_valid:
+		items.append(('NAME', "Name", "Order by trailing letter/number"))
+	items.extend([
+		('X', 'X', "Order by X axis"),
+		('Y', 'Y', "Order by Y axis"),
+		('Z', 'Z', "Order by Z axis"),
+		('MANUAL', 'Manual', "Manual order"),
+	])
+	return items
+
+def get_palm_chains(context):
+	slots = context.window_manager.rig_palm_order
+	left = [slot.left for slot in slots if slot.left]
+	right = [slot.right for slot in slots if slot.right]
+	chains = []
+	if left: 
+		chains.append(left)
+	if right:
+		chains.append(right)
+	return chains
+
 
 class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	"""Setup Palm Assembly with advanced options"""
@@ -79,30 +192,14 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
-	order_axis: bpy.props.EnumProperty(
-		name="Order Axis",
-		description="Axis to use for the order of the bones.",
-		items=[
-			('X', "X", "X axis"),
-			('Y', "Y", "Y axis"),
-			('Z', "Z", "Z axis"),
-		],
-		default='Y'
-	)
 
-	order_invert: bpy.props.BoolProperty(
-		name="Order Invert",
-		description="Invert the order of the bones.",
-		default=False
-	)	
-		
 	@classmethod
 	def description(cls, context, properties):
 		if properties.template_id:
 			template = get_palm_template(properties.template_id)
 			if template:
 				return template.description
-		return "Setup torso assembly with advanced options"
+		return "Setup palm assembly"
 
 	##################################################################################################
 	# invoke
@@ -162,19 +259,20 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		if result == {'CANCELLED'}:
 			return result
 
-		global _preview
-		handler = bpy.types.SpaceView3D.draw_handler_add(
-			_draw_order_overlay, (), 'WINDOW', 'POST_PIXEL'
-		)
-		chain_order_overlay._preview = {
-			"op": self, 
-			"handler": handler, 
-			"get_chains": lambda ctx: [
-				[[n] for n in names]
-				for names in find_palm_chains_from_selection(ctx)
-			]
-		}
-		context.area.tag_redraw()
+		by_side = find_palm_chains_from_selection(context)
+		names = [n for group in by_side.values() for n in group]
+		if not names:
+			self.report({'ERROR'}, "No chains selected.")
+			return {'CANCELLED'}
+
+		wm = context.window_manager
+		if any(math.isinf(get_chain_order_key(n)) for n in names):
+			wm.rig_palm_name_order_valid = False
+			wm.rig_palm_order_mode = 'Y'
+		else:
+			wm.rig_palm_name_order_valid = True
+			wm.rig_palm_order_mode = 'NAME'
+		wm.rig_palm_order_invert = False
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)
@@ -205,10 +303,47 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 			)),
 		))
-		draw.box_section(layout, ["order_axis", "order_invert"], "Order:", "EMPTY_AXIS", lambda col: (
-			draw.split_field(col, "Order Axis:", "order_axis"),
-			draw.split_field(col, "Order Invert:", "order_invert"),
-		))
+
+		def draw_palm_order(col):
+			wm = context.window_manager
+			slots = wm.rig_palm_order
+			show_l = any(slot.left for slot in slots)
+			show_r = any(slot.right for slot in slots)
+
+			row = col.row(align=True)
+			row.prop(wm, "rig_palm_order_mode", expand=True)
+			col.prop(wm, "rig_palm_order_invert", text="Reverse")
+
+			header = col.row(align=True)
+			header.label(text="#")
+			if show_l and show_r:
+				header.label(text="Left")
+				header.label(text="Right")
+			elif show_l or show_r:
+				header.label(text="Bones")
+			header.label(text="", icon="BLANK1")
+
+			for i, slot in enumerate(slots):
+				row = col.row(align=True)
+				row.label(text=str(i))
+				if show_l and show_r:
+					row.label(text=slot.left)
+					row.label(text=slot.right)
+				elif show_l:
+					row.label(text=slot.left)
+				elif show_r:
+					row.label(text=slot.right)
+				up = row.operator("rig.move_palm_order", text="", icon="TRIA_UP")
+				up.index = i
+				up.direction = -1
+				down = row.operator("rig.move_palm_order", text="", icon="TRIA_DOWN")
+				down.index = i
+				down.direction = 1
+
+			box = layout.box()
+			box.label(text="Order:", icon="EMPTY_AXIS")
+			col = box.column()
+			draw_palm_order(col)
 
 
 	##################################################################################################
@@ -218,33 +353,41 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
-
-		try:
-			chains, original_mode, original_mirror = get_assembly_chains(
-				context,
-				self.assembly_uid,
-				check_property_bone=self.add_neck_rotation_isolation or self.add_head_rotation_isolation,
-			)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
+		
+		obj = context.object
+		if not obj or obj.type != 'ARMATURE':
+			self.report({'ERROR'}, "Active object must be an armature.")
+			return {'CANCELLED'}
+		armature_data = obj.data
+		if obj.mode == 'OBJECT':
+			self.report({'ERROR'}, "Can't use from Object mode")
 			return {'CANCELLED'}
 
-		options = TorsoAssemblyOptions(
+		if self.assembly_uid:
+			assembly = find_assembly(obj, self.assembly_uid)
+			if not assembly:
+				self.report({'ERROR'}, f"Assembly '{self.assembly_uid}' not found.")
+				return {'CANCELLED'}
+			chains = assembly.get_chains()
+		else:
+			chains = get_palm_chains(context)
+
+		if not chains:
+			raise ValueError("No bones selected. Select at least one bone.")			
+
+		# Switch to edit mode
+		original_mode = obj.mode
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
+
+		original_mirror = armature_data.use_mirror_x
+		armature_data.use_mirror_x = False
+
+		options = PalmAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name,
-			lower_torso_bone_count=self.lower_torso_bone_count,
-			neck_bone_count=self.neck_bone_count,
-			use_twist_bones=self.use_twist_bones,
-			neck_twist_bone_count=self.neck_twist_bone_count,
-			chest_twist_bone_count=self.chest_twist_bone_count,
-			tweak_relationship=self.tweak_relationship,
-			add_neck_rotation_isolation=self.add_neck_rotation_isolation,
-			neck_base_property_name=self.neck_base_property_name,
-			neck_inherit_scale_from_root=self.neck_inherit_scale_from_root,
-			add_head_rotation_isolation=self.add_head_rotation_isolation,
-			head_base_property_name=self.head_base_property_name,
-			head_inherit_scale_from_root=self.head_inherit_scale_from_root,
 			fk_widget=self.fk_widget,
-			neck_falloff_type=self.neck_falloff_type,
+			index_falloff_type=self.index_falloff_type,
+			pinky_falloff_type=self.pinky_falloff_type,
 		)
 
 		assembly_uid = self.assembly_uid
@@ -253,7 +396,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			return reconfigure_assembly(
 				context, 
 				assembly_uid, 
-				lambda prior_configs: create_torso_assembly(
+				lambda prior_configs: create_palm_assembly(
 					context,
 					chains,
 					self.template_id,
@@ -265,35 +408,55 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			)
 
 		try:
-			torso_controls = run_assembly_transaction(rebuild)
+			palm_controls = run_assembly_transaction(rebuild)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			bpy.ops.object.mode_set(mode=original_mode)
 			context.object.data.use_mirror_x = original_mirror
 			return {'CANCELLED'}
 
-		if torso_controls:
+		if palm_controls:
 			bpy.ops.pose.select_all(action='DESELECT')
-			select_bones(context.object, torso_controls)
+			select_bones(context.object, palm_controls)
 
 		chain_count = len(chains)
-		self.report({'INFO'}, f"Successfully generated {chain_count} torso assembl{'ies' if chain_count != 1 else 'y'}.")
+		self.report({'INFO'}, f"Successfully generated {chain_count} palm assembl{'ies' if chain_count != 1 else 'y'}.")
 		context.object.data.use_mirror_x = original_mirror
 		return {'FINISHED'}
 
 
 classes = (
-	RIG_OT_advanced_torso_setup,
+	PalmOrderSlot,
+	RIG_OT_move_palm_order,
+	RIG_OT_advanced_palm_setup,
 )
 
 
 def register():
-	validate_torso_templates()
+	validate_palm_templates()
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	bpy.types.WindowManager.rig_palm_order = CollectionProperty(type=PalmOrderSlot)
+	bpy.types.WindowManager.rig_palm_order_mode = EnumProperty(
+		name="Order",
+		items=_palm_order_mode_items,
+		default='Y',
+		update=_order_settings_changed
+	)
+	bpy.types.WindowManager.rig_palm_order_invert = BoolProperty(
+		name="Invert Order",
+		description="Invert the order of the bones",
+		default=False,
+		update=_order_settings_changed
+	)
+	bpy.types.WindowManager.rig_palm_name_order_valid = BoolProperty(default=True)
 
 
 def unregister():
+	del bpy.types.WindowManager.rig_palm_order
+	del bpy.types.WindowManager.rig_palm_order_mode
+	del bpy.types.WindowManager.rig_palm_order_invert
+	del bpy.types.WindowManager.rig_palm_name_order_valid
 	for cls in classes:
 		bpy.utils.unregister_class(cls)
 
@@ -305,4 +468,4 @@ if __name__ == "__main__":
 		pass
 	register()
 
-	bpy.ops.rig.advanced_torso_setup('INVOKE_DEFAULT')
+	bpy.ops.rig.advanced_palm_setup('INVOKE_DEFAULT')
