@@ -64,12 +64,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		default='CIRCLE'
 	)
 
-	override_collections: BoolProperty(
-		name="Override Bone Collections",
-		description="Specify the bone collections for various bone types",
-		default=True
-	)
-
 	add_rotation_isolation: BoolProperty(
 		name="Add Rotation Isolation",
 		description="Add rotation isolation to the FK bones.",
@@ -439,8 +433,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			master_controllers_skip_first=self.master_controllers_skip_first,
 			master_controllers_type=self.master_controllers_type,
 			master_controllers_widget=self.master_controllers_widget,
-			fk_collection_name=self.fk_collection_name,
-			tweak_collection_name=self.tweak_collection_name,
 			tweak_relationship=self.tweak_relationship,
 			add_rotation_isolation=self.add_rotation_isolation,
 			add_skirt_collision=self.add_skirt_collision,

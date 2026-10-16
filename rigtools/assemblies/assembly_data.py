@@ -5,6 +5,7 @@ import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.utils.bone_chain import find_chains_from_selection
 
 def find_assemblies(arm, bone_names):
@@ -211,14 +212,17 @@ classes = (
 	AssemblyObject,
 	AssemblyParent,
 	AssemblyData,
+	LimbCollectionMap,
 )
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
 	bpy.types.Armature.rigtools_assemblies = CollectionProperty(type=AssemblyData)
+	bpy.types.Armature.rigtools_limb_collections = CollectionProperty(type=LimbCollectionMap)
 
 def unregister():
 	del bpy.types.Armature.rigtools_assemblies
+	del bpy.types.Armature.rigtools_limb_collections
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)

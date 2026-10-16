@@ -23,7 +23,6 @@ PALM_TEMPLATES = {
 		options={
 			"limb_property_base_name": "hand",
 			"fk_widget": "PILL",
-			"override_collections": True,
 			"index_falloff_type": "SHARP",
 			"pinky_falloff_type": "LINEAR",
 		},

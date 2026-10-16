@@ -31,7 +31,6 @@ FK_TEMPLATES = {
 			"master_controllers_type": "FK",
 			"tweak_relationship": "STRETCH_TO",
 			"add_rotation_isolation": False,
-			"override_collections": True,
 		},
 		redo_fields=(
 			"limb_property_base_name",

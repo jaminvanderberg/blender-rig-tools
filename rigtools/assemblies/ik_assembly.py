@@ -2,12 +2,12 @@ from dataclasses import dataclass, field
 from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.assemblies.limb_collections import ensure_limb_collections
 from rigtools.heel_pivots import get_heel_pivot
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.foot_roll import FootRoll
-from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_collection, name_property
-from rigtools.utils.bone_collection import add_bone_collection, ensure_bone_collection
-from rigtools.preferences import get_preferences
+from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_property
+from rigtools.utils.bone_collection import add_bone_collection
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
 
 # Tools
@@ -28,7 +28,6 @@ class IKAssemblyOptions:
 	limb_type: str = ""
 	add_rotation_isolation: bool = True
 	inherit_scale_from_root: bool = False
-	override_collections: bool = True
 	ik_type: str = 'IK' # 'IK' or 'SPLINE'
 	ik_bone_count: int = 3
 	enable_ik_stretch: bool = True
@@ -84,25 +83,15 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 		for chain in chains:
 
 			org_chain = chain
+			limb = options.limb_property_base_name
 			side = find_side(chain)
 
-			assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name, side)
+			assembly_name = guess_assembly_name(context.object.data, chain, limb, side)
 			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, side=side, uid=replacement_uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 			assemblies.append(assembly_chain)
 
-			ik_collection_name = name_collection("ik", options.limb_property_base_name, side)
-			tweak_collection_name = name_collection("tweak", options.limb_property_base_name, side)
-			fk_collection_name = name_collection("fk", options.limb_property_base_name, side)
-			mch_collection_name = name_collection("mch", options.limb_property_base_name, side)
-			master_controllers_collection_name = name_collection("fk_master", options.limb_property_base_name, side)
-
-			if options.override_collections:
-				ensure_bone_collection(
-					armature_data,
-					mch_collection_name,
-					get_preferences().mch_parent_collection,
-				)
+			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=True)
 
 			if options.ik_type == 'IK':
 				limb_count = options.ik_bone_count
@@ -115,8 +104,8 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			if options.add_tweak_bones:
 				tweak_chain = FKTweakChain(
 					tweak_relationship = options.tweak_relationship,
-					tweak_collection_name = tweak_collection_name if options.override_collections else None,
-					fk_collection_name = mch_collection_name if options.override_collections else None,
+					tweak_collection_name = limb_collections.tweak,
+					fk_collection_name = limb_collections.mch,
 
 					# Hard-coded options
 					fk_bone_template = bone_template("switch"),
@@ -134,14 +123,14 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			if len(fk_tip) > 0:
 				tip_fk = FKChain(
 					fk_bone_template = bone_template("control"),
-					fk_collection_name = fk_collection_name if options.override_collections else None,
+					fk_collection_name = limb_collections.fk,
 					fk_widget = options.tip_widget,
 				)
 				tip_fk.edit_mode(armature_data, fk_tip)
 				assembly_chain.tools.append(tip_fk)
 
 				for fk_name in tip_fk.fk_bone_names:
-					add_bone_collection(armature_data, edit_bones[fk_name], ik_collection_name if options.override_collections else None)
+					add_bone_collection(armature_data, edit_bones[fk_name], limb_collections.ik)
 
 			# FK/IK SWITCH
 			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
@@ -149,8 +138,8 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				switch_property_name = switch_property_name,
 				fk_widget_type = options.fk_widget,
 				fk_end_widget_type = options.fk_end_widget,
-				fk_collection_name = fk_collection_name if options.override_collections else None,
-				mch_collection_name = mch_collection_name if options.override_collections else None,
+				fk_collection_name = limb_collections.fk,
+				mch_collection_name = limb_collections.mch,
 			)
 			fk_ik_switch.edit_mode(context, switch_chain, name_source = org_chain)
 			fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names
@@ -160,7 +149,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			if options.add_rotation_isolation:
 				rotation_isolation = RotationIsolation(
 					property_name = name_property("rotation_isolation", options.limb_property_base_name, side),
-					mch_collection_name = mch_collection_name if options.override_collections else None,
+					mch_collection_name = limb_collections.mch,
 					inherit_scale_from_root = options.inherit_scale_from_root,
 
 					# Hard-coded options
@@ -179,8 +168,8 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					interval=options.master_controllers_interval,
 					skip_first=options.master_controllers_skip_first,
 					master_controller_type=options.master_controllers_type,
-					mch_collection_name=mch_collection_name if options.override_collections else None,
-					master_controller_collection_name=master_controllers_collection_name if options.override_collections else None,
+					mch_collection_name=limb_collections.mch,
+					master_controller_collection_name=limb_collections.master,
 					master_controller_widget=options.master_controllers_widget,
 				)
 				master_controllers.edit_mode(context, fk_bone_names, name_source=org_chain[:limb_count])
@@ -192,7 +181,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
-					mch_bone_collection_name=mch_collection_name if options.override_collections else None,
+					mch_bone_collection_name=limb_collections.mch,
 					prior_configs=prior_configs,
 				)
 				skirt_collision.edit_mode(context, fk_bone_names)
@@ -204,7 +193,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,
-					mch_bone_collection_name=mch_collection_name if options.override_collections else None,
+					mch_bone_collection_name=limb_collections.mch,
 					prior_configs=prior_configs,
 				)
 				skirt_ride.edit_mode(context, fk_bone_names[0])
@@ -217,7 +206,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 						segments = options.twist_segments,
 						twist_bone_count = options.twist_bone_count,
 						twist_parent_name = twist_parent_name,
-						tweak_collection_name = tweak_collection_name if options.override_collections else None,
+						tweak_collection_name = limb_collections.tweak,
 						tweak_relationship = options.tweak_relationship,
 						add_tweak_bones = options.add_tweak_bones,
 					)
@@ -227,9 +216,9 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				ik = StandardIK(
 					enable_ik_stretch = options.enable_ik_stretch,
 					pole_distance = options.pole_distance,
-					ik_collection_name = ik_collection_name if options.override_collections else None,
+					ik_collection_name = limb_collections.ik,
 					enable_snapping = options.enable_snapping,
-					mch_collection_name = mch_collection_name if options.override_collections else None,
+					mch_collection_name = limb_collections.mch
 				)
 				tweak_bone_names = tweak_chain.tweak_bone_names if options.add_tweak_bones else None
 				ik.edit_mode(context, ik_bone_names[:limb_count], fk_bone_names[:limb_count], tweak_bone_names, name_source=org_chain[:limb_count])
@@ -242,8 +231,8 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				if options.add_foot_roll:
 					heel_pivot_name = get_heel_pivot(context.object.data, org_chain[limb_count - 1])
 					foot_roll = FootRoll(
-						mch_collection_name = mch_collection_name if options.override_collections else None,
-						ik_collection_name = ik_collection_name if options.override_collections else None,
+						mch_collection_name = limb_collections.mch,
+						ik_collection_name = limb_collections.ik,
 					)
 					foot_roll.edit_mode(context, 
 						mch_ik_foot_name = ik_bone_names[limb_count - 1],
@@ -257,7 +246,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				spline_ik = SplineIK(
 					control_count = options.spline_control_count,
 					skip_first = options.spline_skip_first,
-					ik_collection_name = ik_collection_name if options.override_collections else None,
+					ik_collection_name = limb_collections.ik,
 					twist_type = options.twist_type,
 				)
 				spline_ik.edit_mode(context, ik_bone_names, name_source=org_chain)
@@ -270,7 +259,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					property_name = name_property("ik_parent", options.limb_property_base_name, side),
 					parents = options.ik_parents,
 					self_parent_label = options.ik_parent_self_parent_label,
-					mch_collection_name = mch_collection_name if options.override_collections else None,
+					mch_collection_name = limb_collections.mch,
 					add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,
 				)
 				if options.ik_type == 'IK':

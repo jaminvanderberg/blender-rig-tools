@@ -8,6 +8,12 @@ class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
 	same_row: BoolProperty(default=False)
 	hidden: BoolProperty(default=False)
 
+def rename_layout_collection(arm, old_name, new_name):
+	if not old_name or old_name == new_name:
+		return
+	for item in arm.rig_ui_layout:
+		if not item.is_gap and item.collection_name == old_name:
+			item.collection_name = new_name
 
 def _all_collections(arm):
 	return list(getattr(arm, "collections_all", arm.collections))

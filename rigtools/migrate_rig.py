@@ -3,8 +3,9 @@ import json
 import bpy
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
+from rigtools.assemblies.limb_collections import ensure_limb_collections
 from rigtools.tool.ik_parent import CONFIG_KEY, CONSTRAINT_NAME
-from rigtools.utils.naming import find_side
+from rigtools.utils.naming import find_side, name_collection
 
 
 def migrate_0_to_1(armature_data, context):
@@ -79,9 +80,74 @@ def migrate_1_to_2(armature_data, context):
 		assembly.options_json = json.dumps(options)
 
 
+def migrate_2_to_3(armature_data, context):
+	"""Build rigtools_limb_collections from existing assemblies/collections."""
+	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
+
+	# 1) Group assemblies by (limb, side)
+	by_key = {}
+	for assembly in armature_data.rigtools_assemblies:
+		options = json.loads(assembly.options_json or "{}")
+		limb = (options.get("limb_property_base_name") or "").strip()
+		if not limb:
+			continue
+		side = assembly.side or ""
+		by_key.setdefault((limb, side), []).append((assembly, options))
+
+	for (limb, side), items in by_key.items():
+		row = ensure_limb_collections(armature_data, limb, side)  # fills new defaults + mch parent
+		# then OVERRIDE names from what already exists
+
+		types = {a.assembly_type for a, _ in items}
+		has_ik = "IK" in types
+		has_torso = "TORSO" in types
+
+		# Prefer options overrides if anyone stored explicit names
+		for _, options in items:
+			for role, key in (
+				("fk", "fk_collection_name"),
+				("tweak", "tweak_collection_name"),
+			):
+				name = (options.get(key) or "").strip()
+				if name:
+					setattr(row, role, name)
+
+		# Prefer live Blender collections over brand-new template guesses
+		candidates = {
+			"fk": [
+				name_collection("fk_split", limb, side),  # Hand.FK.L (old default)
+				name_collection("fk", limb, side),        # Hand.L
+			],
+			"ik": [name_collection("ik", limb, side)],
+			"tweak": [name_collection("tweak", limb, side)],
+			"mch": [name_collection("mch", limb, side)],
+			"master": [
+				name_collection("fk_master", limb, side),           # Hand.Master.L (new)
+				f"{limb.capitalize()}.FK.Master{side}",             # Hand.FK.Master.L (old)
+			],
+			"control": [name_collection("control", limb, side)],
+		}
+		for role, names in candidates.items():
+			for name in names:
+				if all_colls.get(name):
+					setattr(row, role, name)
+					break
+
+		# split: IK limbs, torso (neck FK vs control), or fk name already has .FK.
+		if has_ik or has_torso or ".FK" in (row.fk or ""):
+			row.split = True
+			# If somehow still on unqualified fk but IK/torso says split, point at .FK name if it exists
+			split_name = name_collection("fk_split", limb, side)
+			if all_colls.get(split_name):
+				row.fk = split_name
+
+	print(armature_data.rigtools_limb_collections)
+
+
 MIGRATIONS = {
 	0: migrate_0_to_1,
 	1: migrate_1_to_2,
+	2: migrate_2_to_3,
 }
 
 

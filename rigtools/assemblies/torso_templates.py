@@ -31,7 +31,6 @@ TORSO_TEMPLATES = {
 			"head_base_property_name": "head",
 			"head_inherit_scale_from_root": True,
 			"fk_widget": "CIRCLE",
-			"override_collections": True,
 			"use_twist_bones": True,
 			"tweak_relationship": "STRETCH_TO",
 			"neck_falloff_type": "ROOT",

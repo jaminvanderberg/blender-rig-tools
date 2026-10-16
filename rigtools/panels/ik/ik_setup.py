@@ -93,12 +93,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default=True
 	)
 
-	override_collections: BoolProperty(
-		name="Override Bone Collections",
-		description="Specify the bone collections for various bone types",
-		default=True
-	)
-	
 	ik_type: EnumProperty(
 		name="IK Type",
 		description="Type of IK to create",
@@ -775,7 +769,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			limb_type=self.limb_type,
 			add_rotation_isolation=self.add_rotation_isolation,
 			inherit_scale_from_root=self.inherit_scale_from_root,
-			override_collections=self.override_collections,
 			ik_type=self.ik_type,
 			enable_ik_stretch=self.enable_ik_stretch,
 			spline_control_count=self.spline_control_count,

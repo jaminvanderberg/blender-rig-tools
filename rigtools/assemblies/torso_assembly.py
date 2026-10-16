@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
+from rigtools.assemblies.limb_collections import ensure_limb_collections
 from rigtools.utils.naming import guess_assembly_name, find_side, name_collection, name_property
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.preferences import get_preferences
@@ -23,7 +24,6 @@ class TorsoAssemblyOptions:
 	head_inherit_scale_from_root: bool = True
 	use_twist_bones: bool = True
 	tweak_relationship: str = "STRETCH_TO"
-	override_collections: bool = True
 	neck_falloff_type: str = "ROOT"
 
 def create_torso_assembly(context, chains: list[list[str]], template_id, template_name, options: TorsoAssemblyOptions, replacement_uid=None, prior_configs=None):
@@ -34,24 +34,15 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 	# Edit mode
 	##############
 	for chain in chains:
+		limb = options.limb_property_base_name
 		side = find_side(chain)
 		
-		assembly_name = guess_assembly_name(context.object.data, chain, options.limb_property_base_name,side)
+		assembly_name = guess_assembly_name(context.object.data, chain, limb,side)
 		assembly = create_assembly_data(context.object, chain, assembly_name, "TORSO", template_id, template_name, options, side=side, uid=replacement_uid)
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
 		assemblies.append(assembly_chain)
 
-		tweak_collection_name = name_collection("tweak", options.limb_property_base_name, side)
-		fk_collection_name = name_collection("fk", options.limb_property_base_name, side)
-		mch_collection_name = name_collection("mch", options.limb_property_base_name, side)
-		control_collection_name = name_collection("control", options.limb_property_base_name, side)
-
-		if options.override_collections:
-			ensure_bone_collection(
-				context.object.data,
-				mch_collection_name,
-				get_preferences().mch_parent_collection,
-			)
+		limb_collections = ensure_limb_collections(context.object.data, limb, side, promote=True)
 
 		# TWEAK CHAIN
 		torso_fk_chain = TorsoFK(
@@ -61,10 +52,10 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 			chest_twist_bone_count = options.chest_twist_bone_count if options.use_twist_bones else 0,
 			tweak_relationship = options.tweak_relationship,
 			fk_widget = options.fk_widget,
-			tweak_collection_name = tweak_collection_name if options.override_collections else None,
-			fk_collection_name = fk_collection_name if options.override_collections else None,
-			mch_collection_name = mch_collection_name if options.override_collections else None,
-			control_collection_name = control_collection_name if options.override_collections else None,
+			tweak_collection_name = limb_collections.tweak,
+			fk_collection_name = limb_collections.fk,
+			mch_collection_name = limb_collections.mch,
+			control_collection_name = limb_collections.control,
 			add_neck_rotation_isolation = options.add_neck_rotation_isolation,
 			neck_falloff_type = options.neck_falloff_type,
 		)
@@ -82,7 +73,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 				property_name = neck_property_name,
 				property_qualifier = "Neck",
 				inherit_scale_from_root = options.neck_inherit_scale_from_root,
-				mch_collection_name = mch_collection_name if options.override_collections else None,
+				mch_collection_name = limb_collections.mch,
 			)
 			neck_name = torso_fk_chain.fk_bone_names[-options.neck_bone_count - 1]
 			neck_rotation_isolation.edit_mode(context, context.object.data, [neck_name])
@@ -100,7 +91,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 				property_name = head_property_name,
 				property_qualifier = "Head",
 				inherit_scale_from_root = options.head_inherit_scale_from_root,
-				mch_collection_name = mch_collection_name if options.override_collections else None,
+				mch_collection_name = limb_collections.mch,
 			)
 			head_name = torso_fk_chain.fk_bone_names[-1]
 			head_rotation_isolation.edit_mode(context, context.object.data, [head_name])

@@ -56,8 +56,9 @@ BONE = {
 
 COLLECTION = {
 	"ik": "{Name}.IK{side}",
-	"fk": "{Name}.FK{side}",
-	"fk_master": "{Name}.FK.Master{side}",
+	"fk": "{Name}{side}",
+	"fk_split": "{Name}.FK{side}",
+	"fk_master": "{Name}.Master{side}",
 	"control": "{Name}{side}",
 	"tweak": "{Name}.Tweak{side}",
 	"mch": "MCH-{Name}",
