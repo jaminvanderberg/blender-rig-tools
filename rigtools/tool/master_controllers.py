@@ -5,26 +5,23 @@ from rigtools.utils.naming import bone_template, generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import create_fk_widget, get_widget_collection
+from rigtools.assemblies.mechanism_bones import MechanismBones
 
 class MasterControllers:
 	def __init__(self, *,
-		mch_collection_name: str | None = None,
 		interval: int = 0,
 		skip_first: bool = False,
 		master_controller_type: str = "FK", # or "MASTER"
-		master_controller_collection_name: str | None = None,
 		master_controller_widget: str = 'CIRCLE',
 	):
-		self.mch_collection_name = mch_collection_name
 		self.interval = interval
 		self.skip_first = skip_first
 		self.master_controller_type = master_controller_type
-		self.master_controller_collection_name = master_controller_collection_name
 		self.master_controller_widget = master_controller_widget
 
 		self.segments = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -71,15 +68,11 @@ class MasterControllers:
 				master_bone = duplicate_bone(obj.data, fk_bone, master_bone_name, 1.5)
 				master_bone.parent = fk_bone.parent
 
-				if self.master_controller_collection_name:
-					set_bone_collection(obj.data, master_bone, self.master_controller_collection_name)
-
-				self.mechanism_bone_names.append(master_bone.name)
+				self.mechanism_bones.add(master_bone.name, 'master')
 
 			# Create the driven mch bones
-			driven_bones = [edit_bones[name] for name in driven_names]
-			mch_names = generate_mch_bones(obj.data, driven_bones, bone_template("fk_follow"), self.mch_collection_name)
-			self.mechanism_bone_names.extend(mch_names)
+			mch_names = generate_mch_bones(obj.data, driven_names, bone_template("fk_follow"))
+			self.mechanism_bones.extend(mch_names, 'mch')
 
 			self.segments.append({
 				"master": master_bone.name if master_bone else fk_name,

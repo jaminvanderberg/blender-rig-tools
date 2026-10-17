@@ -1,6 +1,7 @@
 import math
 import bpy
 from mathutils import Vector
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
@@ -20,10 +21,6 @@ class TorsoFK:
 		tweak_relationship: str = "STRETCH_TO",
 		neck_twist_bone_count: int,
 		chest_twist_bone_count: int,
-		tweak_collection_name: str = "",
-		control_collection_name: str = "",
-		fk_collection_name: str = "",
-		mch_collection_name: str = "",
 		add_neck_rotation_isolation: bool = True,
 		neck_falloff_type: str = "ROOT",
 	):
@@ -33,17 +30,13 @@ class TorsoFK:
 		self.chest_twist_bone_count = chest_twist_bone_count
 		self.lower_torso_bone_count = lower_torso_bone_count
 		self.tweak_relationship = tweak_relationship
-		self.control_collection_name = control_collection_name
-		self.tweak_collection_name = tweak_collection_name
-		self.fk_collection_name = fk_collection_name
-		self.mch_collection_name = mch_collection_name
 		self.add_neck_rotation_isolation = add_neck_rotation_isolation
 		self.neck_falloff_type = neck_falloff_type
 
 		self.tweak_chain = None
 		self.fk_bone_names = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -95,7 +88,7 @@ class TorsoFK:
 		upper_torso_index = self.lower_torso_bone_count
 
 		self.torso_bone_name = torso_bone.name
-		self.mechanism_bone_names.append(torso_bone.name)
+		self.mechanism_bones.add(torso_bone.name, 'control')
 
 		# Hips controller
 		hip_bone = duplicate_bone(armature_data, torso_bone, settings.hips_bone_name, 1.0)
@@ -104,7 +97,7 @@ class TorsoFK:
 		hip_bone.parent = torso_bone
 
 		self.hip_bone_name = hip_bone.name
-		self.mechanism_bone_names.append(hip_bone.name)
+		self.mechanism_bones.add(hip_bone.name, 'control')
 
 		# Chest controller
 		chest_bone = duplicate_bone(armature_data, torso_bone, settings.chest_bone_name, 1.0)
@@ -113,7 +106,7 @@ class TorsoFK:
 		chest_bone.parent = torso_bone
 
 		self.chest_bone_name = chest_bone.name
-		self.mechanism_bone_names.append(chest_bone.name)
+		self.mechanism_bones.add(chest_bone.name, 'control')
 
 		# Neck twist bones
 		if self.neck_twist_bone_count > 0:
@@ -180,12 +173,10 @@ class TorsoFK:
 
 			self.fk_bone_names.append(fk_bone.name)
 
-			if self.fk_collection_name and not (is_head_bone or is_neck_bone):
-				set_bone_collection(armature_data, fk_bone, self.fk_collection_name)
-			if self.control_collection_name and (is_neck_bone or is_head_bone):
-				set_bone_collection(armature_data, fk_bone, self.control_collection_name)
-
-			self.mechanism_bone_names.append(fk_bone.name)
+			if not (is_head_bone or is_neck_bone):
+				self.mechanism_bones.add(fk_bone.name, 'fk')
+			if is_neck_bone or is_head_bone:
+				self.mechanism_bones.add(fk_bone.name, 'control')
 
 		# Parent the FK bones in two sections: lower torso and upper torso
 		for fk_bone in fk_bones:
@@ -246,7 +237,7 @@ class TorsoFK:
 		edit_bones[self.tweak_chain.terminal_tweak_name].parent = edit_bones[self.fk_bone_names[-1]]
 		
 		if self.tweak_chain:
-			self.mechanism_bone_names.extend(self.tweak_chain.mechanism_bone_names)
+			self.mechanism_bones.append(self.tweak_chain.mechanism_bones)
 			self.property_names.extend(self.tweak_chain.property_names)
 
 		# Parent the twist ORG bones to the tweak bones
@@ -263,19 +254,19 @@ class TorsoFK:
 
 		# Create MCH bones (for master control falloff)
 		# Hips MCH bones
+		fk_names = [bone.name for bone in fk_bones]
 		hips_count = self.lower_torso_bone_count
 		if hips_count == 1:
 			fk_bones[0].parent = hip_bone
 		else:
 			self.hips_mch_names = generate_mch_bones(
 				armature_data,
-				fk_bones[0:hips_count],
+				fk_names[0:hips_count],
 				bone_template("mch"),
-				self.mch_collection_name
 			)
 			for mch_name in self.hips_mch_names:
 				match_orientation(edit_bones[mch_name], hip_bone)
-			self.mechanism_bone_names.extend(self.hips_mch_names)
+			self.mechanism_bones.extend(self.hips_mch_names, 'mch')
 
 		# Chest MCH bones
 		chest_count = len(org_bone_names) - self.neck_bone_count - self.lower_torso_bone_count - 1
@@ -284,25 +275,22 @@ class TorsoFK:
 		else:
 			self.chest_mch_names = generate_mch_bones(
 				armature_data,
-				fk_bones[self.lower_torso_bone_count:self.lower_torso_bone_count + chest_count],
-				bone_template("mch"),
-				self.mch_collection_name
+				fk_names[self.lower_torso_bone_count:self.lower_torso_bone_count + chest_count],
+				bone_template("mch")
 			)
 			for mch_name in self.chest_mch_names:
 				match_orientation(edit_bones[mch_name], chest_bone)
-			self.mechanism_bone_names.extend(self.chest_mch_names)
+			self.mechanism_bones.extend(self.chest_mch_names, 'mch')
 
 		# Middle Torso tweak bone
 		# Should take influence from both hips and chest
 		tweak_name = self.tweak_chain.tweak_bone_names[upper_torso_index] # No twist bones, so FK index = tweak index
-		tweak_bone = edit_bones[tweak_name]
 		mch_bone = generate_mch_bones(
 			armature_data,
-			[tweak_bone],
+			[tweak_name],
 			bone_template("mch"),
-			self.mch_collection_name
 		)[0]
-		self.mechanism_bone_names.append(mch_bone)
+		self.mechanism_bones.add(mch_bone, 'mch')
 		self.middle_torso_mch_name = mch_bone
 
 		# Fix required if there is more than one neck bone
@@ -315,11 +303,10 @@ class TorsoFK:
 			second_neck_tweak_name = self.tweak_chain.tweak_bone_names[first_neck_tweak_index + 1]
 			self.twist_isolator_name = generate_mch_bones(
 				armature_data, 
-				[edit_bones[first_neck_tweak_name]], 
+				[first_neck_tweak_name], 
 				bone_template("twist_isolator"), 
-				self.mch_collection_name
 			)[0]
-			self.mechanism_bone_names.append(self.twist_isolator_name)
+			self.mechanism_bones.add(self.twist_isolator_name, 'mch')
 
 			twist_isolator = edit_bones[self.twist_isolator_name]
 			twist_isolator.parent = edit_bones[self.fk_bone_names[chest_bone_index]] # parent to chest FK

@@ -1,4 +1,5 @@
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.twist_bones import twist_influence
@@ -9,14 +10,10 @@ from rigtools.utils.naming import bone_template
 class Palm:
 	def __init__(self, *,
 		fk_widget: str = "PILL",
-		fk_collection_name: str = "",
-		mch_collection_name: str = "",
 		pinky_falloff_type: str = "LINEAR",
 		index_falloff_type: str = "SHARP",
 	):
 		self.fk_widget = fk_widget
-		self.fk_collection_name = fk_collection_name
-		self.mch_collection_name = mch_collection_name
 		self.pinky_falloff_type = pinky_falloff_type
 		self.index_falloff_type = index_falloff_type
 
@@ -24,7 +21,7 @@ class Palm:
 		self.org_bone_names = []
 		self.mch_bone_names = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -39,7 +36,6 @@ class Palm:
 
 		self.fk_chain = FKChain(
 			fk_bone_template=bone_template('fk'),
-			fk_collection_name=self.fk_collection_name,
 			fk_widget=self.fk_widget
 		)
 
@@ -52,11 +48,11 @@ class Palm:
 			fk_bone.parent = org_bone.parent
 
 
-		middle_bones = fk_bones[1:-1]
-		self.mch_bone_names = generate_mch_bones(armature_data, middle_bones, bone_template('mch'), self.mch_collection_name)
-		self.mechanism_bone_names.extend(self.mch_bone_names)
+		middle_bones = self.fk_chain.fk_bone_names[1:-1]
+		self.mch_bone_names = generate_mch_bones(armature_data, middle_bones, bone_template('mch'))
+		self.mechanism_bones.extend(self.mch_bone_names, 'mch')
 
-		self.mechanism_bone_names.extend(self.fk_chain.fk_bone_names)
+		self.mechanism_bones.append(self.fk_chain.mechanism_bones)
 		self.property_names.extend(self.fk_chain.property_names)
 
 		return self

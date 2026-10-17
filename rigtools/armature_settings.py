@@ -87,7 +87,12 @@ def initialize_armature_settings(armature_data, context):
 
 
 def needs_rig_upgrade(armature_data):
-	return armature_data.rigtools.rig_data_version < CURRENT_RIG_DATA_VERSION
+	version = armature_data.rigtools.rig_data_version
+	if version >= CURRENT_RIG_DATA_VERSION:
+		return False
+	if version == 0 and not armature_data.rigtools_assemblies:
+		return False
+	return True
 
 class RIG_OT_initialize_armature_settings(bpy.types.Operator):
 	bl_idname = "rig.initialize_armature_settings"

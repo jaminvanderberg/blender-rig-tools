@@ -8,15 +8,10 @@ from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.widget import create_roll_widget, get_widget_collection
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
+from rigtools.assemblies.mechanism_bones import MechanismBones
 
 class FootRoll:
-	def __init__(self, *,
-		mch_collection_name: str,
-		ik_collection_name: str,
-	):
-		self.mch_collection_name = mch_collection_name
-		self.ik_collection_name = ik_collection_name
-
+	def __init__(self):
 		self.mch_ik_foot_name = None
 		self.ik_foot_name = None
 		self.org_toe_name = None
@@ -30,12 +25,11 @@ class FootRoll:
 		self.mch_toe_name = None
 		self.vis_name = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
 	def edit_mode(self, context, mch_ik_foot_name, ik_foot_name, heel_pivot_name, org_toe_name):
-		prefs = get_preferences(context)
 		bpy.ops.object.mode_set(mode='EDIT')
 
 		armature_data = context.object.data
@@ -72,7 +66,7 @@ class FootRoll:
 			bone = edit_bones.new(name)
 			bone.head = head
 			bone.tail = tail
-			self.mechanism_bone_names.append(bone.name)
+			self.mechanism_bones.add(bone.name, 'mch')
 			return bone
 
 		def align_roll_bone(bone):
@@ -99,25 +93,7 @@ class FootRoll:
 		foot_roll_control_name = name_bone("foot_roll", ik_foot_name)
 		foot_roll_control_bone = duplicate_bone(context.object.data, heel_roll_bone, foot_roll_control_name, 1.5)
 		self.foot_roll_control_name = foot_roll_control_bone.name
-		self.mechanism_bone_names.append(foot_roll_control_bone.name)
-
-		if self.mch_collection_name:
-			set_bone_collection(context.object.data, toe_roll_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			set_bone_collection(context.object.data, heel_roll_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			set_bone_collection(context.object.data, rock_a_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			set_bone_collection(context.object.data, rock_b_bone, self.mch_collection_name, prefs.mch_parent_collection)
-		else:
-			for coll in mch_ik_foot_bone.collections:
-				coll.bones.append(toe_roll_bone)
-				coll.bones.append(heel_roll_bone)
-				coll.bones.append(rock_a_bone)
-				coll.bones.append(rock_b_bone)
-
-		if self.ik_collection_name:
-			set_bone_collection(context.object.data, foot_roll_control_bone, self.ik_collection_name)
-		else:
-			for coll in edit_bones[self.ik_foot_name].collections:
-				coll.bones.append(foot_roll_control_bone)
+		self.mechanism_bones.add(foot_roll_control_bone.name, 'ik')
 
 		# Parenting
 		mch_ik_foot_bone.parent = toe_roll_bone
@@ -135,22 +111,15 @@ class FootRoll:
 		vis_bone.tail.z = heel_pivot.z
 		vis_bone.parent = edit_bones[self.ik_foot_name]
 		self.vis_name = vis_bone.name
-		self.mechanism_bone_names.append(vis_bone.name)
-
-		if self.mch_collection_name:
-			set_bone_collection(context.object.data, vis_bone, self.mch_collection_name, prefs.mch_parent_collection)
-		else:
-			for coll in mch_ik_foot_bone.collections:
-				coll.bones.append(vis_bone)
+		self.mechanism_bones.add(vis_bone.name, 'mch')
 
 		# MCH Toe bone
 		mch_toe_bone = align_roll_bone(edit_bones[generate_mch_bones(armature_data, 
-			[edit_bones[org_toe_name]],
-			bone_template("mch"),
-			self.mch_collection_name
+			[org_toe_name],
+			bone_template("mch")
 		)[0]])
 		self.mch_toe_name = mch_toe_bone.name
-		self.mechanism_bone_names.append(mch_toe_bone.name)		
+		self.mechanism_bones.add(mch_toe_bone.name, 'mch')		
 
 		return self
 

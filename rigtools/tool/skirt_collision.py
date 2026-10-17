@@ -1,5 +1,6 @@
 import json
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings
@@ -50,7 +51,7 @@ class SkirtCollision:
 		self.mch_bone_names = []
 		self.pin_bone_names = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []		
 
@@ -89,13 +90,7 @@ class SkirtCollision:
 
 			covered += direction.length
 
-			if self.mch_bone_collection_name:
-				set_bone_collection(armature_data, collision_bone, self.mch_bone_collection_name)
-			else:
-				for coll in fk_bone.collections:
-					coll.assign(collision_bone)
-
-			self.mechanism_bone_names.append(collision_bone.name)
+			self.mechanism_bones.add(collision_bone.name, 'mch')
 			self.collision_bone_names.append(collision_bone.name)
 
 			target = _nearest_target(edit_bones, self.target_bone_names, point)
@@ -111,18 +106,12 @@ class SkirtCollision:
 			pin.parent = target
 			pin.length = pin.length * 0.35
 			
-			self.mechanism_bone_names.append(pin.name)
+			self.mechanism_bones.add(pin.name, 'mch')
 			self.pin_bone_names.append(pin.name)
 
-			if self.mch_bone_collection_name:
-				set_bone_collection(armature_data, pin, self.mch_bone_collection_name)
-			else:
-				for coll in fk_bone.collections:
-					coll.assign(pin)
+		mch_names = generate_mch_bones(armature_data, fk_names, bone_template("mch"))
 
-		mch_names = generate_mch_bones(armature_data, fk_bones, bone_template("mch"), self.mch_bone_collection_name)
-
-		self.mechanism_bone_names.extend(mch_names)
+		self.mechanism_bones.extend(mch_names, 'mch')
 		self.mch_bone_names.extend(mch_names)
 
 		self.property_names.append((self.property_name, "SKIRT_COLLISION"))

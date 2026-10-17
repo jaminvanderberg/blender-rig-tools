@@ -84,13 +84,16 @@ def migrate_2_to_3(armature_data, context):
 	"""Build rigtools_limb_collections from existing assemblies/collections."""
 	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
 
-	# 1) Group assemblies by (limb, side)
+	# 1) Group assemblies by (limb, side); normalize property base to lowercase
 	by_key = {}
 	for assembly in armature_data.rigtools_assemblies:
 		options = json.loads(assembly.options_json or "{}")
-		limb = (options.get("limb_property_base_name") or "").strip()
+		limb = (options.get("limb_property_base_name") or "").strip().lower()
 		if not limb:
 			continue
+		if options.get("limb_property_base_name") != limb:
+			options["limb_property_base_name"] = limb
+			assembly.options_json = json.dumps(options)
 		side = assembly.side or ""
 		by_key.setdefault((limb, side), []).append((assembly, options))
 
@@ -141,15 +144,16 @@ def migrate_2_to_3(armature_data, context):
 			if all_colls.get(split_name):
 				row.fk = split_name
 
-	print(armature_data.rigtools_limb_collections)
-
+	for collection in armature_data.rigtools_limb_collections:
+		print(collection.name)
+		print(f"limb: {collection.limb}, side: {collection.side}")
+		print(f"fk: {collection.fk}, ik: {collection.ik}, tweak: {collection.tweak}, mch: {collection.mch}, master: {collection.master}, control: {collection.control}")
 
 MIGRATIONS = {
 	0: migrate_0_to_1,
 	1: migrate_1_to_2,
 	2: migrate_2_to_3,
 }
-
 
 def upgrade_rig(armature_data, context):
 	settings = armature_data.rigtools

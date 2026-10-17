@@ -1,4 +1,5 @@
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_chain
 from rigtools.utils.naming import generate_bone_name, bone_template
 from rigtools.utils.bone_collection import set_bone_collection
@@ -12,20 +13,16 @@ class FKIKSwitch:
 		switch_property_name: str,
 		fk_widget_type: str = "CIRCLE",
 		fk_end_widget_type: str = "SAME",
-		fk_collection_name: str = None,
-		mch_collection_name: str = None,
 	):
 		self.switch_property_name = switch_property_name
 		self.fk_widget_type = fk_widget_type
 		self.fk_end_widget_type = fk_end_widget_type
-		self.fk_collection_name = fk_collection_name
-		self.mch_collection_name = mch_collection_name
 
 		self.switch_bone_names = None
 		self.fk_bone_names = None
 		self.ik_bone_names = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -33,7 +30,6 @@ class FKIKSwitch:
 		self.switch_bone_names = switch_bone_names
 
 		obj = context.object
-		edit_bones = obj.data.edit_bones
 		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
@@ -42,18 +38,8 @@ class FKIKSwitch:
 		self.fk_bone_names = duplicate_chain(obj.data, switch_bone_names, prefs.fk_template, 1.0, name_source)
 		self.ik_bone_names = duplicate_chain(obj.data, switch_bone_names, bone_template("ik_mch"), 1.0, name_source)
 
-		if self.fk_collection_name:
-			for bone_name in self.fk_bone_names:
-				bone = edit_bones[bone_name]
-				set_bone_collection(obj.data, bone, self.fk_collection_name)		
-
-		if self.mch_collection_name:
-			for bone_name in self.ik_bone_names:
-				bone = edit_bones[bone_name]
-				set_bone_collection(obj.data, bone, self.mch_collection_name, prefs.mch_parent_collection)
-
-		self.mechanism_bone_names.extend(self.ik_bone_names)
-		self.mechanism_bone_names.extend(self.fk_bone_names)
+		self.mechanism_bones.extend(self.ik_bone_names, 'mch')
+		self.mechanism_bones.extend(self.fk_bone_names, 'fk')
 		self.property_names.append((self.switch_property_name, "FK_IK_SWITCH"))
 
 		return self

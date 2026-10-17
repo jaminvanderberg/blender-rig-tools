@@ -394,7 +394,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		armature_data.use_mirror_x = False
 
 		options = PalmAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
+			limb_property_base_name=self.limb_property_base_name.strip().lower(),
 			fk_widget=self.fk_widget,
 			index_falloff_type=self.index_falloff_type,
 			pinky_falloff_type=self.pinky_falloff_type,

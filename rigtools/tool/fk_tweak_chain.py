@@ -1,5 +1,6 @@
 import bpy
 from dataclasses import dataclass, field
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
@@ -13,23 +14,21 @@ class FKTweakChain:
 		skip_first_tweak: bool = False,
 		do_create_fk: bool = True,
 		fk_widget: str = "CIRCLE",
-		tweak_collection_name: str = "",
-		fk_collection_name: str = "",
 		tweak_relationship: str = "STRETCH_TO",
 		tweak_scale: float = 0.25,
 		normalize_fk_widget_scale: bool = False,
-		fk_widget_taper: float = 0.0
+		fk_widget_taper: float = 0.0,
+		fk_role: str | list[str] = 'fk',
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
 		self.do_create_fk = do_create_fk
 		self.fk_widget = fk_widget
-		self.tweak_collection_name = tweak_collection_name
-		self.fk_collection_name = fk_collection_name
 		self.tweak_relationship = tweak_relationship
 		self.tweak_scale = tweak_scale
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.fk_widget_taper = fk_widget_taper
+		self.fk_role = fk_role
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -37,7 +36,7 @@ class FKTweakChain:
 		self.terminal_tweak_name = ""
 		self.bone_lengths = {}
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -70,9 +69,6 @@ class FKTweakChain:
 			
 				last_parent = fk_bone
 
-				if self.fk_collection_name:
-					set_bone_collection(armature_data, fk_bone, self.fk_collection_name)
-
 			if self.skip_first_tweak and bone_name == self.org_bone_names[0]:
 				self.tweak_bone_names.append("")
 				continue
@@ -89,9 +85,6 @@ class FKTweakChain:
 			
 			self.tweak_bone_names.append(tweak_bone.name)
 
-			if self.tweak_collection_name:
-				set_bone_collection(armature_data, tweak_bone, self.tweak_collection_name)
-
 		# Create terminal (tip) tweak bone            
 		last_org_bone = edit_bones[self.org_bone_names[-1]]
 		term_name = name_bone("term", self.org_bone_names[-1])
@@ -103,13 +96,10 @@ class FKTweakChain:
 			coll.assign(term_bone)
 		
 		term_bone.head = last_org_bone.tail
-		direction = (last_org_bone.tail - last_org_bone.head).normalized()
+		direction = (last_org_bone.tail - last_org_bone.head).normalized()	
 		term_bone.tail = last_org_bone.tail + (direction * tweak_length)
 		term_bone.roll = last_org_bone.roll
 
-		if self.tweak_collection_name:
-			set_bone_collection(armature_data, term_bone, self.tweak_collection_name)
-		
 		self.terminal_tweak_name = term_bone.name
 		
 		# Parent ORG bones to Tweak
@@ -132,9 +122,9 @@ class FKTweakChain:
 			child.use_connect = False
 			child.parent = term_bone
 			
-		self.mechanism_bone_names.extend(self.fk_bone_names)
-		self.mechanism_bone_names.extend([tweak_name for tweak_name in self.tweak_bone_names if tweak_name])
-		self.mechanism_bone_names.append(self.terminal_tweak_name)
+		self.mechanism_bones.extend(self.fk_bone_names, self.fk_role)
+		self.mechanism_bones.extend(self.tweak_bone_names, 'tweak')
+		self.mechanism_bones.add(self.terminal_tweak_name, 'tweak')
 
 		return self
 

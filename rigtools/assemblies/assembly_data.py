@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass, is_dataclass
 import json
+from typing import NamedTuple
 import uuid
 import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
@@ -62,9 +63,12 @@ def get_assembly_chains(context, assembly_uid=None, check_property_bone=True) ->
 
 	return chains, original_mode, original_mirror
 
+class RoleRef(PropertyGroup):
+	name: StringProperty()
 
 class BoneRef(PropertyGroup):
 	name: StringProperty()
+	role: CollectionProperty(type=RoleRef)
 
 class OrgState(PropertyGroup):
 	name: StringProperty() # ORG bone name
@@ -110,11 +114,12 @@ class AssemblyData(PropertyGroup):
 	config_defaults_json: StringProperty()
 
 	def apply_tool(self, tool):
-		for bone_ref in tool.mechanism_bone_names:
-			if not bone_ref:
-				continue
+		for bone_ref in tool.mechanism_bones:
 			row = self.mechanism_bones.add()
-			row.name = bone_ref
+			row.name = bone_ref.name
+			for role in bone_ref.role:
+				role_row = row.role.add()
+				role_row.name = role
 
 		for prop in tool.property_names:
 			if not prop:
@@ -206,6 +211,7 @@ class AssemblyChain:
 	tools: list
 	
 classes = (
+	RoleRef,
 	BoneRef,
 	OrgState,
 	AssemblyProperty,

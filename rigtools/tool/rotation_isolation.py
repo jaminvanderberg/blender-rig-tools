@@ -1,3 +1,4 @@
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.naming import name_bone
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
@@ -11,14 +12,12 @@ class RotationIsolation:
 	def __init__(self, *,
 		property_name: str,
 		property_qualifier: str = "",
-		mch_collection_name: str | None = None,
 		include_scale: bool = True,
 		disable_scale: bool = False,
 		inherit_scale_from_root: bool = False,
 	):
 		self.property_name = property_name
 		self.property_qualifier = property_qualifier
-		self.mch_collection_name = mch_collection_name
 		self.include_scale = include_scale
 		self.disable_scale = disable_scale
 		self.inherit_scale_from_root = inherit_scale_from_root
@@ -26,7 +25,7 @@ class RotationIsolation:
 		self.created_bones = None
 		self.root_bone_name = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -63,21 +62,13 @@ class RotationIsolation:
 
 			int_bone.parent = root_bone
 
-			if self.mch_collection_name:
-				set_bone_collection(armature_data, int_bone, self.mch_collection_name, prefs.mch_parent_collection)
-				set_bone_collection(armature_data, socket_bone, self.mch_collection_name, prefs.mch_parent_collection)
-			else:
-				for coll in bone.collections:
-					coll.assign(socket_bone)
-					coll.assign(int_bone)
-
 			bone.use_connect = False
 			bone.parent = int_bone
 
 			self.created_bones.append((socket_bone.name, int_bone.name))
 
-			self.mechanism_bone_names.append(socket_bone.name)
-			self.mechanism_bone_names.append(int_bone.name)
+			self.mechanism_bones.add(socket_bone.name, 'mch')
+			self.mechanism_bones.add(int_bone.name, 'mch')
 			
 		self.property_names.append((self.property_name, "ROTATION_ISOLATION", self.property_qualifier))
 

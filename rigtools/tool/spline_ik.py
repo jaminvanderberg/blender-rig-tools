@@ -1,4 +1,5 @@
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.bone_collection import set_bone_collection
@@ -22,12 +23,10 @@ class SplineIK:
 	def __init__(self, *,
 		control_count: int = 3,
 		skip_first: bool = False,
-		ik_collection_name: str = None,
 		twist_type: str = 'START_END'
 	):
 		self.control_count = control_count
 		self.skip_first = skip_first
-		self.ik_collection_name = ik_collection_name
 		self.twist_type = twist_type
 
 		self.mch_bone_names = None
@@ -35,7 +34,7 @@ class SplineIK:
 		self.spline_object = None
 		self.twist_names = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -109,16 +108,6 @@ class SplineIK:
 				self.twist_names.append(twist_bone.name)
 				twist_bone.parent = spline_bone
 
-			if self.ik_collection_name:
-				set_bone_collection(obj.data, spline_bone, self.ik_collection_name)
-				if twist_bone:
-					set_bone_collection(obj.data, twist_bone, self.ik_collection_name)
-			else:
-				for coll in ref_bone.collections:
-					coll.assign(spline_bone)
-					if twist_bone:
-						coll.assign(twist_bone)
-
 			self.control_names.append(spline_bone.name)
 
 		if self.twist_names and self.twist_type in ['START', 'START_END', 'ALL']:
@@ -126,8 +115,8 @@ class SplineIK:
 			mch = edit_bones[bones[0]]
 			mch.parent = first
 
-		self.mechanism_bone_names.extend(self.control_names)
-		self.mechanism_bone_names.extend(self.twist_names)
+		self.mechanism_bones.extend(self.control_names, 'ik')
+		self.mechanism_bones.extend(self.twist_names, 'ik')
 
 		return self
 

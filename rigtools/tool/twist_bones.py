@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import bpy
 
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.twist_bones import create_twist_chain, get_twist_chain, prune_twist_map
 from rigtools.utils.bone import duplicate_bone
@@ -66,7 +67,6 @@ class TwistBones:
 		segments: List[TwistSegment],
 		twist_bone_count: int,
 		twist_parent_name: str = "",
-		tweak_collection_name: str = "",
 		tweak_relationship: str = 'STRETCH_TO',
 		add_tweak_bones: bool = True,
 	):
@@ -75,14 +75,13 @@ class TwistBones:
 
 		self.segments = segments
 		self.twist_bone_count = twist_bone_count
-		self.tweak_collection_name = tweak_collection_name
 		self.tweak_relationship = tweak_relationship
 		self.twist_parent_name = twist_parent_name
 		self.add_tweak_bones = add_tweak_bones
 
 		self.driver_bone_names = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -143,7 +142,7 @@ class TwistBones:
 				edit_bones[twist_names[0]].parent = isolator
 
 			self.isolator_names[segment.index] = isolator.name
-			self.mechanism_bone_names.append(isolator.name)
+			self.mechanism_bones.add(isolator.name, 'mch')
 
 		if not self.add_tweak_bones:
 			return self
@@ -159,7 +158,6 @@ class TwistBones:
 
 			tweak = FKTweakChain(
 				do_create_fk=False,
-				tweak_collection_name=self.tweak_collection_name,
 				tweak_relationship=self.tweak_relationship,
 			)
 			tweak.edit_mode(obj.data, flat)
@@ -185,7 +183,7 @@ class TwistBones:
 				# parent to the last org bone
 				edit_bones[tweak.terminal_tweak_name].parent = edit_bones[org_bone_names[group[-1]]]
 
-			self.mechanism_bone_names.extend(tweak.mechanism_bone_names)
+			self.mechanism_bones.append(tweak.mechanism_bones)
 			self.property_names.extend(tweak.property_names)
 
 		return self

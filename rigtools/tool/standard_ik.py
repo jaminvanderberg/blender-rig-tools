@@ -8,6 +8,7 @@ from mathutils import Vector
 from rigtools.utils.widget import create_ik_widget, get_widget_collection, create_sphere_widget, create_line_widget
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
+from rigtools.assemblies.mechanism_bones import MechanismBones
 
 def signed_angle(u, v, normal):
 	normal = normal.normalized()
@@ -33,13 +34,11 @@ class StandardIK:
 	def __init__(self, *,
 		enable_ik_stretch: bool = True,
 		pole_distance: float = 1.0,
-		ik_collection_name: str = None,
 		enable_snapping: bool = True,
 		mch_collection_name: str = None
 	):
 		self.enable_ik_stretch = enable_ik_stretch
 		self.pole_distance = pole_distance
-		self.ik_collection_name = ik_collection_name
 		self.enable_snapping = enable_snapping
 		self.mch_collection_name = mch_collection_name
 
@@ -51,7 +50,7 @@ class StandardIK:
 		self.snap_control_name = None
 		self.snap_pole_name = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 		self.mch_tweak_name = None
@@ -113,11 +112,8 @@ class StandardIK:
 			mch.parent = tweak.parent
 			tweak.parent = mch
 
-			if self.mch_collection_name:
-				set_bone_collection(obj.data, mch, self.mch_collection_name, prefs.mch_parent_collection)
-
 			self.mch_tweak_name = mch.name
-			self.mechanism_bone_names.append(self.mch_tweak_name)
+			self.mechanism_bones.add(self.mch_tweak_name, 'mch')
 
 		if self.enable_snapping:
 			snap_control_name = name_bone("fk_ik_snap", ik_control_bone.name)
@@ -156,14 +152,14 @@ class StandardIK:
 				if pole_vis_bone:
 					coll.assign(pole_vis_bone)
 
-		self.mechanism_bone_names.append(self.ik_control_name)
-		self.mechanism_bone_names.append(self.pole_name)
+		self.mechanism_bones.add(self.ik_control_name, 'ik')
+		self.mechanism_bones.add(self.pole_name, 'ik')
 		if pole_vis_bone:
-			self.mechanism_bone_names.append(self.pole_vis_name)
+			self.mechanism_bones.add(self.pole_vis_name, 'ik')
 		if self.snap_control_name:
-			self.mechanism_bone_names.append(self.snap_control_name)
+			self.mechanism_bones.add(self.snap_control_name, 'mch')
 		if self.snap_pole_name:
-			self.mechanism_bone_names.append(self.snap_pole_name)
+			self.mechanism_bones.add(self.snap_pole_name, 'mch')
 
 		return self
 

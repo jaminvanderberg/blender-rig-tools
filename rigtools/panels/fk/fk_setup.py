@@ -391,16 +391,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	# execute
 
 	def execute(self, context):
-		if self.add_rotation_isolation and not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required for rotation isolation.")
-			return {'CANCELLED'}
-
-		if self.add_skirt_collision and not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required for skirt collision.")
-			return {'CANCELLED'}
-
-		if self.add_skirt_ride and not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required for skirt ride.")
+		if not self.limb_property_base_name:
+			self.report({'ERROR'}, "Limb property base name is required.")
 			return {'CANCELLED'}
 
 		skirt_slots = list(iter_skirt_leg_slots(context))
@@ -423,7 +415,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = FKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
+			limb_property_base_name=self.limb_property_base_name.strip().lower(),
 			control_mode=self.control_mode,
 			fk_bone_template=bone_template('fk'),
 			skip_first_tweak=self.skip_first_tweak,

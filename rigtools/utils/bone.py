@@ -83,15 +83,13 @@ def duplicate_chain(armature_data, bone_names, name_template, scale, name_source
 	return new_bones
 
 
-def generate_mch_bones(armature_data, bones, name_template, collection_name, scale=0.35):
-	prefs = get_preferences()
+def generate_mch_bones(armature_data, bone_names, name_template, scale=0.35):
+	edit_bones = armature_data.edit_bones
 	mch_bone_names = []
-	for bone in bones:
+	for source_name in bone_names:
+		bone = edit_bones[source_name]
 		bone_name = generate_bone_name(bone.name, name_template)
 		mch_bone = duplicate_bone(armature_data, bone, bone_name, scale)
-
-		if collection_name:
-			set_bone_collection(armature_data, mch_bone, collection_name, prefs.mch_parent_collection)
 
 		mch_bone.parent = bone.parent
 		bone.use_connect = False

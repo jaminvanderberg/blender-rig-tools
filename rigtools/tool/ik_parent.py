@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List
 
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 
 from rigtools.armature_settings import get_armature_settings
@@ -26,20 +27,18 @@ class IKParent:
 		property_name: str,
 		parents: List[IKParentTarget],
 		self_parent_label: str = 'Foot',
-		mch_collection_name: str | None = None,
 		add_ik_control_as_pole_parent: bool = False
 	):
 		self.property_name = property_name
 		self.parents = parents
 		self.self_parent_label = self_parent_label
-		self.mch_collection_name = mch_collection_name
 
 		self.self_parent_name = ""
 		self.parent_bone_names = None
 		self.add_ik_control_as_pole_parent = add_ik_control_as_pole_parent
 		self.self_parent_mch = None
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -58,12 +57,9 @@ class IKParent:
 			bone.parent = parent_bone
 			parent_bone.parent = None
 
-			if self.mch_collection_name:
-				set_bone_collection(obj.data, parent_bone, self.mch_collection_name, prefs.mch_parent_collection)
-
 			self.parent_bone_names.append(parent_bone.name)
 
-		self.mechanism_bone_names.extend(self.parent_bone_names)
+		self.mechanism_bones.extend(self.parent_bone_names, 'mch')
 		self.property_names.append((self.property_name, "IK_PARENT"))
 
 		if len(self.parent_bone_names) > 1:

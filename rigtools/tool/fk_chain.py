@@ -1,4 +1,5 @@
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name
 from rigtools.utils.bone_collection import set_bone_collection
@@ -10,20 +11,20 @@ class FKChain:
 	def __init__(self, *,
 		fk_bone_template: str = "FK-{name}",
 		fk_widget: str = "CIRCLE",
-		fk_collection_name: str = "",
 		normalize_fk_widget_scale: bool = False,
 		fk_widget_taper: float = 0.0,
+		fk_role: str | list[str] = 'fk',
 	):
 		self.fk_bone_template = fk_bone_template
 		self.fk_widget = fk_widget
-		self.fk_collection_name = fk_collection_name
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.fk_widget_taper = fk_widget_taper
+		self.fk_role = fk_role
 
 		self.org_bone_names = None
 		self.fk_bone_names = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -45,12 +46,9 @@ class FKChain:
 				fk_bone.use_connect = True
 
 			self.fk_bone_names.append(fk_bone.name)
-			self.mechanism_bone_names.append(fk_bone.name)
+			self.mechanism_bones.add(fk_bone.name, self.fk_role)
 			
 			last_parent = fk_bone
-
-			if self.fk_collection_name:
-				set_bone_collection(armature_data, fk_bone, self.fk_collection_name)
 
 		return self
 

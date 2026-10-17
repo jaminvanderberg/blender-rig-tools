@@ -1,5 +1,6 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.bone_chain import find_curl_axis
@@ -22,7 +23,7 @@ class FingerCurl:
 		self.sign = 0
 		self.axis = ""
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -35,15 +36,15 @@ class FingerCurl:
 		bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = armature_data.edit_bones
 
-		fk_bones = [edit_bones[name] for name in self.fk_bone_names]
-		self.mch_bone_names = generate_mch_bones(armature_data, fk_bones, bone_template('mch'), self.mch_collection_name)
-		self.mechanism_bone_names.extend(self.mch_bone_names)
+		self.mch_bone_names = generate_mch_bones(armature_data, fk_bone_names, bone_template('mch'))
+		self.mechanism_bones.extend(self.mch_bone_names, 'mch')
 
 		control_name = name_bone('control', self.fk_bone_names[0], strip_numbers=True)
-		control_bone = duplicate_bone(armature_data, fk_bones[0], control_name, 3.0)
+		control_bone = duplicate_bone(armature_data, edit_bones[self.fk_bone_names[0]], control_name, 3.0)
 		self.control_bone_name = control_bone.name
-		self.mechanism_bone_names.append(self.control_bone_name)
+		self.mechanism_bones.add(self.control_bone_name, 'control')
 
+		fk_bones = [edit_bones[name] for name in self.fk_bone_names]
 		self.axis, self.sign = find_curl_axis(fk_bones, self.curl_axis)
 		
 		return self

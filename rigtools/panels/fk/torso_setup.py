@@ -373,7 +373,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		options = TorsoAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
+			limb_property_base_name=self.limb_property_base_name.strip().lower(),
 			lower_torso_bone_count=self.lower_torso_bone_count,
 			neck_bone_count=self.neck_bone_count,
 			use_twist_bones=self.use_twist_bones,

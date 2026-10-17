@@ -764,7 +764,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = IKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name,
+			limb_property_base_name=self.limb_property_base_name.strip().lower(),
 			add_tweak_bones=self.add_tweak_bones,
 			limb_type=self.limb_type,
 			add_rotation_isolation=self.add_rotation_isolation,

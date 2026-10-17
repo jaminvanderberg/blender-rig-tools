@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 from math import cos, pi, radians
 import bpy
+from rigtools.assemblies.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
@@ -17,13 +18,11 @@ class SkirtLeg:
 class SkirtRide:
 	def __init__(self, *,
 		property_name: str,
-		mch_bone_collection_name: str,
 		legs: list[SkirtLeg],
 		prior_configs: dict,
 	):
 		self.property_name = property_name
 		self.legs = legs
-		self.mch_bone_collection_name = mch_bone_collection_name
 		self.prior_config = prior_configs.get("skirt_ride", {})
 
 		self.shrink_factor = 0.5 # hard-coded default, user configures after creation
@@ -32,7 +31,7 @@ class SkirtRide:
 		self.mch_name = None
 		self.terms = []
 
-		self.mechanism_bone_names = []
+		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
 
@@ -95,13 +94,8 @@ class SkirtRide:
 				for i, thigh_name, bend_axis, bend_sign, influence in pending
 			]
 
-		self.mch_name = generate_mch_bones(
-			armature_data,
-			[fk_bone],
-			bone_template('skirt_ride'),
-			self.mch_bone_collection_name,
-		)[0]
-		self.mechanism_bone_names.append(self.mch_name)
+		self.mch_name = generate_mch_bones(armature_data, [self.fk_name], bone_template('skirt_ride'))[0]
+		self.mechanism_bones.add(self.mch_name, 'mch')
 
 		self.terms = []
 		for i, thigh_name, bend_axis, bend_sign, influence in pending:
@@ -112,15 +106,7 @@ class SkirtRide:
 			helper.parent = skirt_parent
 			helper.use_connect = False
 
-			if self.mch_bone_collection_name:
-				set_bone_collection(
-					armature_data,
-					helper,
-					self.mch_bone_collection_name,
-					prefs.mch_parent_collection,
-				)
-
-			self.mechanism_bone_names.append(helper.name)
+			self.mechanism_bones.add(helper.name, 'mch')
 			self.terms.append((helper.name, thigh_name, bend_axis, bend_sign, influence))
 
 		return self
