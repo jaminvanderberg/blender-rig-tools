@@ -4,7 +4,6 @@ from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings
-from rigtools.utils.bone_collection import set_bone_collection
 from rna_prop_ui import rna_idprop_ui_create
 
 
@@ -38,12 +37,10 @@ class SkirtCollision:
 	def __init__(self, *,
 		property_name: str,
 		target_bone_names: list[str],
-		mch_bone_collection_name: str,
 		prior_configs: dict,
 	):
 		self.property_name = property_name
 		self.target_bone_names = target_bone_names
-		self.mch_bone_collection_name = mch_bone_collection_name
 		self.prior_config = prior_configs.get("skirt_collision", {})
 
 		self.fk_bone_names = []

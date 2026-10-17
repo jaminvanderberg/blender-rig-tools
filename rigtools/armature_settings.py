@@ -127,7 +127,7 @@ class RIG_PT_armature_settings(bpy.types.Panel):
 			row.alert = True
 			row.operator(
 				"rig.upgrade_rig",
-				text=f"Upgrade Rig (v{settings.rig_data_version} → v{CURRENT_RIG_DATA_VERSION})",
+				text=f"Upgrade Rig (v{settings.rig_data_version} -> v{CURRENT_RIG_DATA_VERSION})",
 				icon='FILE_REFRESH',
 			)
 			layout.separator()

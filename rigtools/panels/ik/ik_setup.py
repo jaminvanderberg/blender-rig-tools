@@ -75,7 +75,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 	# FK/Tweak Settings
 	limb_property_base_name: StringProperty(
-		name="Limb Property Base Name",
+		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default=""
 	)
@@ -560,7 +560,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
 			draw.draw_section(col, ["limb_property_base_name", "fk_widget", "tip_widget"], lambda: (
-				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
+				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 				draw.split_field(col, "FK End Widget:", "fk_end_widget"),
 				draw.split_field(col, "Tip Widget:", "tip_widget"),
@@ -720,7 +720,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	
 	def execute(self, context):
 		if not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required.")
+			self.report({'ERROR'}, "Limb name is required.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
 

@@ -286,7 +286,7 @@ def guess_assembly_instance(bone_name, context=None):
 	if len(tokens) < 2:
 		return ""
 
-	# last token is along-chain index — skip it
+	# last token is along-chain index - skip it
 	for token in tokens[:-1]:
 		if len(token) == 1 and token.isalpha():
 			return "." + token.upper()

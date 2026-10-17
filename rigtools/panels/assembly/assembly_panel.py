@@ -3,6 +3,7 @@ from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgra
 from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
+from rigtools.assemblies.limb_collections import find_limb_collections
 from rigtools.utils.bone import get_selected_bones, select_bones
 
 
@@ -39,6 +40,67 @@ class RIG_OT_rename_assembly(bpy.types.Operator):
 		
 		return {'FINISHED'}
 
+class RIG_OT_rename_limb_collections(bpy.types.Operator):
+	bl_idname = "rig.rename_limb_collections"
+	bl_label = "Rename Limb Collections"
+	bl_description = "Rename the limb collections for the selected assembly"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	limb: bpy.props.StringProperty(options={'HIDDEN'})
+	side: bpy.props.StringProperty(options={'HIDDEN'})
+
+	fk: bpy.props.StringProperty(name="FK")
+	ik: bpy.props.StringProperty(name="IK")
+	tweak: bpy.props.StringProperty(name="Tweak")
+	mch: bpy.props.StringProperty(name="MCH")
+	master: bpy.props.StringProperty(name="Master")
+	control: bpy.props.StringProperty(name="Control")
+	
+	def _roles_in_use(self, armature_data):
+		all_colls = getattr(armature_data, "collections_all", armature_data.collections)
+		row = find_limb_collections(armature_data, self.limb, self.side)
+		return [
+			role for role in ("fk", "ik", "tweak", "mch", "master", "control")
+			if all_colls.get(getattr(row, role))
+		]
+
+	def invoke(self, context, event):
+		row = find_limb_collections(context.object.data, self.limb, self.side)
+		for role in self._roles_in_use(context.object.data):
+			setattr(self, role, getattr(row, role))
+		return context.window_manager.invoke_props_dialog(self, width=250)
+
+	def draw(self, context):
+		ROLE_LABELS = {
+			"fk": "FK",
+			"ik": "IK",
+			"tweak": "Tweak",
+			"mch": "MCH",
+			"master": "Master",
+			"control": "Control",
+		}
+		split_size = 0.25
+		col = self.layout.column()
+		for role in self._roles_in_use(context.object.data):
+			split = col.split(align=True, factor=split_size)
+			row = split.row(align=True)
+			row.label(text=ROLE_LABELS[role], translate=False)
+			row = split.row(align=True)
+			row.prop(self, role, text="")
+
+	def execute(self, context):
+		row = find_limb_collections(context.object.data, self.limb, self.side)
+		count = 0
+		for role in self._roles_in_use(context.object.data):
+			new_name = getattr(self, role).strip()
+			if new_name and new_name != getattr(row, role):
+				row.rename(role, new_name)
+				count += 1
+		if count == 0:
+			self.report({'INFO'}, "No collections renamed")
+		else:
+			self.report({'INFO'}, f"Renamed {count} collection{'s' if count != 1 else ''}")
+		return {'FINISHED'}
 	
 class RIG_OT_select_assembly(bpy.types.Operator):
 	bl_description = "Select all the bones associated with the assembly"
@@ -109,7 +171,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			row.alert = True
 			row.operator(
 				"rig.upgrade_rig",
-				text=f"Upgrade Rig (v{settings.rig_data_version} → v{CURRENT_RIG_DATA_VERSION})",
+				text=f"Upgrade Rig (v{settings.rig_data_version} -> v{CURRENT_RIG_DATA_VERSION})",
 				icon='FILE_REFRESH',
 			)
 			layout.separator()
@@ -143,6 +205,12 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			op = row.operator("rig.rename_assembly", text="", icon='GREASEPENCIL')
 			op.assembly_uid = assembly.uid
 
+			row.separator(factor=0.5)
+			
+			op = row.operator("rig.rename_limb_collections", text="", icon='OUTLINER_COLLECTION')
+			op.limb = assembly.get_options()["limb_property_base_name"]
+			op.side = assembly.side
+
 			col.separator(factor=0.5)
 			row = col.row(align=True)
 
@@ -161,6 +229,7 @@ classes = (
 	RIG_OT_select_assembly,
 	RIG_OT_delete_assembly,
 	RIG_OT_rename_assembly,
+	RIG_OT_rename_limb_collections,
 	RIG_PT_assembly_panel,
 )
 

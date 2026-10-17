@@ -1,10 +1,8 @@
 import math
-from re import I
 import bpy
 from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.widget import create_roll_widget, get_widget_collection
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences

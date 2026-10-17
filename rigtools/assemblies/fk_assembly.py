@@ -51,13 +51,13 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 		for chain in chains:
 			limb = options.limb_property_base_name
 			side = find_side(chain)
+
+			limb_collections = ensure_limb_collections(armature_data, limb, side)
 			
 			assembly_name = guess_assembly_name(context.object.data, chain, limb,side)
 			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options, side=side, uid=replacement_uid)
-			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 			assemblies.append(assembly_chain)
-
-			limb_collections = ensure_limb_collections(armature_data, limb, side)
 
 			if options.control_mode in ['FK/TWEAK', 'TWEAK']:
 				# TWEAK CHAIN
@@ -66,8 +66,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					skip_first_tweak=options.skip_first_tweak,
 					do_create_fk=(options.control_mode == 'FK/TWEAK'),
 					fk_widget=options.fk_widget,
-					fk_collection_name=limb_collections.fk,
-					tweak_collection_name=limb_collections.tweak,
 					tweak_relationship=options.tweak_relationship,
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					fk_widget_taper=options.fk_widget_taper,
@@ -80,7 +78,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				fk = FKChain(
 					fk_bone_template=options.fk_bone_template,
 					fk_widget=options.fk_widget,
-					fk_collection_name=limb_collections.fk,
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					fk_widget_taper=options.fk_widget_taper,
 				)
@@ -91,7 +88,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			# ROTATION ISOLATION
 			if options.add_rotation_isolation and len(fk_names) > 0:
 				property_name = name_property("rotation_isolation", options.limb_property_base_name, side)
-				rotation_isolation = RotationIsolation(property_name=property_name, mch_collection_name=mch_collection_name)
+				rotation_isolation = RotationIsolation(property_name=property_name)
 				rotation_isolation.edit_mode(context, armature_data, [fk_names[0]])
 				assembly_chain.tools.append(rotation_isolation)
 
@@ -101,8 +98,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					interval=options.master_controllers_interval,
 					skip_first=options.master_controllers_skip_first,
 					master_controller_type=options.master_controllers_type,
-					mch_collection_name=limb_collections.mch,
-					master_controller_collection_name=limb_collections.master,
 					master_controller_widget=options.master_controllers_widget,
 				)
 				master_controllers.edit_mode(context, fk_names, name_source=chain)
@@ -112,7 +107,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			if options.add_finger_curl and len(fk_names) > 0:
 				finger_curl = FingerCurl(
 					curl_axis=options.finger_curl_axis,
-					mch_collection_name=limb_collections.mch,
 				)
 				finger_curl.edit_mode(context, fk_names)
 				assembly_chain.tools.append(finger_curl)
@@ -123,7 +117,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
-					mch_bone_collection_name=limb_collections.mch,
 					prior_configs=prior_configs,
 				)
 				skirt_collision.edit_mode(context, fk_names)
@@ -135,7 +128,6 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,
-					mch_bone_collection_name=limb_collections.mch,
 					prior_configs=prior_configs
 				)
 				skirt_ride.edit_mode(context, fk_names[0])
@@ -148,7 +140,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
-				assembly.apply_tool(tool)
+				assembly.apply_tool(armature_data, tool, assembly_chain.limb_collections)
 
 				save_config = getattr(tool, 'save_config', None)
 				if callable(save_config):

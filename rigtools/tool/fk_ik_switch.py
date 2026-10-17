@@ -2,7 +2,6 @@ import bpy
 from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_chain
 from rigtools.utils.naming import generate_bone_name, bone_template
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences

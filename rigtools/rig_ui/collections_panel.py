@@ -8,21 +8,21 @@ class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
 	same_row: BoolProperty(default=False)
 	hidden: BoolProperty(default=False)
 
-def rename_layout_collection(arm, old_name, new_name):
+def rename_layout_collection(armature_data, old_name, new_name):
 	if not old_name or old_name == new_name:
 		return
-	for item in arm.rig_ui_layout:
+	for item in armature_data.rig_ui_layout:
 		if not item.is_gap and item.collection_name == old_name:
 			item.collection_name = new_name
 
-def _all_collections(arm):
-	return list(getattr(arm, "collections_all", arm.collections))
+def _all_collections(armature_data):
+	return list(getattr(armature_data, "collections_all", armature_data.collections))
 
 
-def _coll_by_name(arm, name):
+def _coll_by_name(armature_data, name):
 	if not name:
 		return None
-	colls = getattr(arm, "collections_all", arm.collections)
+	colls = getattr(armature_data, "collections_all", armature_data.collections)
 	if hasattr(colls, "get"):
 		return colls.get(name)
 	for coll in colls:
@@ -45,28 +45,28 @@ def _iter_descendants(coll):
 		yield from _iter_descendants(child)
 
 
-def _has_rig_ui_children(arm, coll):
+def _has_rig_ui_children(armature_data, coll):
 	for child in _iter_descendants(coll):
-		if not _is_hidden(arm, child.name):
+		if not _is_hidden(armature_data, child.name):
 			return True
 	return False
 
 
-def _collection_toggle_icon(arm, coll):
-	if not _has_rig_ui_children(arm, coll):
+def _collection_toggle_icon(armature_data, coll):
+	if not _has_rig_ui_children(armature_data, coll):
 		return None
 	return 'DISCLOSURE_TRI_DOWN' if coll.is_visible else 'DISCLOSURE_TRI_RIGHT'
 
-def _iter_rows(arm):
+def _iter_rows(armature_data):
 	rows = []
 	item_row = None
 	seen = set()
-	for item in arm.rig_ui_layout:
+	for item in armature_data.rig_ui_layout:
 		if item.is_gap:
 			rows.append({'type': 'gap'})
 			item_row = None
 			continue
-		coll = _coll_by_name(arm, item.collection_name)
+		coll = _coll_by_name(armature_data, item.collection_name)
 		if coll is None:
 			continue
 		seen.add(coll.name)
@@ -75,7 +75,7 @@ def _iter_rows(arm):
 		else:
 			item_row = [coll]
 			rows.append({'type': 'items', 'colls': item_row})
-	for coll in _all_collections(arm):
+	for coll in _all_collections(armature_data):
 		if coll.name not in seen:
 			rows.append({'type': 'items', 'colls': [coll]})
 	return rows
@@ -85,22 +85,22 @@ def _cleanup_rows(rows):
 	rows[:] = [row for row in rows if row['type'] == 'gap' or row['colls']]
 
 
-def _hidden_map(arm):
+def _hidden_map(armature_data):
 	return {
 		item.collection_name: item.hidden
-		for item in arm.rig_ui_layout
+		for item in armature_data.rig_ui_layout
 		if not item.is_gap
 	}
 
 
-def _is_hidden(arm, name):
-	return _hidden_map(arm).get(name, False)
+def _is_hidden(armature_data, name):
+	return _hidden_map(armature_data).get(name, False)
 
 
-def _apply_rows(arm, rows):
-	hidden = _hidden_map(arm)
+def _apply_rows(armature_data, rows):
+	hidden = _hidden_map(armature_data)
 	_cleanup_rows(rows)
-	layout = arm.rig_ui_layout
+	layout = armature_data.rig_ui_layout
 	layout.clear()
 	for row in rows:
 		if row['type'] == 'gap':

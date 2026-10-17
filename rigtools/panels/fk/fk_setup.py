@@ -29,7 +29,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	bl_options = {'REGISTER', 'UNDO'}
 
 	limb_property_base_name: StringProperty(
-		name="Limb Property Base Name",
+		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default=""
 	)
@@ -348,7 +348,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			"FK Chain Settings:", "SETTINGS", lambda col: (
 
 			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget"], lambda: (
-				draw.split_field(col, "Limb Property Base Name:", "limb_property_base_name"),
+				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
 				draw.split_field(col, "Control Mode:", "control_mode"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 			)),
@@ -392,7 +392,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 	def execute(self, context):
 		if not self.limb_property_base_name:
-			self.report({'ERROR'}, "Limb property base name is required.")
+			self.report({'ERROR'}, "Limb name is required.")
 			return {'CANCELLED'}
 
 		skirt_slots = list(iter_skirt_leg_slots(context))

@@ -68,7 +68,7 @@ class RoleRef(PropertyGroup):
 
 class BoneRef(PropertyGroup):
 	name: StringProperty()
-	role: CollectionProperty(type=RoleRef)
+	roles: CollectionProperty(type=RoleRef)
 
 class OrgState(PropertyGroup):
 	name: StringProperty() # ORG bone name
@@ -113,13 +113,17 @@ class AssemblyData(PropertyGroup):
 	options_json: StringProperty()
 	config_defaults_json: StringProperty()
 
-	def apply_tool(self, tool):
+	def apply_tool(self, armature_data, tool, limb_collections):
 		for bone_ref in tool.mechanism_bones:
 			row = self.mechanism_bones.add()
 			row.name = bone_ref.name
-			for role in bone_ref.role:
-				role_row = row.role.add()
+			roles = []
+			for role in bone_ref.roles:
+				role_row = row.roles.add()
 				role_row.name = role
+				roles.append(role)
+
+			limb_collections.add_bone(armature_data, bone_ref.name, roles)
 
 		for prop in tool.property_names:
 			if not prop:
@@ -150,6 +154,14 @@ class AssemblyData(PropertyGroup):
 				row.use_connect = state['use_connect']
 
 		return self
+
+	def get_bones_by_role(self, role):
+		names = []
+		for bone_ref in self.mechanism_bones:
+			for role_ref in bone_ref.roles:
+				if role_ref.name == role:
+					names.append(bone_ref.name)
+		return names
 
 	def get_options(self):
 		return json.loads(self.options_json or "{}")
@@ -209,6 +221,7 @@ def _options_to_json(options):
 class AssemblyChain:
 	assembly_uid: str
 	tools: list
+	limb_collections: LimbCollectionMap
 	
 classes = (
 	RoleRef,

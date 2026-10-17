@@ -2,7 +2,6 @@ import math
 import bpy
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
 from rigtools.utils.widget import create_ik_widget, get_widget_collection, create_sphere_widget, create_line_widget
@@ -35,12 +34,10 @@ class StandardIK:
 		enable_ik_stretch: bool = True,
 		pole_distance: float = 1.0,
 		enable_snapping: bool = True,
-		mch_collection_name: str = None
 	):
 		self.enable_ik_stretch = enable_ik_stretch
 		self.pole_distance = pole_distance
 		self.enable_snapping = enable_snapping
-		self.mch_collection_name = mch_collection_name
 
 		self.mch_bone_names = None
 		self.fk_bone_names = None
@@ -126,10 +123,6 @@ class StandardIK:
 			snap_pole_bone.parent = edit_bones[fk_bone_names[0]]
 			self.snap_pole_name = snap_pole_bone.name
 
-			if self.mch_collection_name:
-				set_bone_collection(obj.data, snap_control_bone, self.mch_collection_name, prefs.mch_parent_collection)
-				set_bone_collection(obj.data, snap_pole_bone, self.mch_collection_name, prefs.mch_parent_collection)
-
 		pole_vis_bone = None
 		if settings.do_create_widgets:
 			pole_vis_bone_name = name_bone("ik_pole_vis", name_source[0] if name_source else bone1_name)
@@ -139,18 +132,6 @@ class StandardIK:
 			pole_vis_bone.parent = pole_bone
 			pole_vis_bone.align_roll(Vector((1, 0, 0)))
 			self.pole_vis_name = pole_vis_bone.name
-
-		if self.ik_collection_name:
-			set_bone_collection(obj.data, ik_control_bone, self.ik_collection_name)
-			set_bone_collection(obj.data, pole_bone, self.ik_collection_name)
-			if pole_vis_bone:
-				set_bone_collection(obj.data, pole_vis_bone, self.ik_collection_name)
-		else:
-			for coll in bone1.collections:
-				# This is already done for the IK control bone
-				coll.assign(pole_bone)
-				if pole_vis_bone:
-					coll.assign(pole_vis_bone)
 
 		self.mechanism_bones.add(self.ik_control_name, 'ik')
 		self.mechanism_bones.add(self.pole_name, 'ik')

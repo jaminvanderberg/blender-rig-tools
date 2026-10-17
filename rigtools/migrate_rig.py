@@ -3,9 +3,11 @@ import json
 import bpy
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
-from rigtools.assemblies.limb_collections import ensure_limb_collections
+from rigtools.assemblies.limb_collections import ensure_limb_collections, find_limb_collections
 from rigtools.tool.ik_parent import CONFIG_KEY, CONSTRAINT_NAME
 from rigtools.utils.naming import find_side, name_collection
+
+_LIMB_ROLES = ("fk", "ik", "tweak", "mch", "master", "control")
 
 
 def migrate_0_to_1(armature_data, context):
@@ -81,7 +83,7 @@ def migrate_1_to_2(armature_data, context):
 
 
 def migrate_2_to_3(armature_data, context):
-	"""Build rigtools_limb_collections from existing assemblies/collections."""
+	"""Build rigtools_limb_collections and backfill BoneRef.roles from live membership."""
 	all_colls = getattr(armature_data, "collections_all", armature_data.collections)
 
 	# 1) Group assemblies by (limb, side); normalize property base to lowercase
@@ -149,6 +151,46 @@ def migrate_2_to_3(armature_data, context):
 		print(f"limb: {collection.limb}, side: {collection.side}")
 		print(f"fk: {collection.fk}, ik: {collection.ik}, tweak: {collection.tweak}, mch: {collection.mch}, master: {collection.master}, control: {collection.control}")
 
+	# Backfill BoneRef.roles from live collection membership
+	bones = armature_data.bones
+	for assembly in armature_data.rigtools_assemblies:
+		options = json.loads(assembly.options_json or "{}")
+		limb = (options.get("limb_property_base_name") or "").strip().lower()
+		if not limb:
+			continue
+		row = find_limb_collections(armature_data, limb, assembly.side or "")
+		if not row:
+			raise ValueError(
+				f"Assembly '{assembly.name}' has no limb collections for {limb!r} {assembly.side!r}"
+			)
+
+		coll_to_role = {
+			getattr(row, role): role
+			for role in _LIMB_ROLES
+			if getattr(row, role)
+		}
+
+		print(f"assembly: {assembly.name} ({assembly.assembly_type})")
+		for ref in assembly.mechanism_bones:
+			if ref.roles:
+				roles = [r.name for r in ref.roles]
+				print(f"  {ref.name}: {roles} (already set)")
+				continue
+			bone = bones.get(ref.name)
+			if not bone:
+				raise ValueError(
+					f"Assembly '{assembly.name}' mechanism bone '{ref.name}' not found"
+				)
+			for coll in bone.collections:
+				role = coll_to_role.get(coll.name)
+				if role:
+					ref.roles.add().name = role
+			if not ref.roles:
+				raise ValueError(
+					f"Assembly '{assembly.name}' bone '{ref.name}' matches no limb role collections"
+				)
+			print(f"  {ref.name}: {[r.name for r in ref.roles]}")
+
 MIGRATIONS = {
 	0: migrate_0_to_1,
 	1: migrate_1_to_2,
@@ -189,7 +231,7 @@ class RIG_OT_upgrade_rig(bpy.types.Operator):
 			self.report({'ERROR'}, str(e))
 			return {'CANCELLED'}
 
-		self.report({'INFO'}, f"Upgraded rig data v{from_version} → v{to_version}")
+		self.report({'INFO'}, f"Upgraded rig data v{from_version} -> v{to_version}")
 		return {'FINISHED'}
 
 

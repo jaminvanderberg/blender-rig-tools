@@ -1,9 +1,7 @@
 import bpy
-from dataclasses import dataclass, field
 from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_fk_widget, fk_widget_types
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences

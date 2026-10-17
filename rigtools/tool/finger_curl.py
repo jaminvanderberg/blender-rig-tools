@@ -10,10 +10,8 @@ from rigtools.utils.widget import create_paddle_widget, get_widget_collection
 
 class FingerCurl:
 	def __init__(self, *,
-		mch_collection_name: str = "",
 		curl_axis: str = "AUTO", # AUTO, X, -X ,Z, -Z
 	):
-		self.mch_collection_name = mch_collection_name
 		self.curl_axis = curl_axis
 
 		self.fk_bone_names = None

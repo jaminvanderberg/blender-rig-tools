@@ -5,97 +5,120 @@ from rigtools.rig_ui.collections_panel import rename_layout_collection
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.utils.naming import name_collection
 
+def find_bones_by_limb_role(armature_data, limb, side, role):
+	names = []
+	for assembly in armature_data.rigtools_assemblies:
+		options = assembly.get_options()
+		if "limb_property_base_name" not in options:
+			continue
+		if options["limb_property_base_name"] == limb and assembly.side == side:
+			names.extend(assembly.get_bones_by_role(role))
+	return names
+
+def _collection_in_use(armature_data, collection_name):
+	for row in armature_data.rigtools_limb_collections:
+		for role in ("fk", "ik", "tweak", "mch", "master", "control"):
+			if getattr(row, role) == collection_name:
+				return True
+	return False
+
 class LimbCollectionMap(PropertyGroup):
-    limb: StringProperty()
-    side: StringProperty()
+	limb: StringProperty()
+	side: StringProperty()
 
-    fk: StringProperty()
-    ik: StringProperty()
-    tweak: StringProperty()
-    mch: StringProperty()
-    master: StringProperty()
-    control: StringProperty()
+	fk: StringProperty()
+	ik: StringProperty()
+	tweak: StringProperty()
+	mch: StringProperty()
+	master: StringProperty()
+	control: StringProperty()
 
-    split: BoolProperty(
-        name="FK/IK Split",
-        description="True once this limb has both FK and IK/Torso collections",
-        default=False,
-    )
+	split: BoolProperty(
+		name="FK/IK Split",
+		description="True once this limb has both FK and IK/Torso collections",
+		default=False,
+	)
 
-    def rename(self, role, new_name):
-        old_name = getattr(self, role)
-        actual = rename_collection(self.id_data, old_name, new_name)
-        setattr(self, role, actual)
-        return actual
+	def rename(self, role, new_name):
+		old_name = getattr(self, role)
+		if not new_name or new_name == old_name:
+			return
 
-    def promote_fk(self):
-        if self.split:
-            return
-        self.rename("fk", name_collection("fk_split", self.limb, self.side))
-        self.split = True
+		armature_data = self.id_data
+		parent = get_preferences().mch_parent_collection if role == "mch" else None
+		new_coll = ensure_bone_collection(armature_data, new_name, parent)
+		
+		all_collections = getattr(armature_data, "collections_all", armature_data.collections)
+		old_coll = all_collections.get(old_name)
+		bones = armature_data.edit_bones if armature_data.is_editmode else armature_data.bones
 
-def find_limb_collections(arm, limb, side):
-    for row in arm.rigtools_limb_collections:
-        if row.limb == limb and row.side == side:
-            return row
-    return None
+		for name in find_bones_by_limb_role(armature_data, self.limb, self.side, role):
+			bone = bones[name]
+			if old_coll and old_coll.name in bone.collections:
+				old_coll.unassign(bone)
+			new_coll.assign(bone)
 
-def ensure_limb_collections(arm, limb, side, promote = False):
-    row = find_limb_collections(arm, limb, side)
-    if not row:
-        row = arm.rigtools_limb_collections.add()
-        row.limb = limb
-        row.side = side
+		setattr(self, role, new_name)
 
-    if promote:
-        if row.fk and not row.split:
-            row.promote_fk()
-        elif not row.fk:
-            row.fk = name_collection("fk_split", limb, side)
-            row.split = True
-    elif not row.fk:
-        row.fk = name_collection("fk", limb, side)
+		if not _collection_in_use(armature_data, old_name):
+			rename_layout_collection(armature_data, old_name, new_name)
+			if old_coll and old_coll != new_coll and not old_coll.bones:
+				armature_data.collections.remove(old_coll)
+		
 
-    if not row.ik:
-        row.ik = name_collection("ik", limb, side)
-    if not row.tweak:
-        row.tweak = name_collection("tweak", limb, side)
-    if not row.mch:
-        row.mch = name_collection("mch", limb, side)
-    if not row.master:
-        row.master = name_collection("fk_master", limb, side)
-    if not row.control:
-        row.control = name_collection("control", limb, side)
+	def promote_fk(self):
+		if self.split:
+			return
+		self.rename("fk", name_collection("fk_split", self.limb, self.side))
+		self.split = True
 
-    # This makes sure the MCH is properly parented
-    ensure_bone_collection(arm, row.mch, get_preferences().mch_parent_collection)
+	def add_bone(self, armature_data, bone_name, roles: list[str]):
+		bone = armature_data.bones[bone_name]
 
-    return row
+		for coll in list(bone.collections):
+			coll.unassign(bone)
 
+		for role in roles:
+			if not getattr(self, role):
+				raise ValueError(f"Role {role} not found in {self.name}")
 
-def rename_collection(armature_data, old_name, new_name):
-    if not old_name or old_name == new_name:
-        return new_name
-    
-    all_collections = getattr(armature_data, "collections_all", armature_data.collections)
-    coll = all_collections.get(old_name)
-    if not coll:
-        return new_name
-    
-    new_coll = all_collections.get(new_name)
-    if new_coll:
-        if armature_data.is_editmode:
-            bones = [b for b in armature_data.edit_bones if coll in b.collections]
-        else:
-            bones = list(coll.bones)
+			if role == "mch":
+				coll = ensure_bone_collection(armature_data, getattr(self, role), get_preferences().mch_parent_collection)
+			else:
+				coll = ensure_bone_collection(armature_data, getattr(self, role))
+			coll.assign(bone)
 
-        for bone in bones:
-            new_coll.assign(bone)
-            coll.unassign(bone)
-        actual = new_name
-    else:
-        coll.name = new_name
-        actual = coll.name
-        rename_layout_collection(armature_data, old_name, coll.name)
+def find_limb_collections(armature_data, limb, side):
+	for row in armature_data.rigtools_limb_collections:
+		if row.limb == limb and row.side == side:
+			return row
+	return None
 
-    return actual
+def ensure_limb_collections(armature_data, limb, side, promote = False):
+	row = find_limb_collections(armature_data, limb, side)
+	if not row:
+		row = armature_data.rigtools_limb_collections.add()
+		row.limb = limb
+		row.side = side
+
+	if promote:
+		if row.fk and not row.split:
+			row.promote_fk()
+		elif not row.fk:
+			row.fk = name_collection("fk_split", limb, side)
+			row.split = True
+	elif not row.fk:
+		row.fk = name_collection("fk", limb, side)
+
+	if not row.ik:
+		row.ik = name_collection("ik", limb, side)
+	if not row.tweak:
+		row.tweak = name_collection("tweak", limb, side)
+	if not row.mch:
+		row.mch = name_collection("mch", limb, side)
+	if not row.master:
+		row.master = name_collection("fk_master", limb, side)
+	if not row.control:
+		row.control = name_collection("control", limb, side)
+
+	return row

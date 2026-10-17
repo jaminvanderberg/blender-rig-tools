@@ -121,7 +121,7 @@ def find_curl_axis(bones, axis: str = "AUTO"):
 	if axis != "AUTO":
 		name = axis.lstrip("+-")
 		sign = -1 if axis.startswith("-") else 1
-		print(f"[find_curl_axis] manual → axis={name} sign={sign}")
+		print(f"[find_curl_axis] manual -> axis={name} sign={sign}")
 		return name, sign
 
 	first, last = bones[0], bones[-1]
@@ -136,7 +136,7 @@ def find_curl_axis(bones, axis: str = "AUTO"):
 
 	if normal.length < threshold:
 		# No significant curl, use +X axis
-		print("[find_curl_axis] straight chain → fallback +X")
+		print("[find_curl_axis] straight chain -> fallback +X")
 		return "X", 1
 
 	normal.normalize()
@@ -153,7 +153,7 @@ def find_curl_axis(bones, axis: str = "AUTO"):
 		print(f"[find_curl_axis]   {label}: dot={dot:.6f}")
 
 	name, sign, best_dot = max(scored, key=lambda c: c[2])
-	print(f"[find_curl_axis] winner → axis={name} sign={sign} dot={best_dot:.6f}")
+	print(f"[find_curl_axis] winner -> axis={name} sign={sign} dot={best_dot:.6f}")
 	return name, sign
 
 ###############################################################################################

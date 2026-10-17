@@ -86,12 +86,12 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			limb = options.limb_property_base_name
 			side = find_side(chain)
 
+			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=True)
+
 			assembly_name = guess_assembly_name(context.object.data, chain, limb, side)
 			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, side=side, uid=replacement_uid)
-			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[])
+			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 			assemblies.append(assembly_chain)
-
-			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=True)
 
 			if options.ik_type == 'IK':
 				limb_count = options.ik_bone_count
@@ -155,7 +155,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			else:
 				twist_parent_name = None # will inherit ORG parent
 
-			# MASTER CONTROLLERS (limb FK only — not tip/toe chain)
+			# MASTER CONTROLLERS (limb FK only - not tip/toe chain)
 			if options.create_master_controllers and len(fk_bone_names) > 0:
 				master_controllers = MasterControllers(
 					interval=options.master_controllers_interval,
@@ -229,7 +229,6 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				spline_ik = SplineIK(
 					control_count = options.spline_control_count,
 					skip_first = options.spline_skip_first,
-					ik_collection_name = limb_collections.ik,
 					twist_type = options.twist_type,
 				)
 				spline_ik.edit_mode(context, ik_bone_names, name_source=org_chain)
@@ -242,7 +241,6 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					property_name = name_property("ik_parent", options.limb_property_base_name, side),
 					parents = options.ik_parents,
 					self_parent_label = options.ik_parent_self_parent_label,
-					mch_collection_name = limb_collections.mch,
 					add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,
 				)
 				if options.ik_type == 'IK':
@@ -270,7 +268,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
-				assembly.apply_tool(tool)
+				assembly.apply_tool(armature_data, tool, assembly_chain.limb_collections)
 
 				save_config = getattr(tool, 'save_config', None)
 				if callable(save_config):

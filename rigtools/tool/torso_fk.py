@@ -9,7 +9,6 @@ from rigtools.tool.twist_bones import twist_influence
 from rigtools.twist_bones import create_twist_chain, get_twist_chain
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones, match_orientation
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
 from rigtools.utils.widget import create_box_widget, create_chest_widget, create_fk_widget, get_widget_collection
     
@@ -76,9 +75,6 @@ class TorsoFK:
 		torso_bone.tail = torso_position + y.normalized() * torso_length
 		torso_bone.roll = 0.0
 		torso_bone.parent = edit_bones[settings.root_bone_name]
-
-		if self.control_collection_name:
-			set_bone_collection(armature_data, torso_bone, self.control_collection_name)
 
 		waist_position = edit_bones[org_bone_names[self.lower_torso_bone_count]].head
 		
@@ -226,7 +222,6 @@ class TorsoFK:
 		self.tweak_chain = FKTweakChain(
 			do_create_fk=False,
 			tweak_relationship=self.tweak_relationship,
-			tweak_collection_name=self.tweak_collection_name,
 			tweak_scale=0.40
 		).edit_mode(armature_data, source_names)
 

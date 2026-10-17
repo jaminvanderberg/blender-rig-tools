@@ -2,7 +2,6 @@ import bpy
 from rigtools.armature_settings import get_armature_settings
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name, name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import create_fk_widget, get_widget_collection
 from rigtools.assemblies.mechanism_bones import MechanismBones

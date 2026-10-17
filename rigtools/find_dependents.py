@@ -65,7 +65,7 @@ def find_dependents(obj, bone_name):
 				results.append({
 					"bone_name": pbone.name,
 					"kind": 'CONSTRAINT',
-					"detail": f"{constraint.type} · {constraint.name} · {hit}{muted}",
+					"detail": f"{constraint.type} | {constraint.name} | {hit}{muted}",
 				})
 
 	anim = obj.animation_data
@@ -83,13 +83,13 @@ def find_dependents(obj, bone_name):
 					if target.bone_target == bone_name or _path_refs_bone(target.data_path, bone_name):
 						matched = True
 						src = target.bone_target or target.data_path
-						var_notes.append(f"{var.name} ← {src}")
+						var_notes.append(f"{var.name} <- {src}")
 			if matched:
 				owner = _owner_bone_from_path(fcurve.data_path)
 				results.append({
 					"bone_name": owner or bone_name,
 					"kind": 'DRIVER',
-					"detail": f"{fcurve.data_path}" + (f" · {', '.join(var_notes)}" if var_notes else ""),
+					"detail": f"{fcurve.data_path}" + (f" | {', '.join(var_notes)}" if var_notes else ""),
 				})
 
 	return results

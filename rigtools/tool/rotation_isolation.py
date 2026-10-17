@@ -1,6 +1,5 @@
 from rigtools.assemblies.mechanism_bones import MechanismBones
 from rigtools.utils.naming import name_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences
 from rigtools.armature_settings import get_armature_settings
 import mathutils

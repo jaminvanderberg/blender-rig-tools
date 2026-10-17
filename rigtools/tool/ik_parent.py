@@ -9,7 +9,6 @@ from rna_prop_ui import rna_idprop_ui_create
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.utils.naming import name_bone
 
 CONSTRAINT_NAME = "IK Parent"
@@ -45,7 +44,6 @@ class IKParent:
 	def edit_mode(self, context, bone_names: list[str], self_parent_name: str = ""):
 		obj = context.object
 		edit_bones = obj.data.edit_bones
-		prefs = get_preferences(context)
 
 		self.self_parent_name = self_parent_name
 
