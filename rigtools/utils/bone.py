@@ -189,6 +189,6 @@ def select_bones(obj, bone_names, select_hidden=False) -> [int, int]: # Total se
 		if obj.mode == 'EDIT':
 			obj.data.edit_bones.active = obj.data.edit_bones[active_name]
 		else:
-			obj.pose.bones.active = obj.pose.bones[active_name]
+			obj.data.bones.active = obj.data.bones[active_name]
 
 	return count, hidden
