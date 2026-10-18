@@ -44,6 +44,9 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 	assemblies = []
 
+	fk_names = []
+	tweak = None
+
 	try:
 		##############
 		# Edit mode

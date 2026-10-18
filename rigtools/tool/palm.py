@@ -1,5 +1,5 @@
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.twist_bones import twist_influence

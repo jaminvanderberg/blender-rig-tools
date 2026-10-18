@@ -1,5 +1,5 @@
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name
 from rigtools.utils.widget import get_widget_collection, create_fk_widget

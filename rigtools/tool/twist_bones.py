@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import bpy
 
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.twist_bones import create_twist_chain, get_twist_chain, prune_twist_map
 from rigtools.utils.bone import duplicate_bone

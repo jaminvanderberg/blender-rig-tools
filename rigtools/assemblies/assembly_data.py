@@ -19,6 +19,14 @@ def find_assemblies(arm, bone_names):
 			assemblies.append(assembly)
 	return assemblies
 
+def check_assembly_use(armature_data, bone_names):
+	to_check = set(bone_names)
+	assemblies = []
+	for assembly in armature_data.rigtools_assemblies:
+		if to_check & {o.name for o in assembly.org_states}:
+			assemblies.append(assembly)
+	return assemblies
+
 def get_assembly_chains(context, assembly_uid=None, check_property_bone=True) -> tuple[list[list[str]], str, bool]:
 	""" Switches mode to edit mode
 		Returns: list of chains of bones names, original mode, original mirror_x
@@ -87,6 +95,10 @@ class AssemblyParent(PropertyGroup):
 	label: StringProperty()
 	bone: StringProperty()
 
+class ReparentRule(PropertyGroup):
+	from_bone: StringProperty()
+	to_bone: StringProperty()
+
 class AssemblyData(PropertyGroup):
 	uid: StringProperty()
 	name: StringProperty()
@@ -107,6 +119,7 @@ class AssemblyData(PropertyGroup):
 	mechanism_bones: CollectionProperty(type=BoneRef)
 	properties: CollectionProperty(type=AssemblyProperty)
 	objects: CollectionProperty(type=AssemblyObject)
+	reparent_rules: CollectionProperty(type=ReparentRule)
 	
 	ik_parents: CollectionProperty(type=AssemblyParent)
 
@@ -153,6 +166,12 @@ class AssemblyData(PropertyGroup):
 				row.parent = state['parent']
 				row.use_connect = state['use_connect']
 
+		if hasattr(tool, 'reparent_rules'):
+			for from_bone, to_bone in tool.reparent_rules:
+				row = self.reparent_rules.add()
+				row.from_bone = from_bone
+				row.to_bone = to_bone
+
 		return self
 
 	def get_bones_by_role(self, role):
@@ -183,6 +202,10 @@ def create_assembly_data(obj, org_bones, name, assembly_type, template_id, templ
 	assembly_data.template_name = template_name
 
 	bones = obj.data.edit_bones if obj.mode == 'EDIT' else obj.data.bones
+
+	assemblies = check_assembly_use(obj.data, org_bones)
+	if assemblies:
+		raise ValueError(f"Selected bones are being used by other assemblies: {', '.join(a.name for a in assemblies)}")
 
 	for bone_name in org_bones:
 		bone = bones[bone_name]
@@ -230,6 +253,7 @@ classes = (
 	AssemblyProperty,
 	AssemblyObject,
 	AssemblyParent,
+	ReparentRule,
 	AssemblyData,
 	LimbCollectionMap,
 )

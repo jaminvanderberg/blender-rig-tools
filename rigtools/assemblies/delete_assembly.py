@@ -1,5 +1,6 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.tool_data.reparent_rules import apply_reparent_rule
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
 
@@ -19,6 +20,7 @@ def delete_assembly(context, assembly_uid):
 	prop_bone = obj.pose.bones[property_bone_name]
 
 	owned_names = {b.name for b in assembly.mechanism_bones}
+	reparent_from = {r.from_bone for r in assembly.reparent_rules}
 
 	# We don't want to delete properties that are used by other assemblies
 	property_names = set()
@@ -33,7 +35,7 @@ def delete_assembly(context, assembly_uid):
 		protected_names.update(b.name for b in other_assembly.org_children)
 		protected_names.update(b.parent for b in other_assembly.org_children)
 
-		hits = owned_names & protected_names
+		hits = (owned_names & protected_names) - reparent_from
 		if hits:
 			bone = next(iter(hits))
 			raise ValueError(f"Assembly {other_assembly.name} references bone {bone}. Delete assembly first.")
@@ -82,6 +84,10 @@ def delete_assembly(context, assembly_uid):
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
+
+		# Un-apply reparent rules
+		for rule in assembly.reparent_rules:
+			apply_reparent_rule(obj.data, rule.from_bone, rule.to_bone, forward=False)
 	
 		# Reparent the original bones
 		for org_child in (assembly.org_children):

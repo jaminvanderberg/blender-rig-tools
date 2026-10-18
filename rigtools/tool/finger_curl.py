@@ -1,6 +1,6 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.bone_chain import find_curl_axis

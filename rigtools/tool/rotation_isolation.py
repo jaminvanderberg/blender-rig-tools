@@ -1,4 +1,4 @@
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.naming import name_bone
 from rigtools.preferences import get_preferences
 from rigtools.armature_settings import get_armature_settings

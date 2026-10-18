@@ -1,5 +1,6 @@
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_reparent_rule
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_fk_widget, fk_widget_types
@@ -37,6 +38,7 @@ class FKTweakChain:
 		self.mechanism_bones = MechanismBones()
 		self.property_names = []
 		self.object_names = []
+		self.reparent_rules = ReparentRules()
 
 	def edit_mode(self, armature_data, org_bone_names):
 		self.org_bone_names = org_bone_names
@@ -115,10 +117,10 @@ class FKTweakChain:
 				org_bone.parent = tweak_bone
 			
 		# Children of the last bone need to be children of the terminal tweak bone instead
-		last_children = [c for c in last_org_bone.children if c.name not in self.org_bone_names]
-		for child in last_children:
-			child.use_connect = False
-			child.parent = term_bone
+		# Since it controls parenting outside of the assembly,
+		# This is done through a reparent rule to ensure rebuildable assembly data
+		self.reparent_rules.add(term_bone.name, last_org_bone.name)
+		apply_reparent_rule(armature_data, term_bone.name, last_org_bone.name, forward=True)
 			
 		self.mechanism_bones.extend(self.fk_bone_names, self.fk_role)
 		self.mechanism_bones.extend(self.tweak_bone_names, 'tweak')

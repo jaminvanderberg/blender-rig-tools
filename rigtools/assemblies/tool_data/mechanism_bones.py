@@ -23,5 +23,3 @@ class MechanismBones:
 
 	def append(self, mechanism_bones: "MechanismBones"):
 		self._items.extend(mechanism_bones._items)
-
-	

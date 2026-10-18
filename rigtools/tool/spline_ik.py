@@ -1,5 +1,5 @@
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.armature_settings import get_armature_settings

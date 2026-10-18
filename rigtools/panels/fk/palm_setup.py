@@ -278,6 +278,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 				return {'CANCELLED'}
 
 			wm = context.window_manager
+			wm.rig_palm_order.clear()
 			if any(math.isinf(get_chain_order_key(n)) for n in names):
 				wm.rig_palm_name_order_valid = False
 				wm.rig_palm_order_mode = 'Y'
@@ -285,6 +286,11 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 				wm.rig_palm_name_order_valid = True
 				wm.rig_palm_order_mode = 'NAME'
 			wm.rig_palm_order_invert = False
+			try:
+				fill_palm_order(context, wm.rig_palm_order_mode, False)
+			except ValueError as e:
+				self.report({'ERROR'}, str(e))
+				return {'CANCELLED'}
 
 		if show_dialog:
 			return context.window_manager.invoke_props_dialog(self, width=350)

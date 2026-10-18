@@ -7,7 +7,7 @@ from mathutils import Vector
 from rigtools.utils.widget import create_ik_widget, get_widget_collection, create_sphere_widget, create_line_widget
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 def signed_angle(u, v, normal):
 	normal = normal.normalized()

@@ -4,7 +4,7 @@ from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name, name_bone
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import create_fk_widget, get_widget_collection
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class MasterControllers:
 	def __init__(self, *,

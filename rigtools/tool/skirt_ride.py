@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import json
 from math import cos, pi, radians
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences

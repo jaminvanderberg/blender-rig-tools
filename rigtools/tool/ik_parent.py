@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List
 
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 
 from rigtools.armature_settings import get_armature_settings

@@ -1,6 +1,6 @@
 import json
 import bpy
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings

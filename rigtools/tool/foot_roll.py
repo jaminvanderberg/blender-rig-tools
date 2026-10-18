@@ -6,7 +6,7 @@ from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.widget import create_roll_widget, get_widget_collection
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
-from rigtools.assemblies.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class FootRoll:
 	def __init__(self):
