@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import bpy
 from rigtools.armature_settings import get_armature_settings
 

@@ -3,18 +3,18 @@ import json
 import math
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
 from rigtools.assemblies.palm_templates import get_palm_template, validate_palm_templates
 from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.template_draw import TemplateDraw
 from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone import get_selected_bones, select_bones
 from rigtools.utils.bone_chain import sort_chains
-from rigtools.utils.naming import flip_side_name, get_base_name, get_chain_order_key
+from rigtools.utils.naming import flip_side_name, get_chain_order_key, get_side_letter
 from rigtools.utils.widget import fk_widget_types
 
 class PalmOrderSlot(bpy.types.PropertyGroup):
@@ -48,8 +48,7 @@ def find_palm_chains_from_selection(context):
 
 	by_side = defaultdict(list)
 	for bone in selected_bones:
-		_base, side = get_base_name(bone.name)
-		key = "L" if "L" in side.upper() else ("R" if "R" in side.upper() else "C")
+		key = get_side_letter(bone.name)
 		by_side[key].append(bone.name)
 		
 	return by_side
@@ -130,7 +129,7 @@ def get_palm_chains(context):
 	left = [slot.left for slot in slots if slot.left]
 	right = [slot.right for slot in slots if slot.right]
 	chains = []
-	if left: 
+	if left:
 		chains.append(left)
 	if right:
 		chains.append(right)
@@ -173,6 +172,13 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	assembly_uid: StringProperty(
 		name="Assembly UID",
 		description="UID of the assembly to use for the palm assembly",
+		default="",
+		options={'HIDDEN'}
+	)
+
+	assembly_uids: StringProperty(
+		name="Assembly UIDs",
+		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
 		default="",
 		options={'HIDDEN'}
 	)
@@ -232,9 +238,8 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	def _invoke_from_assembly(self, context):
 		assembly = find_assembly(context.object, self.assembly_uid)
 		if not assembly:
-			self.report({'ERROR'}, "Assembly not found.")
+			self.report({'ERROR'}, f"Assembly '{self.assembly_uid}' not found.")
 			return {'CANCELLED'}
-
 		options = assembly.get_options()
 		for key, value in options.items():
 			setattr(self, key, value)
@@ -242,16 +247,27 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
 
+		uids = [u for u in self.assembly_uids.split(',') if u] or [self.assembly_uid]
+
+		by_side = defaultdict(list)
+		for uid in uids:
+			a = find_assembly(context.object, uid)
+			key = get_side_letter(a.get_chain()[0])
+			by_side[key].extend(a.get_chain())
+
+		if "C" in by_side and (("L" in by_side) or ("R" in by_side)):
+			self.report({'ERROR'}, "Can't mix unsuffixed palm bones with .L/.R bones.")
+			return {'CANCELLED'}			
+
+		left = by_side.get("L") or by_side.get("C") or []
+		right = by_side.get("R") or []
+
 		wm = context.window_manager
 		wm.rig_palm_order.clear()
-		chain = assembly.get_chains()[0]
-		side = assembly.side
-		for name in chain:
+		for i in range(max(len(left), len(right))):
 			slot = wm.rig_palm_order.add()
-			if "R" in side.upper():
-				slot.right = name
-			else:
-				slot.left = name
+			slot.left = left[i] if i < len(left) else ""
+			slot.right = right[i] if i < len(right) else ""
 		wm.rig_palm_order_mode = 'MANUAL'
 
 	def invoke(self, context, event):
@@ -367,37 +383,22 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	##################################################################################################
 	# execute
 
+	def validate_chains(self, context, chains):
+		if not chains:
+			return "No chains selected."
+		return None
+
 	def execute(self, context):
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb name is required.")
-			return {'CANCELLED'}
-		
-		obj = context.object
-		if not obj or obj.type != 'ARMATURE':
-			self.report({'ERROR'}, "Active object must be an armature.")
-			return {'CANCELLED'}
-		if obj.mode == 'OBJECT':
-			self.report({'ERROR'}, "Can't use from Object mode")
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
-		if self.assembly_uid:
-			assembly = find_assembly(obj, self.assembly_uid)
-			if not assembly:
-				self.report({'ERROR'}, f"Assembly '{self.assembly_uid}' not found.")
-				return {'CANCELLED'}
-
-		chains = get_palm_chains(context)
-		if not chains:
-			raise ValueError("No bones selected. Select at least one bone.")			
-
-		# Switch to edit mode
-		original_mode = obj.mode
-		if obj.mode != 'EDIT':
-			bpy.ops.object.mode_set(mode='EDIT')
-
-		armature_data = obj.data
-		original_mirror = armature_data.use_mirror_x
-		armature_data.use_mirror_x = False
+		err = validate_setup_context(context, check_property_bone=False)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
+			return {'CANCELLED'}
 
 		options = PalmAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name.strip().lower(),
@@ -406,38 +407,70 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			pinky_falloff_type=self.pinky_falloff_type,
 		)
 
-		assembly_uid = self.assembly_uid
+		prev_state = begin_setup_edit(context)
 
-		def rebuild():
-			return prepare_rebuild(
-				context, 
-				assembly_uid, 
-				lambda prior_configs: create_palm_assembly(
-					context,
-					chains,
-					self.template_id,
-					self.template_name,
-					options,
-					replacement_uid=assembly_uid,
-					prior_configs=prior_configs,
-				),
+		assembly_uids = [u for u in self.assembly_uids.split(',') if u] or [self.assembly_uid]
+
+		if self.assembly_uid or len(assembly_uids) > 1:
+			left = [s.left for s in context.window_manager.rig_palm_order if s.left]
+			right = [s.right for s in context.window_manager.rig_palm_order if s.right]
+			rebuild_chains = {}
+			for uid in assembly_uids:
+				assembly = find_assembly(context.object, uid)
+				if get_side_letter(assembly.side) == "R":
+					rebuild_chains[uid] = right
+				else:
+					rebuild_chains[uid] = left
+			chains = list(rebuild_chains.values())
+		else:
+			rebuild_chains = {}
+			chains = get_palm_chains(context)
+
+		err = self.validate_chains(context, chains)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
+			prev_state.restore(context)
+			return {'CANCELLED'}
+
+		def create(uid, chains, prior_configs):
+			return create_palm_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=uid,
+				prior_configs=prior_configs,
 			)
 
+		def build():
+			if len(rebuild_chains) > 0:
+				tip_controls = []
+				for uid in assembly_uids:
+					chain = rebuild_chains[uid]
+					prior_configs = prepare_rebuild(context, uid)
+					tip_controls.extend(create(uid, [chain], prior_configs))
+				return tip_controls
+			else:
+				return create("", chains, {})
+
 		try:
-			palm_controls = run_assembly_transaction(rebuild)
+			palm_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			context.object.data.use_mirror_x = original_mirror
+			prev_state.restore(context)
 			return {'CANCELLED'}
 
 		if palm_controls:
+			if context.object.mode != 'POSE':
+				bpy.ops.object.mode_set(mode='POSE')
 			bpy.ops.pose.select_all(action='DESELECT')
 			select_bones(context.object, palm_controls)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} palm assembl{'ies' if chain_count != 1 else 'y'}.")
-		context.object.data.use_mirror_x = original_mirror
+		prev_state.restore_mirror(context)
 		return {'FINISHED'}
 
 

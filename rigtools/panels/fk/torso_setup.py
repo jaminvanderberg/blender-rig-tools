@@ -3,10 +3,11 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
-from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
+from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
+from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.bone import select_bones
@@ -78,6 +79,13 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	assembly_uid: StringProperty(
 		name="Assembly UID",
 		description="UID of the assembly to use for the torso assembly",
+		default="",
+		options={'HIDDEN'}
+	)
+
+	assembly_uids: StringProperty(
+		name="Assembly UIDs",
+		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
 		default="",
 		options={'HIDDEN'}
 	)
@@ -247,7 +255,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		for key, value in options.items():
 			setattr(self, key, value)
 
-		chains = assembly.get_chains()
+		chains = [assembly.get_chain()]
 		self._store_dialog_chains(chains)
 		self._store_twist_snapshot(context, chains, require_chain=False)
 		self.template_name = assembly.template_name
@@ -357,19 +365,27 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	##################################################################################################
 	# execute
 
+	def validate_chains(self, context, chains):
+		if not chains:
+			return "No chains selected."
+		for chain in chains:
+			if len(chain) == 1:
+				return "All chains must have at least 2 bones."
+		return None
+
 	def execute(self, context):
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb name is required.")
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
-		try:
-			chains, original_mode, original_mirror = get_assembly_chains(
-				context,
-				self.assembly_uid,
-				check_property_bone=self.add_neck_rotation_isolation or self.add_head_rotation_isolation,
-			)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
+		err = validate_setup_context(
+			context,
+			check_property_bone=self.add_neck_rotation_isolation or self.add_head_rotation_isolation,
+		)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
 		options = TorsoAssemblyOptions(
@@ -390,38 +406,67 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			neck_falloff_type=self.neck_falloff_type,
 		)
 
-		assembly_uid = self.assembly_uid
+		prev_state = begin_setup_edit(context)
 
-		def rebuild():
-			return prepare_rebuild(
-				context, 
-				assembly_uid, 
-				lambda prior_configs: create_torso_assembly(
-					context,
-					chains,
-					self.template_id,
-					self.template_name,
-					options,
-					replacement_uid=assembly_uid,
-					prior_configs=prior_configs,
-				),
+		assembly_uids = [u for u in self.assembly_uids.split(',') if u] or [self.assembly_uid]
+		if self.assembly_uid or len(assembly_uids) > 1:
+			rebuild_chains = {uid: find_assembly(context.object, uid).get_chain() for uid in assembly_uids}
+			chains = list(rebuild_chains.values())
+		else:
+			rebuild_chains = {}
+			try:
+				chains = find_chains_from_selection(context)
+			except Exception as e:
+				self.report({'ERROR'}, str(e))
+				self.assembly_uid = ""
+				prev_state.restore(context)
+				return {'CANCELLED'}
+
+		err = self.validate_chains(context, chains)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
+			prev_state.restore(context)
+			return {'CANCELLED'}
+
+		def create(uid, chains, prior_configs):
+			return create_torso_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=uid,
+				prior_configs=prior_configs,
 			)
 
+		def build():
+			if len(rebuild_chains) > 0:
+				tip_controls = []
+				for uid in assembly_uids:
+					chain = rebuild_chains[uid]
+					prior_configs = prepare_rebuild(context, uid)
+					tip_controls.extend(create(uid, [chain], prior_configs))
+				return tip_controls
+			else:
+				return create("", chains, {})
+
 		try:
-			torso_controls = run_assembly_transaction(rebuild)
+			torso_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			context.object.data.use_mirror_x = original_mirror
+			prev_state.restore(context)
 			return {'CANCELLED'}
 
 		if torso_controls:
+			if context.object.mode != 'POSE':
+				bpy.ops.object.mode_set(mode='POSE')
 			bpy.ops.pose.select_all(action='DESELECT')
 			select_bones(context.object, torso_controls)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} torso assembl{'ies' if chain_count != 1 else 'y'}.")
-		context.object.data.use_mirror_x = original_mirror
+		prev_state.restore_mirror(context)
 		return {'FINISHED'}
 
 

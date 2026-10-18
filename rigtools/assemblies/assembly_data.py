@@ -5,9 +5,7 @@ import uuid
 import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.limb_collections import LimbCollectionMap
-from rigtools.utils.bone_chain import find_chains_from_selection
 
 def find_assemblies(arm, bone_names):
 	wanted = set(bone_names)

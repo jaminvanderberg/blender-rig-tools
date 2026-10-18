@@ -153,14 +153,19 @@ class RIG_OT_delete_assembly(bpy.types.Operator):
 		return {'FINISHED'}
 
 class RIG_OT_reconfigure_selected_assemblies(bpy.types.Operator):
+	"""Reconfigure all selected assemblies"""
 	bl_idname = "rig.reconfigure_selected_assemblies"
 	bl_label = "Reconfigure All Selected"
+	bl_description = "Reconfigure all selected assemblies"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	@classmethod
 	def poll(cls, context):
 		assemblies = find_assemblies_from_selection(context)
 		if len({a.assembly_type for a in assemblies}) > 1:
+			cls.poll_message_set("All assemblies must be of the same type")
+			return False
+		if len({a.template_id for a in assemblies}) > 1:
 			cls.poll_message_set("All assemblies must be of the same type")
 			return False
 		if get_active_assembly(context, assemblies) is None:
@@ -204,40 +209,13 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 
 		assemblies = find_assemblies_from_selection(context)
 
-		if len(assemblies) > 1:
-			row = layout.row(align=True)
-			types = {a.assembly_type for a in assemblies}
-			source = get_active_assembly(context, assemblies)
-			if len(types) > 1 or source is None:
-				row.operator("rig.reconfigure_selected_assemblies", text="Reconfigure All Selected", icon='SETTINGS')
-			else:
-				op = row.operator(
-					ASSEMBLY_TYPE_OPERATORS[source.assembly_type],
-					text="Reconfigure All Selected",
-					icon='SETTINGS',
-				)
-				op.assembly_uid = source.uid
-				op.assembly_uids = ",".join(a.uid for a in assemblies)
-
 		for assembly in assemblies:
 			box = layout.box()
 			col = box.column(align=True)
 			row = col.row(align=True)
 			template = assembly.template_name
 
-			match assembly.assembly_type:
-				case 'IK':
-					op_id = "rig.advanced_ik_setup"
-					template = f"IK - {template}"
-				case 'FK':
-					op_id = "rig.advanced_fk_setup"
-					template = f"FK - {template}"
-				case 'TORSO':
-					op_id = "rig.advanced_torso_setup"
-				case 'PALM':
-					op_id = "rig.advanced_palm_setup"
-				case _:
-					op_id = ""
+			op_id = ASSEMBLY_TYPE_OPERATORS[assembly.assembly_type]
 
 			row.label(text=assembly.name)
 			
@@ -262,6 +240,23 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 
 			for config in iterate_configs(assembly):
 				config.draw(col, assembly, context)
+
+		if len(assemblies) > 1:
+			layout.separator()
+			row = layout.row(align=True)
+			types = {a.assembly_type for a in assemblies}
+			templates = {a.template_id for a in assemblies}
+			source = get_active_assembly(context, assemblies)
+			if len(types) > 1 or len(templates) > 1 or source is None:
+				row.operator("rig.reconfigure_selected_assemblies", text="Reconfigure All Selected", icon='TOOL_SETTINGS')
+			else:
+				op = row.operator(
+					ASSEMBLY_TYPE_OPERATORS[source.assembly_type],
+					text="Reconfigure All Selected",
+					icon='TOOL_SETTINGS',
+				)
+				op.assembly_uid = source.uid
+				op.assembly_uids = ",".join(a.uid for a in assemblies)
 
 		if not assemblies:
 			layout.label(text="No assemblies selected", icon='STATUS_INFO')

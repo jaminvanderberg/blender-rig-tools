@@ -9,10 +9,11 @@ from bpy.props import (
 
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
-from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
+from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
 from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.utils.skirt_legs import FORWARD_AXIS_ITEMS, scan_leg_assemblies
@@ -147,6 +148,13 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	assembly_uid: StringProperty(
 		name="Assembly UID",
 		description="UID of the assembly to use for the FK/Tweak chain",
+		default="",
+		options={'HIDDEN'}
+	)
+
+	assembly_uids: StringProperty(
+		name="Assembly UIDs",
+		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
 		default="",
 		options={'HIDDEN'}
 	)
@@ -390,24 +398,33 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	##################################################################################################
 	# execute
 
+	def validate_chains(self, context, chains):
+		if not chains:
+			return "No chains selected."
+		for chain in chains:
+			if len(chain) == 1:
+				return "All chains must have at least 2 bones."
+		return None
+
 	def execute(self, context):
 		if not self.limb_property_base_name:
 			self.report({'ERROR'}, "Limb name is required.")
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
 		skirt_slots = list(iter_skirt_leg_slots(context))
 		if (self.add_skirt_collision or self.add_skirt_ride) and not skirt_slots:
 			self.report({'ERROR'}, "No skirt legs specified. Add leg assemblies or pick thigh bones.")
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
-		try:
-			chains, original_mode, original_mirror = get_assembly_chains(
-				context,
-				self.assembly_uid,
-				check_property_bone=self.add_rotation_isolation or self.add_skirt_collision or self.add_skirt_ride,
-			)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
+		err = validate_setup_context(
+			context,
+			check_property_bone=self.add_rotation_isolation or self.add_skirt_collision or self.add_skirt_ride,
+		)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
 			return {'CANCELLED'}
 
 		if self.control_mode != 'TWEAK':
@@ -440,38 +457,67 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			fk_widget_taper=self.fk_widget_taper,
 		)
 
-		assembly_uid = self.assembly_uid
+		prev_state = begin_setup_edit(context)
 
-		def rebuild():
-			return prepare_rebuild(
-				context, 
-				assembly_uid, 
-				lambda prior_configs: create_fk_assembly(
-					context,
-					chains,
-					self.template_id,
-					self.template_name,
-					options,
-					replacement_uid=assembly_uid,
-					prior_configs=prior_configs,
-				),
+		assembly_uids = [u for u in self.assembly_uids.split(',') if u] or [self.assembly_uid]
+		if self.assembly_uid or len(assembly_uids) > 1:
+			rebuild_chains = {uid: find_assembly(context.object, uid).get_chain() for uid in assembly_uids}
+			chains = list(rebuild_chains.values())
+		else:
+			rebuild_chains = {}
+			try:
+				chains = find_chains_from_selection(context)
+			except Exception as e:
+				self.report({'ERROR'}, str(e))
+				self.assembly_uid = ""
+				prev_state.restore(context)
+				return {'CANCELLED'}
+
+		err = self.validate_chains(context, chains)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
+			prev_state.restore(context)
+			return {'CANCELLED'}
+
+		def create(uid, chains, prior_configs):
+			return create_fk_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=uid,
+				prior_configs=prior_configs,
 			)
 
+		def build():
+			if len(rebuild_chains) > 0:
+				tip_controls = []
+				for uid in assembly_uids:
+					chain = rebuild_chains[uid]
+					prior_configs = prepare_rebuild(context, uid)
+					tip_controls.extend(create(uid, [chain], prior_configs))
+				return tip_controls
+			else:
+				return create("", chains, {})
+
 		try:
-			fk_controls = run_assembly_transaction(rebuild)
+			fk_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			context.object.data.use_mirror_x = original_mirror
+			prev_state.restore(context)
 			return {'CANCELLED'}
 
 		if fk_controls:
+			if context.object.mode != 'POSE':
+				bpy.ops.object.mode_set(mode='POSE')
 			bpy.ops.pose.select_all(action='DESELECT')
 			select_bones(context.object, fk_controls)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")
-		context.object.data.use_mirror_x = original_mirror
+		prev_state.restore_mirror(context)
 		return {'FINISHED'}
 
 

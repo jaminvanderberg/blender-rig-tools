@@ -114,6 +114,14 @@ def get_base_name(bone_name) -> tuple[str, str]:
 
 	return base_name, extension
 
+def get_side_letter(bone_name):
+	_base, side = get_base_name(bone_name)
+	s = side.upper()
+	if "R" in s:
+		return "R"
+	elif "L" in s:
+		return "L"
+	return "C"
 
 def flip_side_name(bone_name):
 	"""Return the L/R flipped bone name, or None if there is no side suffix."""
