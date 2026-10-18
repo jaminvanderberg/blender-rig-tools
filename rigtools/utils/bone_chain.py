@@ -157,7 +157,7 @@ def find_curl_axis(bones, axis: str = "AUTO"):
 	return name, sign
 
 ###############################################################################################
-# Hierarchy
+# Connected selection
 
 def is_ancestor_selected(bone, selected_set):
 	parent = bone.parent
@@ -171,7 +171,7 @@ def _is_bone_connected(bone):
 	data = getattr(bone, "bone", bone)
 	return data.use_connect
 
-def find_hierarchy_chains(context, connected_only=False):
+def find_connected_chains(context):
 	selected_bones = get_selected_bones(context)
 	if not selected_bones:
 		return []
@@ -187,7 +187,7 @@ def find_hierarchy_chains(context, connected_only=False):
 			return
 		result.add(bone.name)
 		for child in bone.children:
-			if connected_only and not _is_bone_connected(child):
+			if not _is_bone_connected(child):
 				continue
 			walk(child)
 			

@@ -80,8 +80,32 @@ def migrate_3_to_4(armature_data, context):
 	)
 
 
+def migrate_4_to_5(armature_data, context):
+	"""Clear org_children; tip handoff is owned by reparent_rules."""
+	print(f"migrate_4_to_5: {len(armature_data.rigtools_assemblies)} assemblies")
+	cleared_rows = 0
+	cleared_assemblies = 0
+
+	for assembly in armature_data.rigtools_assemblies:
+		n = len(assembly.org_children)
+		if not n:
+			print(f"  {assembly.name}: org_children empty")
+			continue
+		names = [child.name for child in assembly.org_children]
+		print(f"  {assembly.name}: clearing {n} org_children: {names}")
+		assembly.org_children.clear()
+		cleared_rows += n
+		cleared_assemblies += 1
+
+	print(
+		f"migrate_4_to_5 done: cleared_assemblies={cleared_assemblies} "
+		f"cleared_rows={cleared_rows}"
+	)
+
+
 MIGRATIONS = {
 	3: migrate_3_to_4,
+	4: migrate_4_to_5,
 }
 
 def upgrade_rig(armature_data, context):

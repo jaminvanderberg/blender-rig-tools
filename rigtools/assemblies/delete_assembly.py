@@ -32,8 +32,6 @@ def delete_assembly(context, assembly_uid):
 		protected_names.update(b.parent for b in other_assembly.org_states)
 		protected_names.update(b.parent for b in other_assembly.twist_states)
 		protected_names.update(b.name for b in other_assembly.mechanism_bones)
-		protected_names.update(b.name for b in other_assembly.org_children)
-		protected_names.update(b.parent for b in other_assembly.org_children)
 
 		hits = (owned_names & protected_names) - reparent_from
 		if hits:
@@ -89,17 +87,6 @@ def delete_assembly(context, assembly_uid):
 		for rule in assembly.reparent_rules:
 			apply_reparent_rule(obj.data, rule.from_bone, rule.to_bone, forward=False)
 	
-		# Reparent the original bones
-		for org_child in (assembly.org_children):
-			bone = obj.data.edit_bones.get(org_child.name)
-			if not bone:
-				continue
-			parent = obj.data.edit_bones.get(org_child.parent) if org_child.parent else None
-			if not parent and org_child.parent:
-				continue # don't clear parent if bone can't be found
-			bone.parent = parent
-			bone.use_connect = org_child.use_connect
-
 		for twist_state in assembly.twist_states:
 			bone = obj.data.edit_bones.get(twist_state.name)
 			if not bone: continue

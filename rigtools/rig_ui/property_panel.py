@@ -3,7 +3,7 @@ from bpy.props import StringProperty, FloatProperty
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.rig_ui.snapping_data import find_snap_chain
-from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.bone import get_selected_bones, mirror_pose_selection
 from rigtools.utils.naming import limb_group_label
 
 ROLE_DATA = {
@@ -15,7 +15,7 @@ ROLE_DATA = {
 }
 
 def get_selected_assemblies(context):
-	selected_bones = get_selected_bones(context)
+	selected_bones = mirror_pose_selection(context, get_selected_bones(context))
 	selected_names = [bone.name for bone in selected_bones]
 	assemblies = find_assemblies(context.object.data, selected_names)
 	return sorted(assemblies, key=lambda x: x.name)

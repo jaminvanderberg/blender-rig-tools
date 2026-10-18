@@ -1,8 +1,8 @@
 import json
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty, IntProperty, CollectionProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
-from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
+from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.heel_pivots import get_heel_pivot
 from rigtools.assemblies.ik_templates import (
@@ -12,6 +12,7 @@ from rigtools.assemblies.ik_templates import (
 	validate_ik_templates,
 )
 from rigtools.assemblies.template_options import resolve_template_options
+from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
@@ -22,7 +23,7 @@ from rigtools.tool.twist_bones import falloff_presets, twist_source_types
 from rigtools.utils.widget import fk_widget_types
 from rigtools.tool.ik_parent import IKParentTarget
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
-from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
+from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.ik_assembly import IKAssemblyOptions, create_ik_assembly
 from rigtools.utils.bone import select_bones
 
@@ -284,6 +285,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	assembly_uids: StringProperty(
+		name="Assembly UIDs",
+		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
+		default="",
+		options={'HIDDEN'}
+	)
+
 	dialog_chains_json: StringProperty(
 		name="Dialog Chains",
 		description="Bone chains captured at invoke for dialog/redo UI",
@@ -462,8 +470,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			if hasattr(self, key):
 				setattr(self, key, value)
 
-		chains = assembly.get_chains()
-		self._store_dialog_chains(chains)
+		chain = assembly.get_chain()
+		self._store_dialog_chains([chain])
 
 		wm = context.window_manager
 		wm.rig_ik_parents.clear()
@@ -481,7 +489,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			slot.falloff = segment.falloff
 
 		# Assembly already rewrote twist parenting under tweaks; count only.
-		self._store_twist_snapshot(context, chains, require_chain=False)
+		self._store_twist_snapshot(context, [chain], require_chain=False)
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
 
@@ -717,6 +725,23 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 	##################################################################################################
 	# execute
+
+	def validate_chains(self, context, chains):
+		if not chains:
+			return "No chains selected."
+
+		for chain in chains:
+			if len(chain) == 1:
+				return "All chains must have at least 2 bones."
+			if self.add_foot_roll and self.ik_type == 'IK':
+				if len(chain) <= self.ik_bone_count:
+					return "Foot roll requires at least one bone past the IK chain for the foot."
+
+				foot_name = chain[self.ik_bone_count - 1]
+				heel_pivot = get_heel_pivot(context.object.data, foot_name)
+				if not heel_pivot or heel_pivot not in context.object.data.edit_bones:
+					return f"Foot roll requires a heel pivot on '{foot_name}'."
+		return None
 	
 	def execute(self, context):
 		if not self.limb_property_base_name:
@@ -730,37 +755,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			self.assembly_uid = ""
 			return {'CANCELLED'}
 
-		try:
-			chains, original_mode, original_mirror = get_assembly_chains(context, self.assembly_uid)
-		except Exception as e:
-			self.report({'ERROR'}, str(e))
+		err = validate_setup_context(context)
+		if err:
+			self.report({'ERROR'}, err)
 			self.assembly_uid = ""
 			return {'CANCELLED'}
-
-		for chain in chains:
-
-			if len(chain) == 1:
-				self.report({'ERROR'}, "All chains must have at least 2 bones.")
-				bpy.ops.object.mode_set(mode=original_mode)
-				self.assembly_uid = ""
-				context.object.data.use_mirror_x = original_mirror
-				return {'CANCELLED'}
-			if self.add_foot_roll and self.ik_type == 'IK':
-				if len(chain) <= self.ik_bone_count:
-					self.report({'ERROR'}, "Foot roll requires at least one bone past the IK chain for the foot.")
-					bpy.ops.object.mode_set(mode=original_mode)
-					self.assembly_uid = ""
-					context.object.data.use_mirror_x = original_mirror
-					return {'CANCELLED'}
-
-				foot_name = chain[self.ik_bone_count - 1]
-				heel_pivot = get_heel_pivot(context.object.data, foot_name)
-				if not heel_pivot or heel_pivot not in context.object.data.edit_bones:
-					self.report({'ERROR'}, f"Foot roll requires a heel pivot on '{foot_name}'.")
-					bpy.ops.object.mode_set(mode=original_mode)
-					self.assembly_uid = ""
-					context.object.data.use_mirror_x = original_mirror
-					return {'CANCELLED'}
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = IKAssemblyOptions(
@@ -816,30 +815,58 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			master_controllers_widget=self.master_controllers_widget,
 		)
 
-	
-		assembly_uid = self.assembly_uid
+		prev_state = begin_setup_edit(context)
 
-		def rebuild():
-			return reconfigure_assembly(
-				context, 
-				assembly_uid, 
-				lambda prior_configs: create_ik_assembly(
-					context,
-					chains,
-					self.template_id,
-					self.template_name,
-					options,
-					replacement_uid=assembly_uid,
-					prior_configs=prior_configs,
-				),
-			)
+		assembly_uids = [u for u in self.assembly_uids.split(',') if u] or [self.assembly_uid]
+		if self.assembly_uid or len(assembly_uids) > 1:
+			rebuild_chains = {uid: find_assembly(context.object, uid).get_chain() for uid in assembly_uids}
+			chains = list(rebuild_chains.values())
+		else:
+			rebuild_chains = {}
+			try:
+				chains = find_chains_from_selection(context)
+			except Exception as e:
+				self.report({'ERROR'}, str(e))
+				self.assembly_uid = ""
+				prev_state.restore(context)
+				return {'CANCELLED'}
+
+		err = self.validate_chains(context, chains)
+		if err:
+			self.report({'ERROR'}, err)
+			self.assembly_uid = ""
+			prev_state.restore(context)
+			return {'CANCELLED'}
+
+		def create(uid, chains, prior_configs):
+			return create_ik_assembly(
+				context,
+				chains,
+				self.template_id,
+				self.template_name,
+				options,
+				replacement_uid=uid,
+				prior_configs=prior_configs,
+			)			
+
+		def build():
+			if len(rebuild_chains) > 0:
+				tip_controls = []
+				for uid in assembly_uids:
+					chain = rebuild_chains[uid]
+					prior_configs = prepare_rebuild(context, uid)
+					tips = create(uid, [chain], prior_configs)
+					tip_controls.extend(tips)
+				return tip_controls
+			else:
+				return create("", chains, {})
 
 		try:
-			tip_controls = run_assembly_transaction(rebuild)
+			# Run assembly transaction adds TRY / UNDO handling
+			tip_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
-			bpy.ops.object.mode_set(mode=original_mode)
-			context.object.data.use_mirror_x = original_mirror
+			prev_state.restore(context)
 			return {'CANCELLED'}
 
 		# If everything succeeds, we leave it in Pose mode so the user can see the result
@@ -850,7 +877,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			select_bones(context.object, tip_controls)
 
 		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
-		context.object.data.use_mirror_x = original_mirror
+		prev_state.restore_mirror(context)
 		return {'FINISHED'}
 
 ##################################################################################################

@@ -4,8 +4,37 @@ from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.limb_collections import find_limb_collections
-from rigtools.utils.bone import get_selected_bones, select_bones
+from rigtools.utils.bone import get_selected_bones
 
+ASSEMBLY_TYPE_OPERATORS = {
+	'IK': "rig.advanced_ik_setup",
+	'FK': "rig.advanced_fk_setup",
+	'TORSO': "rig.advanced_torso_setup",
+	'PALM': "rig.advanced_palm_setup"
+}
+
+def find_assemblies_from_selection(context):
+	bones = get_selected_bones(context)
+	return find_assemblies(context.object.data, [b.name for b in bones])
+
+def get_active_assembly(context, assemblies):
+	obj = context.object
+
+	active = None
+	if obj.mode == 'POSE' and context.active_pose_bone:
+		active = context.active_pose_bone.name
+	elif obj.mode == 'EDIT' and context.active_bone:
+		active = context.active_bone.name
+
+	if not active:
+		return None
+
+	for assembly in assemblies:
+		names = {o.name for o in assembly.org_states}
+		names.update(b.name for b in assembly.mechanism_bones)
+		if active in names:
+			return assembly
+	return None
 
 class RIG_OT_rename_assembly(bpy.types.Operator):
 	bl_description = "Rename the selected assembly"
@@ -102,31 +131,6 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 			self.report({'INFO'}, f"Renamed {count} collection{'s' if count != 1 else ''}")
 		return {'FINISHED'}
 	
-class RIG_OT_select_assembly(bpy.types.Operator):
-	bl_description = "Select all the bones associated with the assembly"
-	bl_idname = "rig.select_assembly"
-	bl_label = "Select Assembly"
-	bl_options = {'REGISTER', 'UNDO'}
-
-	assembly_uid: bpy.props.StringProperty()
-
-	def execute(self, context):
-		assembly = None
-		for a in context.object.data.rigtools_assemblies:
-			if a.uid == self.assembly_uid:
-				assembly = a
-				break
-		else:
-			self.report({'ERROR'}, "Assembly not found")
-			return {'CANCELLED'}
-
-		names = [b.name for b in assembly.mechanism_bones] + [b.name for b in assembly.org_states]
-		print(names)
-		count, hidden = select_bones(context.object, names, select_hidden=True)
-
-		self.report({'INFO'}, f"Selected {count} bone{'s' if count != 1 else ''}, {hidden} hidden")
-		return {'FINISHED'}
-
 class RIG_OT_delete_assembly(bpy.types.Operator):
 	bl_description = "Delete the selected assembly"
 	bl_idname = "rig.delete_assembly"
@@ -147,6 +151,28 @@ class RIG_OT_delete_assembly(bpy.types.Operator):
 
 		self.report({'INFO'}, f"Assembly {assembly_name} deleted")
 		return {'FINISHED'}
+
+class RIG_OT_reconfigure_selected_assemblies(bpy.types.Operator):
+	bl_idname = "rig.reconfigure_selected_assemblies"
+	bl_label = "Reconfigure All Selected"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	@classmethod
+	def poll(cls, context):
+		assemblies = find_assemblies_from_selection(context)
+		if len({a.assembly_type for a in assemblies}) > 1:
+			cls.poll_message_set("All assemblies must be of the same type")
+			return False
+		if get_active_assembly(context, assemblies) is None:
+			cls.poll_message_set("Active bone must belong to an assembly")
+			return False
+		cls.poll_message_set("Internal error RIG-RECONFIG-POLL. This error should not happen. Please report this to the developer.")
+		print(f"RIG-RECONFIG-POLL: {len(assemblies)} assemblies, {len({a.assembly_type for a in assemblies})} types, active={get_active_assembly(context, assemblies)}")
+		return False
+
+	def execute(self, context):
+		return {'CANCELLED'}
+
 
 class RIG_PT_assembly_panel(bpy.types.Panel):
 	bl_label = "Assembly"
@@ -176,8 +202,23 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			)
 			layout.separator()
 
-		bones = get_selected_bones(context)
-		assemblies = find_assemblies(context.object.data, [b.name for b in bones])
+		assemblies = find_assemblies_from_selection(context)
+
+		if len(assemblies) > 1:
+			row = layout.row(align=True)
+			types = {a.assembly_type for a in assemblies}
+			source = get_active_assembly(context, assemblies)
+			if len(types) > 1 or source is None:
+				row.operator("rig.reconfigure_selected_assemblies", text="Reconfigure All Selected", icon='SETTINGS')
+			else:
+				op = row.operator(
+					ASSEMBLY_TYPE_OPERATORS[source.assembly_type],
+					text="Reconfigure All Selected",
+					icon='SETTINGS',
+				)
+				op.assembly_uid = source.uid
+				op.assembly_uids = ",".join(a.uid for a in assemblies)
+
 		for assembly in assemblies:
 			box = layout.box()
 			col = box.column(align=True)
@@ -226,10 +267,10 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			layout.label(text="No assemblies selected", icon='STATUS_INFO')
 
 classes = (
-	RIG_OT_select_assembly,
 	RIG_OT_delete_assembly,
 	RIG_OT_rename_assembly,
 	RIG_OT_rename_limb_collections,
+	RIG_OT_reconfigure_selected_assemblies,
 	RIG_PT_assembly_panel,
 )
 

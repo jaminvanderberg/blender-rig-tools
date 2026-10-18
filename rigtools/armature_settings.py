@@ -2,7 +2,7 @@ import bpy
 from rigtools.preferences import get_preferences
 
 # Schema version for armature-stored rigtools data. Independent of addon bl_info version.
-CURRENT_RIG_DATA_VERSION = 4
+CURRENT_RIG_DATA_VERSION = 5
 
 class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 	is_initialized: bpy.props.BoolProperty(

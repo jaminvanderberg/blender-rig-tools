@@ -1,7 +1,7 @@
 import bpy
 from rigtools.utils.bone import is_bone_visible, select_bones
 from rigtools.preferences import get_preferences
-from rigtools.utils.bone_chain import find_hierarchy_chains
+from rigtools.utils.bone_chain import find_connected_chains
 
 class RIG_OT_select_bones_by_name(bpy.types.Operator):
 	bl_idname = "rig.select_bones_by_name"
@@ -37,14 +37,34 @@ class RIG_OT_select_bones_by_name(bpy.types.Operator):
 
 class RIG_OT_select_chains(bpy.types.Operator):
 	bl_idname = "rig.select_chains"
-	bl_label = "Select Chains"
+	bl_label = "Select Connected"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	connected_only: bpy.props.BoolProperty(default=False)
+	def execute(self, context):
+		names = find_connected_chains(context)
+		select_bones(context.object, names, select_hidden=False)
+
+		return {'FINISHED'}
+
+class RIG_OT_select_mirror(bpy.types.Operator):
+	bl_idname = "rig.select_mirror"
+	bl_label = "Select Mirror"
+	bl_description = "Extend the selection to include each bone's opposite-side counterpart"
+	bl_options = {'REGISTER', 'UNDO'}
 
 	def execute(self, context):
-		names = find_hierarchy_chains(context, self.connected_only)
-		select_bones(context.object, names, select_hidden=False)
+		obj = context.object
+		if not obj or obj.type != 'ARMATURE':
+			self.report({'ERROR'}, "Active object must be an armature.")
+			return {'CANCELLED'}
+
+		if obj.mode == 'POSE':
+			bpy.ops.pose.select_mirror(extend=True)
+		elif obj.mode == 'EDIT':
+			bpy.ops.armature.select_mirror(extend=True)
+		else:
+			self.report({'ERROR'}, "Use from Pose or Edit mode.")
+			return {'CANCELLED'}
 
 		return {'FINISHED'}
 
@@ -64,10 +84,8 @@ def draw_selection_ui(layout, context):
 	
 	layout.separator()
 	row = layout.row(align=True)
-	op = row.operator("rig.select_chains", text="Select Hierarchy", icon='LIBRARY_DATA_DIRECT')
-	op.connected_only = False
-	op = row.operator("rig.select_chains", text="Select Connected", icon='PARTICLES')
-	op.connected_only = True
+	row.operator("rig.select_chains", text="Select Connected", icon='PARTICLES')
+	row.operator("rig.select_mirror", text="Select Mirror", icon='MOD_MIRROR')
 
 class RIG_PT_selection_panel(bpy.types.Panel):
 	bl_label = "Select Bones by Name"
@@ -105,6 +123,7 @@ class RIG_PT_selection_panel_item(bpy.types.Panel):
 classes = (
 	RIG_OT_select_bones_by_name,
 	RIG_OT_select_chains,
+	RIG_OT_select_mirror,
 	RIG_PT_selection_panel,
 	RIG_PT_selection_panel_item,
 )

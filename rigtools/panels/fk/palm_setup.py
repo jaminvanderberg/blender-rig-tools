@@ -4,7 +4,7 @@ import math
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
-from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
+from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
@@ -376,7 +376,6 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		if not obj or obj.type != 'ARMATURE':
 			self.report({'ERROR'}, "Active object must be an armature.")
 			return {'CANCELLED'}
-		armature_data = obj.data
 		if obj.mode == 'OBJECT':
 			self.report({'ERROR'}, "Can't use from Object mode")
 			return {'CANCELLED'}
@@ -396,6 +395,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
 
+		armature_data = obj.data
 		original_mirror = armature_data.use_mirror_x
 		armature_data.use_mirror_x = False
 
@@ -409,7 +409,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		assembly_uid = self.assembly_uid
 
 		def rebuild():
-			return reconfigure_assembly(
+			return prepare_rebuild(
 				context, 
 				assembly_uid, 
 				lambda prior_configs: create_palm_assembly(

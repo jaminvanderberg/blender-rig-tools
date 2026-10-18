@@ -1,6 +1,29 @@
 from rigtools.preferences import get_preferences
-from rigtools.utils.naming import generate_bone_name
+from rigtools.utils.naming import flip_side_name, generate_bone_name
 from rigtools.utils.bone_collection import set_bone_collection
+
+
+def mirror_pose_selection(context, selected):
+	"""If X-Mirror is on in Pose mode, append each bone's L/R counterpart (no ID writes)."""
+	obj = context.object
+	if not obj or obj.type != 'ARMATURE' or context.mode != 'POSE':
+		return selected
+	if not obj.data.use_mirror_x:
+		return selected
+
+	pose_bones = obj.pose.bones
+	seen = {b.name for b in selected}
+	expanded = list(selected)
+	for bone in selected:
+		flipped = flip_side_name(bone.name)
+		if not flipped or flipped in seen:
+			continue
+		mirror = pose_bones.get(flipped)
+		if mirror is None:
+			continue
+		expanded.append(mirror)
+		seen.add(flipped)
+	return expanded
 
 
 def get_selected_bones(context):

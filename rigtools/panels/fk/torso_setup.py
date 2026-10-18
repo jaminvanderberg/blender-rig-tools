@@ -1,7 +1,7 @@
 import json
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
-from rigtools.assemblies.reconfigure_assembly import reconfigure_assembly
+from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.assemblies.assembly_data import find_assembly, get_assembly_chains
 from rigtools.assemblies.template_options import resolve_template_options
@@ -393,7 +393,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		assembly_uid = self.assembly_uid
 
 		def rebuild():
-			return reconfigure_assembly(
+			return prepare_rebuild(
 				context, 
 				assembly_uid, 
 				lambda prior_configs: create_torso_assembly(
