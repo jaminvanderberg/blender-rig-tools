@@ -3,7 +3,7 @@ from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgra
 from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
-from rigtools.assemblies.limb_collections import find_limb_collections
+from rigtools.assemblies.limb_collections import find_bones_by_limb_role, find_limb_collections
 from rigtools.utils.bone import get_selected_bones
 
 ASSEMBLY_TYPE_OPERATORS = {
@@ -86,11 +86,9 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 	control: bpy.props.StringProperty(name="Control")
 	
 	def _roles_in_use(self, armature_data):
-		all_colls = getattr(armature_data, "collections_all", armature_data.collections)
-		row = find_limb_collections(armature_data, self.limb, self.side)
 		return [
 			role for role in ("fk", "ik", "tweak", "mch", "master", "control")
-			if all_colls.get(getattr(row, role))
+			if find_bones_by_limb_role(armature_data, self.limb, self.side, role)
 		]
 
 	def invoke(self, context, event):

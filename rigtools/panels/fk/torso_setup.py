@@ -341,20 +341,20 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		draw.box_section(layout, ["add_neck_rotation_isolation", "add_head_rotation_isolation", "neck_base_property_name", "neck_inherit_scale_from_root", "head_base_property_name", "head_inherit_scale_from_root"], 
 			"Rotation Isolation:", 'SETTINGS', lambda col: (
 
-			draw.draw_section(col, ["add_neck_rotation_isolation", "neck_base_property_name"], lambda: (
+			draw.draw_section(col, ["add_neck_rotation_isolation", "neck_base_property_name", "neck_inherit_scale_from_root"], lambda: (
 				draw.split_row(col, [
 					SplitSection(label="Add Neck Rotation Isolation", prop="add_neck_rotation_isolation"),
 					SplitSection(label="", prop="neck_base_property_name"),
 				]),
-				draw.full_field(col, "Neck Inherit Scale From Root", "neck_inherit_scale_from_root"),
+				draw.indented_field(col, "Neck Inherit Scale From Root", "neck_inherit_scale_from_root"),
 			)),
 
-			draw.draw_section(col, ["add_head_rotation_isolation", "head_base_property_name"], lambda: (
+			draw.draw_section(col, ["add_head_rotation_isolation", "head_base_property_name", "head_inherit_scale_from_root"], lambda: (
 				draw.split_row(col, [
 					SplitSection(label="Add Head Rotation Isolation", prop="add_head_rotation_isolation"),
 					SplitSection(label="", prop="head_base_property_name"),
 				]),
-				draw.full_field(col, "Head Inherit Scale From Root", "head_inherit_scale_from_root"),
+				draw.indented_field(col, "Head Inherit Scale From Root", "head_inherit_scale_from_root"),
 			)),
 		))
 

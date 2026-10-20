@@ -30,7 +30,6 @@ class IKAssemblyOptions:
 	inherit_scale_from_root: bool = False
 	ik_type: str = 'IK' # 'IK' or 'SPLINE'
 	ik_bone_count: int = 3
-	enable_ik_stretch: bool = True
 	pole_distance: float = 1.0
 	spline_control_count: int = 3
 	spline_skip_first: bool = False
@@ -111,6 +110,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					fk_widget = "NONE",  # this is an intermediate chain, no widget
 					skip_first_tweak = False,
 					do_create_fk = True,
+					inherit_xz_scale_from_previous = True, # ik scaling fix
 				)
 				tweak_chain.edit_mode(armature_data, limb_chain)
 				switch_chain = tweak_chain.fk_bone_names
@@ -201,8 +201,9 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					twist_bones.edit_mode(context, limb_chain, fk_ik_switch.switch_bone_names)
 					assembly_chain.tools.append(twist_bones)
 
+				ik_stretch_property_name = name_property("ik_stretch", options.limb_property_base_name, side)
 				ik = StandardIK(
-					enable_ik_stretch = options.enable_ik_stretch,
+					ik_stretch_property_name = ik_stretch_property_name,
 					pole_distance = options.pole_distance,
 					enable_snapping = options.enable_snapping,
 				)

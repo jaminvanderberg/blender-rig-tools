@@ -18,6 +18,7 @@ class FKTweakChain:
 		normalize_fk_widget_scale: bool = False,
 		fk_widget_taper: float = 0.0,
 		fk_role: str | list[str] = 'fk',
+		inherit_xz_scale_from_previous: bool = False, # ik scaling fix
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
@@ -28,6 +29,7 @@ class FKTweakChain:
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.fk_widget_taper = fk_widget_taper
 		self.fk_role = fk_role
+		self.inherit_xz_scale_from_previous = inherit_xz_scale_from_previous
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -148,6 +150,24 @@ class FKTweakChain:
 			constraint.subtarget = target_tweak
 			if self.tweak_relationship == "STRETCH_TO":
 				constraint.rest_length = self.bone_lengths[orig_name]
+
+		# This is a scaling fix for IK chains
+		if self.inherit_xz_scale_from_previous:
+			for org_name, tweak_name, prev_org_name, prev_tweak_name in zip(
+				self.org_bone_names[1:],
+				self.tweak_bone_names[1:],
+				self.org_bone_names[:-1],
+				self.tweak_bone_names[:-1],
+			):
+				for bone_name, target_name in ((tweak_name, prev_tweak_name), (org_name, prev_org_name)):
+					if not bone_name: continue
+					scale = pose_bones[bone_name].constraints.new('COPY_SCALE')
+					scale.name = "IK XZ Scale Fix"
+					scale.target = obj
+					scale.subtarget = target_name
+					scale.use_x = True
+					scale.use_y = False
+					scale.use_z = True
 
 		tweakers = [t for t in self.tweak_bone_names if t] + [self.terminal_tweak_name]
 

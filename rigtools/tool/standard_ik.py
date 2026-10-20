@@ -1,5 +1,6 @@
 import math
 import bpy
+from rna_prop_ui import rna_idprop_ui_create
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.armature_settings import get_armature_settings
@@ -31,11 +32,11 @@ def get_pole_angle(base_bone, ik_bone, pole_location):
 
 class StandardIK:
 	def __init__(self, *,
-		enable_ik_stretch: bool = True,
 		pole_distance: float = 1.0,
 		enable_snapping: bool = True,
+		ik_stretch_property_name: str,
 	):
-		self.enable_ik_stretch = enable_ik_stretch
+		self.ik_stretch_property_name = ik_stretch_property_name
 		self.pole_distance = pole_distance
 		self.enable_snapping = enable_snapping
 
@@ -46,6 +47,7 @@ class StandardIK:
 		self.pole_vis_name = None
 		self.snap_control_name = None
 		self.snap_pole_name = None
+		self.ik_chain_length = 0.0
 
 		self.mechanism_bones = MechanismBones()
 		self.property_names = []
@@ -65,6 +67,8 @@ class StandardIK:
 
 		self.mch_bone_names = mch_bone_names
 		self.fk_bone_names = fk_bone_names
+
+		self.ik_chain_length = sum(edit_bones[name].length for name in self.mch_bone_names[:-1])
 
 		last_mch_bone_name = self.mch_bone_names[-1]
 		last_mch_bone = edit_bones[last_mch_bone_name]
@@ -102,7 +106,7 @@ class StandardIK:
 		self.ik_control_name = ik_control_bone.name
 		self.pole_name = pole_bone.name
 
-		if self.enable_ik_stretch and tweak_bone_names:
+		if tweak_bone_names:
 			tweak = edit_bones[tweak_bone_names[len(self.mch_bone_names) - 2]]
 			mch_name = name_bone("mch", tweak.name)
 			mch = duplicate_bone(obj.data, tweak, mch_name, 0.5)
@@ -168,12 +172,49 @@ class StandardIK:
 
 		pose_bones = obj.pose.bones
 
+		prop_bone_name = settings.property_bone_name
+		prop_bone = pose_bones[prop_bone_name]
+		if self.ik_stretch_property_name not in prop_bone:
+			prop_bone[self.ik_stretch_property_name] = 1.0
+			rna_idprop_ui_create(
+				prop_bone,
+				self.ik_stretch_property_name,
+				default=1.0,
+				min=0.0,
+				max=1.0,
+			)
+			prop_bone.property_overridable_library_set(f'["{self.ik_stretch_property_name}"]', True)
+
+		self.property_names.append((self.ik_stretch_property_name, "IK_STRETCH"))
+
 		# Copy Transforms on the IK control bone to the last MCH bone
 		last_mch_bone_name = self.mch_bone_names[-1]
 		last_mch_bone = pose_bones[last_mch_bone_name]
 		copy_constraint = last_mch_bone.constraints.new('COPY_TRANSFORMS')
 		copy_constraint.target = obj
 		copy_constraint.subtarget = self.ik_control_name
+
+		# Limit Distance controlled by the IK stretch property
+		limit = last_mch_bone.constraints.new('LIMIT_DISTANCE')
+		limit.name = "IK Stretch"
+		limit.target = obj
+		limit.subtarget = self.mch_bone_names[0]
+		limit.distance = self.ik_chain_length
+		limit.limit_mode = 'LIMITDIST_INSIDE'
+		limit.target_space = 'CUSTOM'
+		limit.owner_space = 'CUSTOM'
+		limit.head_tail = 0.0
+		limit.space_object = obj
+		limit.space_subtarget = self.mch_bone_names[0]
+
+		driver = limit.driver_add('influence').driver
+		driver.type = 'SCRIPTED'
+		driver.expression = "1 - amt"
+		var = driver.variables.new()
+		var.name = "amt"
+		var.type = 'SINGLE_PROP'
+		var.targets[0].id = obj
+		var.targets[0].data_path = f'pose.bones["{prop_bone_name}"]["{self.ik_stretch_property_name}"]'
 
 		# Create the IK constraint
 		penultimate_mch_bone_name = self.mch_bone_names[-2]
@@ -202,17 +243,25 @@ class StandardIK:
 		pole_location = pose_bones[self.pole_name].matrix.translation
 		ik_constraint.pole_angle = get_pole_angle(base_bone, ik_bone, pole_location)
 
-		if self.enable_ik_stretch:
-			ik_constraint.use_stretch = True
-			for mch_bone_name in self.mch_bone_names[:-1]:
-				mch_bone = pose_bones[mch_bone_name]
-				mch_bone.ik_stretch = 0.05
+		ik_constraint.use_stretch = True
+		for mch_bone_name in self.mch_bone_names[:-1]:
+			mch_bone = pose_bones[mch_bone_name]
+			mch_bone.ik_stretch = 0.05
 
-			if self.mch_tweak_name:
-				mch = pose_bones[self.mch_tweak_name]
-				scale = mch.constraints.new('COPY_SCALE')
-				scale.target = obj
-				scale.subtarget = settings.root_bone_name
+			stretch_driver = mch_bone.driver_add('ik_stretch').driver
+			stretch_driver.type = 'SCRIPTED'
+			stretch_driver.expression = "0.05 * amt"
+			var = stretch_driver.variables.new()
+			var.name = "amt"
+			var.type = 'SINGLE_PROP'
+			var.targets[0].id = obj
+			var.targets[0].data_path = f'pose.bones["{prop_bone_name}"]["{self.ik_stretch_property_name}"]'
+
+		if self.mch_tweak_name:
+			mch = pose_bones[self.mch_tweak_name]
+			scale = mch.constraints.new('COPY_SCALE')
+			scale.target = obj
+			scale.subtarget = settings.root_bone_name
 
 		pole_vis_bone = None
 		# stretch to on the VIS bone

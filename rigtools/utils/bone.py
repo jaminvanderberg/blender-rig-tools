@@ -8,7 +8,7 @@ def mirror_pose_selection(context, selected):
 	obj = context.object
 	if not obj or obj.type != 'ARMATURE' or context.mode != 'POSE':
 		return selected
-	if not obj.data.use_mirror_x:
+	if not obj.pose.use_mirror_x:
 		return selected
 
 	pose_bones = obj.pose.bones

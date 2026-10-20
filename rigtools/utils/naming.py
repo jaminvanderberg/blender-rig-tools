@@ -70,6 +70,7 @@ PROPERTY = {
 	"ik_parent": "{name}.ik.parent{side}",
 	"skirt_collision": "{name}.collision{side}",
 	"skirt_ride": "{name}.ride{side}",
+	"ik_stretch": "{name}.ik.stretch{side}",
 }
 
 def bone_template(role):

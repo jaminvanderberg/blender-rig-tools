@@ -112,12 +112,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		max=10
 	)
 
-	enable_ik_stretch: BoolProperty(
-		name="Enable IK Stretch",
-		description="Enable IK stretch for the IK chain",
-		default=True
-	)
-
 	spline_control_count: IntProperty(
 		name="Control Count",
 		description="Number of controls to create for the spline IK",
@@ -531,7 +525,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				return self.add_tweak_bones
 			if field_name in ["inherit_scale_from_root"]:
 				return self.add_rotation_isolation
-			if field_name in ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"]:
+			if field_name in ["ik_bone_count", "enable_snapping", "add_foot_roll"]:
 				return self.ik_type == 'IK'
 			if field_name in ["spline_control_count", "twist_type", "spline_skip_first", "spline_skip_last"]:
 				return self.ik_type == 'SPLINE'
@@ -598,12 +592,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				)),
 			))
 		))
-		draw.draw_section(layout, ["ik_type", "ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll", "spline_control_count", "twist_type", "spline_skip_first"], lambda: (
+		draw.draw_section(layout, ["ik_type", "ik_bone_count", "enable_snapping", "add_foot_roll", "spline_control_count", "twist_type", "spline_skip_first"], lambda: (
 			draw.full_field(layout, "IK Type", "ik_type"),
-			draw.box_section(layout, ["ik_bone_count", "enable_snapping", "enable_ik_stretch", "add_foot_roll"], "IK Settings", 'CON_KINEMATIC', lambda col: (
+			draw.box_section(layout, ["ik_bone_count", "enable_snapping", "add_foot_roll"], "IK Settings", 'CON_KINEMATIC', lambda col: (
 				draw.full_field(col, "IK Bone Count", "ik_bone_count"),
 				draw.full_field(col, "Enable Snapping", "enable_snapping"),
-				draw.full_field(col, "Enable IK Stretch", "enable_ik_stretch"),
 				draw.full_field(col, "Add Foot Roll", "add_foot_roll"),
 			)),
 			draw.box_section(layout, ["spline_control_count", "twist_type", "spline_skip_first", "spline_skip_last"], "Spline IK Settings", 'CON_SPLINEIK', lambda col: (
@@ -769,7 +762,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			add_rotation_isolation=self.add_rotation_isolation,
 			inherit_scale_from_root=self.inherit_scale_from_root,
 			ik_type=self.ik_type,
-			enable_ik_stretch=self.enable_ik_stretch,
 			spline_control_count=self.spline_control_count,
 			spline_skip_first=self.spline_skip_first,
 			spline_skip_last=self.spline_skip_last,

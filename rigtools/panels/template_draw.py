@@ -43,7 +43,7 @@ class TemplateDraw:
 	def split_field(self, layout, label, prop, *, expand=False, split_size=0):
 		if split_size == 0:
 			split_size = self.split_size
-			
+
 		if not self.do_show(prop):
 			return
 		split = layout.split(align=True, factor=split_size)
@@ -59,6 +59,14 @@ class TemplateDraw:
 		if not self.do_show(prop):
 			return
 		layout.prop(self.op, prop, text=label)
+
+	def indented_field(self, layout, label, prop):
+		if not self.do_show(prop):
+			return
+		row = layout.row(align=True)
+		split = row.split(align=True, factor=0.03)
+		split.row(align=True)
+		split.row(align=True).prop(self.op, prop, text=label)		
 
 	def expand_field(self, layout, prop):
 		if not self.do_show(prop):

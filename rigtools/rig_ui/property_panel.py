@@ -8,10 +8,11 @@ from rigtools.utils.naming import limb_group_label
 
 ROLE_DATA = {
 	"FK_IK_SWITCH": {"label": "FK > IK Switch", "order": 1},
-	"ROTATION_ISOLATION": {"label": "FK Rotation Follow", "order": 2},
-	"SKIRT_COLLISION": {"label": "Leg Collision", "order": 3},
-	"SKIRT_RIDE": {"label": "Leg Ride", "order": 4},
-	"IK_PARENT": {"label": "IK Parent", "order": 5},
+	"IK_STRETCH": {"label": "IK Stretch", "order": 2},
+	"ROTATION_ISOLATION": {"label": "FK Rotation Follow", "order": 3},
+	"SKIRT_COLLISION": {"label": "Leg Collision", "order": 4},
+	"SKIRT_RIDE": {"label": "Leg Ride", "order": 5},
+	"IK_PARENT": {"label": "IK Parent", "order": 6},
 }
 
 def get_selected_assemblies(context):
@@ -159,6 +160,11 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 						self.draw_float_with_buttons(
 							col, prop_bone, prop, label,
 							(("Off", 0.0, "Disable ride"), ("On", 1.0, "Enable ride")),
+						)
+					case "IK_STRETCH":
+						self.draw_float_with_buttons(
+							col, prop_bone, prop, label,
+							(("Off", 0.0, "Disable stretch"), ("On", 1.0, "Enable stretch")),
 						)
 					case _:
 						col.separator()

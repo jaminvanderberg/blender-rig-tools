@@ -60,16 +60,15 @@ class LimbCollectionMap(PropertyGroup):
 
 		setattr(self, role, new_name)
 
-		if not _collection_in_use(armature_data, old_name):
+		if old_coll and old_coll != new_coll and not old_coll.bones:
 			rename_layout_collection(armature_data, old_name, new_name)
-			if old_coll and old_coll != new_coll and not old_coll.bones:
-				armature_data.collections.remove(old_coll)
-		
+			armature_data.collections.remove(old_coll)		
 
 	def promote_fk(self):
 		if self.split:
 			return
-		self.rename("fk", name_collection("fk_split", self.limb, self.side))
+		if self.fk == name_collection("fk", self.limb, self.side):
+			self.rename("fk", name_collection("fk_split", self.limb, self.side))
 		self.split = True
 
 	def add_bone(self, armature_data, bone_name, roles: list[str]):
