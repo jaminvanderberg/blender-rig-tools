@@ -417,6 +417,80 @@ class RIG_OT_ui_collection_hide(bpy.types.Operator):
 		return {'FINISHED'}
 
 
+class RIG_OT_ui_collection_rename(bpy.types.Operator):
+	bl_idname = "rig.ui_collection_rename"
+	bl_label = "Rename Collection"
+	bl_description = "Rename the selected collection and update any limb collections that reference it"
+	bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+	collection_name: StringProperty()
+	new_name: StringProperty(name="Name")
+
+	@classmethod
+	def poll(cls, context):
+		coll, is_gap, _ = _edit_selection(context)
+		return context.window_manager.rig_ui_edit_collections and coll is not None and not is_gap
+
+	def invoke(self, context, event):
+		_, _, name = _edit_selection(context)
+		self.collection_name = name
+		self.new_name = name
+		return context.window_manager.invoke_props_dialog(self, width=250)
+
+	def draw(self, context):
+		self.layout.prop(self, "new_name")
+
+	def execute(self, context):
+		armature_data = context.object.data
+		old_name = self.collection_name
+		new_name = self.new_name.strip()
+
+		if not new_name:
+			self.report({'ERROR'}, "Name cannot be empty")
+			return {'CANCELLED'}
+
+		coll = _coll_by_name(armature_data, old_name)
+		if coll is None:
+			self.report({'ERROR'}, f"Collection '{old_name}' not found.")
+			return {'CANCELLED'}
+
+		if new_name == old_name:
+			return {'FINISHED'}
+
+		existing = _coll_by_name(armature_data, new_name)
+		if existing is not None and existing != coll:
+			self.report({'ERROR'}, f"Collection '{new_name}' already exists.")
+			return {'CANCELLED'}
+
+		for row in armature_data.rigtools_limb_collections:
+			for role in ("fk", "ik", "tweak", "mch", "master", "control"):
+				if getattr(row, role) == old_name:
+					setattr(row, role, new_name)
+
+		rename_layout_collection(armature_data, old_name, new_name)
+		coll.name = new_name
+		_set_selection(context, new_name, False)
+
+		self.report({'INFO'}, f"Renamed collection '{old_name}' to '{new_name}'")
+		return {'FINISHED'}
+
+
+class RIG_MT_ui_collection_actions(bpy.types.Menu):
+	bl_idname = "RIG_MT_ui_collection_actions"
+	bl_label = "Collection Actions"
+
+	def draw(self, context):
+		layout = self.layout
+		layout.operator("rig.ui_collection_rename", text="Rename", icon='GREASEPENCIL')
+		_, _, name = _edit_selection(context)
+		hidden = _is_hidden(context.object.data, name) if name else False
+		layout.operator(
+			"rig.ui_collection_hide",
+			text="Show" if hidden else "Hide",
+			icon='HIDE_ON' if hidden else 'HIDE_OFF',
+		)
+
+
 class RIG_PT_collection_ui(bpy.types.Panel):
 	bl_label = "Rig UI"
 	bl_idname = "RIG_PT_collection_ui"
@@ -436,8 +510,8 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 		wm = context.window_manager
 		if not wm.rig_ui_edit_collections:
 			return False
-			
-		col = layout.column(align=True)
+
+		col = layout.column()
 		header = col.row(align=True)
 		header.operator("rig.ui_collection_add_gap", text="Gap")
 		header.separator()
@@ -452,9 +526,9 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 	def draw(self, context):
 
 		if context.object.type == 'ARMATURE':
-			arm = context.object.data
+			armature_data = context.object.data
 		else:
-			arm = [mod for mod in context.object.modifiers if mod.type == 'ARMATURE'][0].object.data
+			armature_data = [mod for mod in context.object.modifiers if mod.type == 'ARMATURE'][0].object.data
 		wm = context.window_manager
 		editing = wm.rig_ui_edit_collections
 		sel_name = wm.rig_ui_sel_name
@@ -463,13 +537,13 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 		layout = self.layout
 
 		self.draw_edit_buttons(context, layout)
-	
+
 		col = layout.column(align=True)
 
 		if editing:
-			self._draw_edit(col, arm, sel_name, sel_gap)
+			self._draw_edit(col, armature_data, sel_name, sel_gap)
 		else:
-			self._draw_view(col, arm)
+			self._draw_view(col, armature_data)
 
 		if not self.draw_edit_buttons(context, layout):
 			header = layout.row(align=True)
@@ -495,8 +569,8 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 				if icon:
 					cell.prop(coll, "is_visible", text="", toggle=True, icon=icon)
 
-	def _draw_edit(self, col, arm, sel_name, sel_gap):
-		rows = _iter_rows(arm)
+	def _draw_edit(self, col, armature_data, sel_name, sel_gap):
+		rows = _iter_rows(armature_data)
 		for i, row in enumerate(rows):
 			if row['type'] == 'gap':
 				owner = _gap_owner_name(rows, i)
@@ -514,7 +588,7 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 			ui_row = col.row(align=True)
 			count = len(row['colls'])
 			for j, coll in enumerate(row['colls']):
-				hidden = _is_hidden(arm, coll.name)
+				hidden = _is_hidden(armature_data, coll.name)
 				selected = not sel_gap and coll.name == sel_name
 				if count > 1 and j > 0 and selected:
 					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_LEFT')
@@ -530,11 +604,9 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 				op.collection_name = coll.name
 				op.is_gap = False
 				if selected:
-					ui_row.operator(
-						"rig.ui_collection_hide",
-						text="",
-						icon='HIDE_ON' if hidden else 'HIDE_OFF',
-					)
+					menu_cell = ui_row.row(align=True)
+					menu_cell.emboss = 'NONE'
+					menu_cell.menu("RIG_MT_ui_collection_actions", text="", icon='DOWNARROW_HLT')
 				if count > 1 and j < count - 1 and selected:
 					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_RIGHT')
 					shift.collection_name = coll.name
@@ -549,6 +621,8 @@ classes = (
 	RIG_OT_ui_collection_add_gap,
 	RIG_OT_ui_collection_remove_gap,
 	RIG_OT_ui_collection_hide,
+	RIG_OT_ui_collection_rename,
+	RIG_MT_ui_collection_actions,
 	RIG_PT_collection_ui,
 )
 
