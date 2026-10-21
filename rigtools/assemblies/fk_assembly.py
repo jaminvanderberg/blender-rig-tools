@@ -5,6 +5,7 @@ from rigtools.assemblies.limb_collections import ensure_limb_collections
 from rigtools.tool.finger_curl import FingerCurl
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.master_controllers import MasterControllers
+from rigtools.tool.shoulder import Shoulder
 from rigtools.tool.skirt_collision import SkirtCollision
 from rigtools.tool.skirt_ride import SkirtLeg, SkirtRide
 from rigtools.utils.naming import guess_assembly_name, find_side, name_property
@@ -15,6 +16,7 @@ from rigtools.tool.rotation_isolation import RotationIsolation
 @dataclass
 class FKAssemblyOptions:
 	limb_property_base_name: str
+	assembly_name_base: str= ""
 	control_mode: str = 'FK/TWEAK' # 'FK/TWEAK', 'FK', 'TWEAK'
 	fk_bone_template: str = "FK-{name}"
 	skip_first_tweak: bool = False
@@ -29,6 +31,8 @@ class FKAssemblyOptions:
 	skirt_ride_legs: list[SkirtLeg] = field(default_factory=list)
 	add_finger_curl: bool = False
 	finger_curl_axis: str = 'AUTO'
+	create_shoulder_vis: bool = False
+	share_fk_ik_role: bool = False
 
 	create_master_controllers: bool = False
 	master_controllers_interval: int = 0
@@ -57,7 +61,8 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			limb_collections = ensure_limb_collections(armature_data, limb, side)
 			
-			assembly_name = guess_assembly_name(context.object.data, chain, limb,side)
+			name_base = options.assembly_name_base or limb
+			assembly_name = guess_assembly_name(context.object.data, chain, name_base, side)
 			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options, side=side, uid=replacement_uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 			assemblies.append(assembly_chain)
@@ -83,6 +88,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					fk_widget=options.fk_widget,
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					fk_widget_taper=options.fk_widget_taper,
+					fk_role=['fk', 'ik'] if options.share_fk_ik_role else 'fk',
 				)
 				fk.edit_mode(armature_data, chain)
 				assembly_chain.tools.append(fk)
@@ -135,6 +141,12 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				)
 				skirt_ride.edit_mode(context, fk_names[0])
 				assembly_chain.tools.append(skirt_ride)
+
+			# SHOULDERS
+			if options.create_shoulder_vis and len(fk_names) > 0:
+				shoulder = Shoulder()
+				shoulder.edit_mode(context, fk_names[0])
+				assembly_chain.tools.append(shoulder)
 
 		##############
 		# Pose mode

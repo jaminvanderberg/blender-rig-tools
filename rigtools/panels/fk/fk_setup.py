@@ -217,7 +217,28 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		min=0.0,
 		max=0.8,
 	)
-	
+
+	create_shoulder_vis: BoolProperty(
+		name="Create Shoulder Vis",
+		description="Create a shoulder visibility control.",
+		default=False,
+		options={'HIDDEN'},
+	)
+
+	share_fk_ik_role: BoolProperty(
+		name="Share FK/IK Role",
+		description="Share the same role for FK and IK bones.",
+		default=False,
+		options={'HIDDEN'},
+	)
+
+	assembly_name_base: StringProperty(
+		name="Assembly Name Base",
+		description="Base name for the assembly; limb name is used when blank.",
+		default="",
+		options={'HIDDEN'},
+	)
+
 	@classmethod
 	def description(cls, context, properties):
 		if properties.template_id:
@@ -401,9 +422,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	def validate_chains(self, context, chains):
 		if not chains:
 			return "No chains selected."
-		for chain in chains:
-			if len(chain) == 1:
-				return "All chains must have at least 2 bones."
 		return None
 
 	def execute(self, context):
@@ -433,6 +451,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = FKAssemblyOptions(
 			limb_property_base_name=self.limb_property_base_name.strip().lower(),
+			assembly_name_base=self.assembly_name_base.strip().lower(),
 			control_mode=self.control_mode,
 			fk_bone_template=bone_template('fk'),
 			skip_first_tweak=self.skip_first_tweak,
@@ -455,6 +474,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			finger_curl_axis=self.finger_curl_axis,
 			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
 			fk_widget_taper=self.fk_widget_taper,
+			create_shoulder_vis=self.create_shoulder_vis,
+			share_fk_ik_role=self.share_fk_ik_role,
 		)
 
 		prev_state = begin_setup_edit(context)

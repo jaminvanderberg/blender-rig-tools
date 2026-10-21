@@ -180,6 +180,23 @@ FK_TEMPLATES = {
 			"master_controllers_skip_first",
 		),
 	),
+	"shoulder": FKTemplate(
+		label="Shoulder",
+		description="Humanoid shoulder. Single FK control..",
+		icon="CON_GEOMETRYATTRIBUTE",
+		options={
+			"limb_property_base_name": "arm",
+			"assembly_name_base": "shoulder",
+			"create_shoulder_vis": True,
+			"control_mode": "FK",
+			"fk_widget": "SHOULDER",
+			"share_fk_ik_role": True,
+			"add_rotation_isolation": False,
+		},
+		redo_fields=(
+			"fk_widget",
+		),
+	),
 }
 
 

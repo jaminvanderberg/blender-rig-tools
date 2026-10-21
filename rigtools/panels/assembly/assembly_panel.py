@@ -235,10 +235,13 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			op.assembly_uid = assembly.uid
 			op = row.operator("rig.delete_assembly", text="Delete", icon='TRASH')
 			op.assembly_uid = assembly.uid
-
-			for config in iterate_configs(assembly):
-				config.draw(col, assembly, context)
-
+			
+			configs = list(iterate_configs(assembly))
+			if configs:
+				col.separator(factor=0.5)
+				for config in configs:
+					config.draw(col, assembly, context)
+					
 		if len(assemblies) > 1:
 			layout.separator()
 			row = layout.row(align=True)
