@@ -14,6 +14,7 @@ class FKTemplate:
 	redo_fields: tuple[str, ...] = ()
 	show_dialog: bool = False
 	field_labels: dict[str, str] = field(default_factory=dict)
+	manual_display: bool = False
 
 
 FK_TEMPLATES = {
@@ -196,6 +197,7 @@ FK_TEMPLATES = {
 		redo_fields=(
 			"fk_widget",
 		),
+		manual_display=True,
 	),
 }
 

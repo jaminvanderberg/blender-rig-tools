@@ -25,6 +25,8 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
 		grid.operator_context = 'INVOKE_DEFAULT'
 		for template_id, template in FK_TEMPLATES.items():
+			if template.manual_display:
+				continue
 			operator = grid.operator(
 				"rig.advanced_fk_setup",
 				text=template.label,
@@ -33,13 +35,16 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 			operator.template_id = template_id
 			operator.assembly_uid = ""
 
-		layout.separator()
-		layout.label(text="Special")
+		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
+		grid.operator_context = 'INVOKE_DEFAULT'
 
-		op = layout.operator("rig.advanced_palm_setup", text="Palm", icon='ARMATURE_DATA')
-		op.template_id = "palm"
+		op = grid.operator("rig.advanced_fk_setup", text="Shoulder", icon='IPO_EASE_OUT')
+		op.template_id = "shoulder"
 		op.assembly_uid = ""
 
+		op = grid.operator("rig.advanced_palm_setup", text="Palm", icon='MESH_CAPSULE')
+		op.template_id = "palm"
+		op.assembly_uid = ""
 
 classes = (
 	RIG_PT_fk_panel,
