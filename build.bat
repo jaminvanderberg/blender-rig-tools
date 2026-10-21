@@ -12,8 +12,7 @@ if not exist "%SRC%\__init__.py" (
 
 if exist "%OUT%" del /f "%OUT%"
 
-powershell -NoProfile -Command ^
-  "Compress-Archive -Path '%SRC%' -DestinationPath '%OUT%' -Force"
+tar -a -cf "%OUT%" --exclude="*/__pycache__" --exclude="*/__pycache__/*" --exclude="*.pyc" -C "%ROOT%." rigtools
 
 if errorlevel 1 (
     echo ERROR: Failed to create zip.
