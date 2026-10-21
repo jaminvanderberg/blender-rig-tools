@@ -2,10 +2,10 @@ import math
 import bpy
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name, name_bone
+from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
-from rigtools.utils.widget import create_ik_widget, get_widget_collection, create_sphere_widget, create_line_widget
+from rigtools.utils.widget import apply_widget
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
@@ -127,15 +127,13 @@ class StandardIK:
 			snap_pole_bone.parent = edit_bones[fk_bone_names[0]]
 			self.snap_pole_name = snap_pole_bone.name
 
-		pole_vis_bone = None
-		if settings.do_create_widgets:
-			pole_vis_bone_name = name_bone("ik_pole_vis", name_source[0] if name_source else bone1_name)
-			pole_vis_bone = edit_bones.new(pole_vis_bone_name)
-			pole_vis_bone.head = pole_bone.head
-			pole_vis_bone.tail = bone1.tail
-			pole_vis_bone.parent = pole_bone
-			pole_vis_bone.align_roll(Vector((1, 0, 0)))
-			self.pole_vis_name = pole_vis_bone.name
+		pole_vis_bone_name = name_bone("ik_pole_vis", name_source[0] if name_source else bone1_name)
+		pole_vis_bone = edit_bones.new(pole_vis_bone_name)
+		pole_vis_bone.head = pole_bone.head
+		pole_vis_bone.tail = bone1.tail
+		pole_vis_bone.parent = pole_bone
+		pole_vis_bone.align_roll(Vector((1, 0, 0)))
+		self.pole_vis_name = pole_vis_bone.name
 
 		self.mechanism_bones.add(self.ik_control_name, 'ik')
 		self.mechanism_bones.add(self.pole_name, 'ik')
@@ -283,23 +281,14 @@ class StandardIK:
 		ik_control_bone.custom_shape_wire_width = 2.0
 
 		# Widgets
-		if settings.do_create_widgets:
-			coll = get_widget_collection(context, settings.widget_collection)
+		wgt = apply_widget(context, ik_control_bone, 'IK')
+		self.object_names.append(wgt.name)
 
-			ik_widget_name = generate_bone_name(self.ik_control_name, settings.widget_template)
-			wgt = create_ik_widget(ik_widget_name, coll)
-			ik_control_bone.custom_shape = wgt
+		wgt = apply_widget(context, pole_bone, 'SPHERE')
+		self.object_names.append(wgt.name)
+
+		if pole_vis_bone:
+			wgt = apply_widget(context, pole_vis_bone, 'LINE')
 			self.object_names.append(wgt.name)
-
-			pole_widget_name = generate_bone_name(self.pole_name, settings.widget_template)
-			wgt = create_sphere_widget(pole_widget_name, coll)
-			pole_bone.custom_shape = wgt
-			self.object_names.append(wgt.name)
-
-			if pole_vis_bone:
-				pole_vis_widget_name = generate_bone_name(self.pole_vis_name, settings.widget_template)
-				wgt = create_line_widget(pole_vis_widget_name, coll)
-				pole_vis_bone.custom_shape = wgt
-				self.object_names.append(wgt.name)
 
 		return self

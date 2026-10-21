@@ -2,9 +2,9 @@ import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name
-from rigtools.utils.widget import get_widget_collection, create_fk_widget
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
+from rigtools.utils.widget import apply_widget
 
 class FKChain:
 	def __init__(self, *,
@@ -72,23 +72,20 @@ class FKChain:
 			fk_bone.color.palette = prefs.fk_bone_color
 			
 		# Widgets
-		coll = get_widget_collection(context, settings.widget_collection)
 		n = len(self.fk_bone_names)
 		avg = sum(pose_bones[name].length for name in self.fk_bone_names) / n if n else 0.0
-		if settings.do_create_widgets and self.fk_widget != "NONE":
-			for i, fk_name in enumerate(self.fk_bone_names):
-				fk_bone = pose_bones[fk_name]
-				widget_name = generate_bone_name(fk_name, settings.widget_template)
-				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
-				fk_bone.custom_shape = wgt
+		for i, fk_name in enumerate(self.fk_bone_names):
+			fk_bone = pose_bones[fk_name]
+			wgt = apply_widget(context, fk_bone, self.fk_widget)
+			if wgt is None: continue
 
-				if self.normalize_fk_widget_scale:
-					s = avg / fk_bone.length
-					if n > 1 and self.fk_widget_taper:
-						t = i / (n - 1)
-						s *= 1.0 - self.fk_widget_taper * t
-					fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
+			if self.normalize_fk_widget_scale:
+				s = avg / fk_bone.length
+				if n > 1 and self.fk_widget_taper:
+					t = i / (n - 1)
+					s *= 1.0 - self.fk_widget_taper * t
+				fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
 
-				self.object_names.append(wgt.name)
+			self.object_names.append(wgt.name)
 
 		return self

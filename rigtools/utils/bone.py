@@ -149,7 +149,17 @@ def is_bone_visible(bone):
 	return True
 
 
-def select_bones(obj, bone_names, select_hidden=False) -> [int, int]: # Total selected, total hidden
+def select_bones(obj, bone_names, select_hidden=False, deselect=False) -> [int, int]: # Total selected, total hidden
+	if deselect:
+		if obj.mode == 'POSE':
+			for bone in obj.data.bones:
+				bone.select = False
+		elif obj.mode == 'EDIT':
+			for bone in obj.data.edit_bones:
+				bone.select = False
+				bone.select_head = False
+				bone.select_tail = False
+
 	count = 0
 	hidden = 0
 	active_name = None

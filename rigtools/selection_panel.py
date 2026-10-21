@@ -88,7 +88,7 @@ def draw_selection_ui(layout, context):
 	row.operator("rig.select_mirror", text="Select Mirror", icon='MOD_MIRROR')
 
 class RIG_PT_selection_panel(bpy.types.Panel):
-	bl_label = "Select Bones by Name"
+	bl_label = "Selection"
 	bl_idname = "RIG_PT_selection_panel"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
@@ -101,31 +101,11 @@ class RIG_PT_selection_panel(bpy.types.Panel):
 	def draw(self, context):
 		draw_selection_ui(self.layout, context)
 
-class RIG_PT_selection_panel_item(bpy.types.Panel):
-	bl_label = "Select Bones by Name"
-	bl_idname = "RIG_PT_selection_panel_item"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'UI'
-	bl_category = "Item"
-	bl_options = {'DEFAULT_CLOSED'}
-
-	@classmethod
-	def poll(cls, context):
-		prefs = get_preferences(context)
-		if not prefs.show_selection_on_item_panel:
-			return False
-		return context.object and context.object.type == 'ARMATURE' and context.mode in {'EDIT_ARMATURE', 'POSE'}
-
-	def draw(self, context):
-		draw_selection_ui(self.layout, context)
-
-
 classes = (
 	RIG_OT_select_bones_by_name,
 	RIG_OT_select_chains,
 	RIG_OT_select_mirror,
 	RIG_PT_selection_panel,
-	RIG_PT_selection_panel_item,
 )
 
 def register():

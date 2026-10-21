@@ -144,6 +144,16 @@ def create_twist_chain(context, org_bone, twist_bone_count):
 
 	return org_names
 
+def create_def_twist_chain(context, def_bone, twist_bone_count):
+	def_names = duplicate_bone_subdivided(
+		context, def_bone, twist_bone_count, bone_template("twist_def")
+	)
+	for def_name in def_names:
+		context.object.data.edit_bones[def_name].use_deform = True
+		set_twist_parent(context.object.data, def_name, def_bone.name)
+
+	return def_names
+
 class TwistChainStatus(Enum):
 	MISSING = "Missing"
 	OK = "OK"

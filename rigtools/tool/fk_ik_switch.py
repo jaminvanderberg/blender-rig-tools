@@ -5,7 +5,7 @@ from rigtools.utils.naming import generate_bone_name, bone_template
 from rigtools.armature_settings import get_armature_settings
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
-from rigtools.utils.widget import get_widget_collection, create_fk_widget
+from rigtools.utils.widget import apply_widget
 
 class FKIKSwitch:
 	def __init__(self, *,
@@ -70,7 +70,6 @@ class FKIKSwitch:
 
 		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
 			fk_bone = pose_bones[fk_bone_name]
-			ik_bone = pose_bones[ik_bone_name]
 			switch_bone = pose_bones[switch_bone_name]
 
 			fk_constraint = switch_bone.constraints.new('COPY_TRANSFORMS')
@@ -101,11 +100,7 @@ class FKIKSwitch:
 			)
 
 			if widget_type != "NONE":
-				coll = get_widget_collection(context, settings.widget_collection)
-				widget_name = generate_bone_name(fk_bone_name, settings.widget_template)
-				wgt = create_fk_widget(widget_type, widget_name, coll)
-				fk_bone.custom_shape = wgt
-
+				wgt = apply_widget(context, fk_bone, widget_type)
 				self.object_names.append(wgt.name)
 
 		return self

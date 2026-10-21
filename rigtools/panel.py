@@ -1,11 +1,12 @@
 import bpy
 
 class RIG_PT_tools_npanel(bpy.types.Panel):
-	bl_label = "Rig Tools"
+	bl_label = "Tools"
 	bl_idname = "RIG_PT_tools_npanel"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
 	bl_category = "Rig Tools"
+	bl_options = {'DEFAULT_CLOSED'}
 
 	@classmethod
 	def poll(cls, context):
@@ -13,23 +14,16 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 
 	def draw(self, context):
 		layout = self.layout
-		obj = context.object
 		mode = context.mode
 
 		if mode in {'OBJECT', 'EDIT_ARMATURE', 'POSE'}:
 			layout.label(text="Rig Setup:")
 			layout.operator("rig.generate_org_bones", icon='CON_TRANSLIKE')
+			layout.operator("rig.create_twist_bones", icon='MOD_SCREW')
+			layout.operator("rig.apply_root_widgets", icon='ORIENTATION_GLOBAL')
 
-		if mode in {'POSE', 'EDIT_ARMATURE'}:
-			layout.label(text="Rename Tools:")
-			layout.operator("rig.batch_rename_bones", icon='SYNTAX_OFF')
-			layout.operator("rig.rename_chain", icon='GROUP_BONE')
-
-		if mode in {'POSE', 'EDIT_ARMATURE'}:
-			layout.label(text="Weight Paint Tools:")
-			layout.operator("rig.weight_paint_proxy", icon='WPAINT_HLT')
-			
 		if mode in {'POSE', 'EDIT_ARMATURE'}:
 			layout.label(text="Chain Tools:")
+			layout.operator("rig.rename_chain", icon='GROUP_BONE')
+			layout.operator("rig.weight_paint_proxy", icon='WPAINT_HLT')
 			layout.operator("rig.parent_along_chain", icon='CONSTRAINT_BONE')
-			layout.operator("rig.create_rotation_isolation", icon='CON_ROTLIKE')

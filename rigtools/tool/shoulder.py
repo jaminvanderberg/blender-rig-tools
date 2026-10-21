@@ -3,13 +3,9 @@ import math
 import bpy
 from mathutils import Vector
 
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
-from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.widget import get_widget_collection
-
+from rigtools.utils.naming import name_bone
 
 RAISE_FRACTION = 0.15
 BACK_FRACTION = 0.0
@@ -65,7 +61,6 @@ class Shoulder:
 		obj = context.object
 		pose_bones = obj.pose.bones
 		prefs = get_preferences(context)
-		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')

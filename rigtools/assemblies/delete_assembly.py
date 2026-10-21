@@ -3,6 +3,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.reparent_rules import apply_reparent_rule
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
+from rigtools.utils.object import remove_object
 
 def delete_assembly(context, assembly_uid):
 	obj = context.object
@@ -49,16 +50,7 @@ def delete_assembly(context, assembly_uid):
 		delete_snap_chain(obj.data, property_name)
 
 	for ref in assembly.objects:
-		ob = bpy.data.objects.get(ref.name)
-		if not ob:
-			continue
-		data = ob.data
-		bpy.data.objects.remove(ob, do_unlink=True)
-		if data is not None and data.users == 0:
-			if isinstance(data, bpy.types.Mesh):
-				bpy.data.meshes.remove(data)
-			elif isinstance(data, bpy.types.Curve):
-				bpy.data.curves.remove(data)
+		remove_object(bpy.data.objects.get(ref.name))
 
 	original_mode = obj.mode
 	try:

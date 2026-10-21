@@ -54,6 +54,8 @@ BONE = {
 	"fk_follow": "MCH-FOLLOW-{name}",
 }
 
+WIDGET_TEMPLATE = "WGT-{name}"
+
 COLLECTION = {
 	"ik": "{Name}.IK{side}",
 	"fk": "{Name}{side}",
@@ -70,7 +72,7 @@ PROPERTY = {
 	"ik_parent": "{name}.ik.parent{side}",
 	"skirt_collision": "{name}.collision{side}",
 	"skirt_ride": "{name}.ride{side}",
-	"ik_stretch": "{name}.ik.stretch{side}",
+	"ik_stretch": "{name}.stretch{side}",
 }
 
 def bone_template(role):
@@ -97,7 +99,6 @@ def name_bone(role, source_name, *, strip_name=True, strip_numbers=False, index=
 
 def name_collection(role, base_name, side):
 	return generate_bone_collection_name(COLLECTION[role], base_name, side)
-
 
 def name_property(role, base_name, side):
 	return generate_property_name(PROPERTY[role], base_name, side)
@@ -233,6 +234,8 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False,
 
 	return f"{formatted_base}{extension}"
 
+def generate_widget_name(name):
+	return generate_bone_name(name, WIDGET_TEMPLATE)
 
 def find_side(bone_names):
 	ret = None

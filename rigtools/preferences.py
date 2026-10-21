@@ -38,12 +38,6 @@ class RigToolsPreferences(AddonPreferences):
 		min=1,
 		max=10
 	)
-	show_selection_on_item_panel: BoolProperty(
-		name="Show on Item Panel",
-		description="Also show Select Bones by Name on the Item sidebar tab",
-		default=True
-	)
-
 	# Name Stripping
 	strip_tags: StringProperty(
 		name="Tags to Strip",
@@ -114,21 +108,12 @@ class RigToolsPreferences(AddonPreferences):
 		description="Name of the parent collection for MCH collections",
 		default="MCH"
 	)
-	do_create_widgets: BoolProperty(
-		name="Create Widgets",
-		description="Create widgets for the bones",
-		default=True
-	)
 	widget_collection: StringProperty(
 		name="Widget Collection",
 		description="Name of collection where widgets are created",
 		default="WGT"
 	)
-	widget_template: StringProperty(
-		name="Widget Object",
-		description="Template using {name} as placeholder",
-		default="WGT-{name}"
-	)
+
 
 	# Theme Colors
 	fk_bone_color: EnumProperty(
@@ -170,7 +155,6 @@ class RigToolsPreferences(AddonPreferences):
 		box.label(text="Quick Bone Selection", icon='RESTRICT_SELECT_OFF')
 		box.prop(self, "selection_buttons")
 		box.prop(self, "selection_columns")
-		box.prop(self, "show_selection_on_item_panel")
 
 		# Preview of selection buttons
 		preview_box = box.box()
@@ -205,10 +189,7 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "property_bone_name")
 		box.prop(self, "mch_collection_name")
 		box.prop(self, "mch_parent_collection")
-		box.prop(self, "do_create_widgets")
-		if self.do_create_widgets:
-			box.prop(self, "widget_collection")
-			box.prop(self, "widget_template")
+		box.prop(self, "widget_collection")
 
 		# Control Colors
 		box = layout.box()

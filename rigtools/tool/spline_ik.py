@@ -3,8 +3,8 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.armature_settings import get_armature_settings
-from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_line_widget, create_twist_widget
 from rigtools.preferences import get_preferences
+from rigtools.utils.widget import apply_widget
 
 spline_twist_type = [
 	('NONE', "None", "No twist controllers"),
@@ -295,22 +295,12 @@ class SplineIK:
 			pb.rotation_mode = 'XYZ'
 
 		# Widgets
-		if settings.do_create_widgets:
-			coll = get_widget_collection(context, settings.widget_collection)
-			for control_name in self.control_names:
-				control_widget_name = generate_bone_name(control_name, settings.widget_template)
-				wgt = create_sphere_widget(control_widget_name, coll)
-				control_bone = pose_bones[control_name]
-				control_bone.custom_shape = wgt
+		for control_name in self.control_names:
+			wgt = apply_widget(context, pose_bones[control_name], 'SPHERE')
+			self.object_names.append(wgt.name)
 
-				self.object_names.append(wgt.name)
-
-			for twist_name in self.twist_names or []:
-				twist_widget_name = generate_bone_name(twist_name, settings.widget_template)
-				wgt = create_twist_widget(twist_widget_name, coll)
-				twist_bone = pose_bones[twist_name]
-				twist_bone.custom_shape = wgt
-
-				self.object_names.append(wgt.name)
+		for twist_name in self.twist_names or []:
+			wgt = apply_widget(context, pose_bones[twist_name], 'TWIST')
+			self.object_names.append(wgt.name)
 
 		return self

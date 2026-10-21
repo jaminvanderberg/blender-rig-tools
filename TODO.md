@@ -5,5 +5,10 @@ further down the line: rename limb_property_base_name to limb? Store on assembly
 property names data class
 
 L/R colors
-root widget
-create a skeleton?
+cleanup main folder?
+
+pick twist bone count based on existing twist bones, don't let use change (unless there are none)
+
+language packs?
+
+weight pain proxy on a single chain is a cylinder?

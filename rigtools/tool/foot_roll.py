@@ -2,8 +2,8 @@ import math
 import bpy
 from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
-from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
-from rigtools.utils.widget import create_roll_widget, get_widget_collection
+from rigtools.utils.naming import bone_template, name_bone
+from rigtools.utils.widget import apply_widget
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
@@ -201,18 +201,13 @@ class FootRoll:
 		lim_c.use_limit_x = True
 		lim_c.min_x = 0
 		lim_c.max_x = math.pi
-
+		
 		# Widgets
-		coll = get_widget_collection(context, settings.widget_collection)
-		if settings.do_create_widgets:
-			foot_roll_control_widget_name = generate_bone_name(self.foot_roll_control_name, settings.widget_template)
-			foot_roll_control_wgt = create_roll_widget(foot_roll_control_widget_name, coll)
-			foot_roll_control_bone = pose_bones[self.foot_roll_control_name]
-			foot_roll_control_bone.custom_shape = foot_roll_control_wgt
-			self.object_names.append(foot_roll_control_wgt.name)
+		foot_roll_control_wgt = apply_widget(context, ctrl, 'ROLL')
+		self.object_names.append(foot_roll_control_wgt.name)
 
-			ik = pose_bones[self.ik_foot_name]
-			ik.custom_shape_transform = pose_bones[self.vis_name]
+		ik = pose_bones[self.ik_foot_name]
+		ik.custom_shape_transform = pose_bones[self.vis_name]
 
 		# Bone Colors
 		ctrl.color.palette = prefs.ik_bone_color

@@ -21,7 +21,7 @@ from rigtools.tool.skirt_ride import SkirtLeg
 from rigtools.utils.bone import select_bones
 from rigtools.utils.naming import bone_template, guess_limb_name
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
-from rigtools.utils.widget import fk_widget_types
+from rigtools.utils.widget import fk_widget_types, master_widget_types
 
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	"""Setup FK/Tweak setup with advanced options"""
@@ -119,7 +119,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	master_controllers_widget: EnumProperty(
 		name="Master Controller Widget",
 		description="Type of widget to create for the master controllers.",
-		items=fk_widget_types,
+		items=master_widget_types,
 		default='CIRCLE'
 	)
 

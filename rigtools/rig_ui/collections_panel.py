@@ -500,6 +500,8 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 
 	@classmethod
 	def poll(cls, context):
+		if not context.object:
+			return False
 		if context.object.type == 'ARMATURE':
 			return True
 		if bool([mod for mod in context.object.modifiers if mod.type == 'ARMATURE']):

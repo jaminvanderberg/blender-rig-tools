@@ -1,9 +1,78 @@
 import bpy
 import math
-###########################################################################################################
-# Widget creation
 
-def get_widget_collection(context, collection_name):
+from rigtools.preferences import get_preferences
+from rigtools.utils.naming import generate_widget_name
+from rigtools.utils.object import remove_object
+
+fk_widget_types = [
+	('CIRCLE', 'Circle', 'Create a circle widget'),
+	('RECTANGLE', 'Rectangle', 'Create a rectangle widget'),
+	('FK', 'FK Shape', 'Create a FK widget'),
+	('BOX', 'Box', 'Create a box widget'),
+	('PILL', 'Pill', 'Create a pill widget'),
+	('SHOULDER', 'Shoulder', 'Create a shoulder widget'),
+	('IK', 'IK Shape', 'Create an IK widget'),
+	('NONE', 'None', 'No widget'),
+]
+
+master_widget_types = [item for item in fk_widget_types if item[0] != 'NONE']
+
+def create_widget(context, widget_type, bone_name, **kwargs):
+	if widget_type == 'NONE':
+		return None
+	match widget_type:
+		case 'CIRCLE':
+			creator = _create_circle_widget
+		case 'RECTANGLE':
+			creator = _create_rectangle_widget
+		case 'FK':
+			creator = _create_fk_shape_widget
+		case 'BOX':
+			creator = _create_box_widget
+		case 'PILL':
+			creator = _create_pill_widget
+		case 'SHOULDER':
+			creator = _create_shoulder_widget
+		case 'IK':
+			creator = _create_ik_widget
+		case 'SPHERE':
+			creator = _create_sphere_widget
+		case 'LINE':
+			creator = _create_line_widget
+		case 'TWIST':
+			creator = _create_twist_widget
+		case 'CHEST':
+			creator = _create_chest_widget
+		case 'ROLL':
+			creator = _create_roll_widget
+		case 'PADDLE':
+			creator = _create_paddle_widget
+		case 'ROOT':
+			creator = _create_root_widget
+		case 'GEAR':
+			creator = _create_gear_widget
+		case _:
+			raise ValueError(f"Invalid widget type: {widget_type}")
+
+	collection = _get_widget_collection(context, get_preferences(context).widget_collection)
+	widget_name = generate_widget_name(bone_name)
+	wgt = creator(widget_name, **kwargs)
+	collection.objects.link(wgt)
+	return wgt
+
+def apply_widget(context, pose_bone, widget_type, *, replace=False, **kwargs):
+	old_wgt = pose_bone.custom_shape if replace else None
+
+	if old_wgt:
+		pose_bone.custom_shape = None
+		remove_object(old_wgt)
+
+	wgt = create_widget(context, widget_type, pose_bone.name, **kwargs)
+	pose_bone.custom_shape = wgt
+	return wgt
+
+def _get_widget_collection(context, collection_name):
 	coll = bpy.data.collections.get(collection_name)
 	if not coll:
 		coll = bpy.data.collections.new(collection_name)
@@ -12,7 +81,7 @@ def get_widget_collection(context, collection_name):
 		coll.hide_render = True
 	return coll
 
-def create_sphere_widget(widget_name, collection):    
+def _create_sphere_widget(widget_name):    
 	verts = []
 	edges = []
 	segments = 12
@@ -40,11 +109,10 @@ def create_sphere_widget(widget_name, collection):
 	mesh.update()
 	
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	
 	return wgt
 
-def create_circle_widget(widget_name, collection):
+def _create_circle_widget(widget_name):
 	verts = []
 	edges = []
 	segments = 16
@@ -59,10 +127,9 @@ def create_circle_widget(widget_name, collection):
 	mesh.update()
 	
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_line_widget(widget_name, collection):
+def _create_line_widget(widget_name):
 	verts = [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
 	edges = [(0, 1)]
 
@@ -71,10 +138,9 @@ def create_line_widget(widget_name, collection):
 	mesh.update()
 
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_box_widget(widget_name, collection, size_x=0.85, size_y=1.0, size_z=0.4):
+def _create_box_widget(widget_name, size_x=0.85, size_y=1.0, size_z=0.4):
 	hx, hz = size_x * 0.5, size_z * 0.5
 	verts = [
 		(-hx, 0, -hz),
@@ -95,10 +161,9 @@ def create_box_widget(widget_name, collection, size_x=0.85, size_y=1.0, size_z=0
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_rectangle_widget(widget_name, collection, width = 0.15, height = 0.90):
+def _create_rectangle_widget(widget_name, width = 0.15, height = 0.90):
 	verts = [
 		(0.0, (1.0 - height)/2, -width/2),
 		(0.0, (1.0 - height)/2, width/2),
@@ -110,10 +175,9 @@ def create_rectangle_widget(widget_name, collection, width = 0.15, height = 0.90
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_fk_shape_widget(widget_name, collection, radius = 0.25):
+def _create_fk_shape_widget(widget_name, radius = 0.25):
 	verts = [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
 	edges = [(0, 1)]
 
@@ -128,40 +192,9 @@ def create_fk_shape_widget(widget_name, collection, radius = 0.25):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-fk_widget_types = [
-	('CIRCLE', 'Circle', 'Create a circle widget'),
-	('RECTANGLE', 'Rectangle', 'Create a rectangle widget'),
-	('FK', 'FK Shape', 'Create a FK widget'),
-	('BOX', 'Box', 'Create a box widget'),
-	('PILL', 'Pill', 'Create a pill widget'),
-	('SHOULDER', 'Shoulder', 'Create a shoulder widget'),
-	('IK', 'IK Shape', 'Create an IK widget'),
-	('NONE', 'None', 'No widget'),
-]
-
-def create_fk_widget(widget_type, widget_name, collection):
-	match widget_type:
-		case 'CIRCLE':
-			return create_circle_widget(widget_name, collection)
-		case 'RECTANGLE':
-			return create_rectangle_widget(widget_name, collection)
-		case 'FK':
-			return create_fk_shape_widget(widget_name, collection)
-		case 'BOX':
-			return create_box_widget(widget_name, collection)
-		case 'IK':
-			return create_ik_widget(widget_name, collection)
-		case 'PILL':
-			return create_pill_widget(widget_name, collection)
-		case 'SHOULDER':
-			return create_shoulder_widget(widget_name, collection)
-		case _:
-			return None
-
-def create_twist_widget(widget_name, collection):
+def _create_twist_widget(widget_name):
 	"""Two parallel arc rings with opposing Vs in each gap:  > <  """
 	verts = [
 		(-0.191342, 0.054932, -0.461940),
@@ -267,11 +300,10 @@ def create_twist_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
 
-def create_chest_widget(widget_name, collection):
+def _create_chest_widget(widget_name):
 	verts = [
 	(0.000000, -0.745914, -0.118223),
 	(-0.195090, -0.731528, -0.100247),
@@ -344,10 +376,9 @@ def create_chest_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt	
 
-def create_roll_widget(widget_name, collection):
+def _create_roll_widget(widget_name):
 	verts = [
 	(0.000000, 0.284248, -0.226397),
 	(0.000000, 0.316874, -0.234569),
@@ -612,10 +643,9 @@ def create_roll_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt	
 
-def create_ik_widget(widget_name, collection):
+def _create_ik_widget(widget_name):
 	verts = [
 	(-0.594966, 0.957575, 0.002833),
 	(-0.221238, 1.365031, 0.002833),
@@ -668,10 +698,9 @@ def create_ik_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt	
 
-def create_pill_widget(widget_name, collection):
+def _create_pill_widget(widget_name):
 	verts = [
 	(0.000000, 0.050000, 0.000000),
 	(0.000000, 0.125000, -0.075000),
@@ -736,10 +765,9 @@ def create_pill_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt	
 
-def create_paddle_widget(widget_name, collection):
+def _create_paddle_widget(widget_name):
 	verts = [
 	(0.000000, 0.000000, 0.000000),
 	(0.000000, 0.800000, 0.000000),
@@ -760,10 +788,9 @@ def create_paddle_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_shoulder_widget(widget_name, collection):
+def _create_shoulder_widget(widget_name):
 	verts = [
 		(-0.106097, 1.573313, 0.305284),
 		(-0.208116, 1.542366, 0.261631),
@@ -844,10 +871,9 @@ def create_shoulder_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
 	return wgt
 
-def create_root_widget(widget_name, collection):
+def _create_root_widget(widget_name):
 	verts = [
         (0.000000, 1.400895, 0.002833),
         (-0.195090, 0.983559, 0.002833),
@@ -920,7 +946,161 @@ def create_root_widget(widget_name, collection):
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
 	wgt = bpy.data.objects.new(widget_name, mesh)
-	collection.objects.link(wgt)
+	return wgt
+
+def _create_gear_widget(widget_name):
+	verts = [
+        (0.000000, 0.502774, 0.002833),
+        (-0.050327, 0.385050, 0.002833),
+        (-0.099794, 0.375211, 0.002833),
+        (-0.191342, 0.464713, 0.002833),
+        (-0.250000, 0.435786, 0.002833),
+        (-0.234723, 0.308671, 0.002833),
+        (-0.272643, 0.275416, 0.002833),
+        (-0.396677, 0.307154, 0.002833),
+        (-0.433012, 0.252773, 0.002833),
+        (-0.356225, 0.150327, 0.002833),
+        (-0.372437, 0.102568, 0.002833),
+        (-0.495723, 0.068037, 0.002833),
+        (-0.500000, 0.002773, 0.002833),
+        (-0.382277, -0.047554, 0.002833),
+        (-0.372437, -0.097021, 0.002833),
+        (-0.461940, -0.188568, 0.002833),
+        (-0.433012, -0.247227, 0.002833),
+        (-0.305898, -0.231950, 0.002833),
+        (-0.272643, -0.269870, 0.002833),
+        (-0.304381, -0.393903, 0.002833),
+        (-0.250000, -0.430239, 0.002833),
+        (-0.147554, -0.353452, 0.002833),
+        (-0.099794, -0.369664, 0.002833),
+        (-0.065263, -0.492949, 0.002833),
+        (0.000000, -0.497227, 0.002833),
+        (0.050327, -0.379503, 0.002833),
+        (0.099794, -0.369664, 0.002833),
+        (0.191342, -0.459166, 0.002833),
+        (0.250000, -0.430239, 0.002833),
+        (0.234723, -0.303124, 0.002833),
+        (0.272643, -0.269870, 0.002833),
+        (0.396677, -0.301607, 0.002833),
+        (0.433012, -0.247227, 0.002833),
+        (0.356225, -0.144780, 0.002833),
+        (0.372437, -0.097021, 0.002833),
+        (0.495723, -0.062490, 0.002833),
+        (0.500000, 0.002773, 0.002833),
+        (0.382277, 0.053101, 0.002833),
+        (0.372437, 0.102568, 0.002833),
+        (0.461940, 0.194115, 0.002833),
+        (0.433012, 0.252773, 0.002833),
+        (0.305898, 0.237497, 0.002833),
+        (0.272643, 0.275416, 0.002833),
+        (0.304381, 0.399450, 0.002833),
+        (0.250000, 0.435786, 0.002833),
+        (0.147554, 0.358999, 0.002833),
+        (0.099794, 0.375211, 0.002833),
+        (0.065263, 0.498496, 0.002833),
+        (0.000000, 0.252773, 0.002833),
+        (-0.064705, 0.244255, 0.002833),
+        (-0.125000, 0.219280, 0.002833),
+        (-0.176776, 0.179550, 0.002833),
+        (-0.216506, 0.127773, 0.002833),
+        (-0.241481, 0.067478, 0.002833),
+        (-0.250000, 0.002773, 0.002833),
+        (-0.241481, -0.061931, 0.002833),
+        (-0.216506, -0.122227, 0.002833),
+        (-0.176776, -0.174003, 0.002833),
+        (-0.125000, -0.213733, 0.002833),
+        (-0.064705, -0.238708, 0.002833),
+        (0.000000, -0.247227, 0.002833),
+        (0.064705, -0.238708, 0.002833),
+        (0.125000, -0.213733, 0.002833),
+        (0.176776, -0.174003, 0.002833),
+        (0.216506, -0.122227, 0.002833),
+        (0.241481, -0.061931, 0.002833),
+        (0.250000, 0.002773, 0.002833),
+        (0.241481, 0.067478, 0.002833),
+        (0.216506, 0.127773, 0.002833),
+        (0.176776, 0.179550, 0.002833),
+        (0.125000, 0.219280, 0.002833),
+        (0.064705, 0.244255, 0.002833),
+	]
+	edges = [
+        (1, 0),
+        (2, 1),
+        (3, 2),
+        (4, 3),
+        (5, 4),
+        (6, 5),
+        (7, 6),
+        (8, 7),
+        (9, 8),
+        (10, 9),
+        (11, 10),
+        (12, 11),
+        (13, 12),
+        (14, 13),
+        (15, 14),
+        (16, 15),
+        (17, 16),
+        (18, 17),
+        (19, 18),
+        (20, 19),
+        (21, 20),
+        (22, 21),
+        (23, 22),
+        (24, 23),
+        (25, 24),
+        (26, 25),
+        (27, 26),
+        (28, 27),
+        (29, 28),
+        (30, 29),
+        (31, 30),
+        (32, 31),
+        (33, 32),
+        (34, 33),
+        (35, 34),
+        (36, 35),
+        (37, 36),
+        (38, 37),
+        (39, 38),
+        (40, 39),
+        (41, 40),
+        (42, 41),
+        (43, 42),
+        (44, 43),
+        (45, 44),
+        (46, 45),
+        (47, 46),
+        (0, 47),
+        (49, 48),
+        (50, 49),
+        (51, 50),
+        (52, 51),
+        (53, 52),
+        (54, 53),
+        (55, 54),
+        (56, 55),
+        (57, 56),
+        (58, 57),
+        (59, 58),
+        (60, 59),
+        (61, 60),
+        (62, 61),
+        (63, 62),
+        (64, 63),
+        (65, 64),
+        (66, 65),
+        (67, 66),
+        (68, 67),
+        (69, 68),
+        (70, 69),
+        (71, 70),
+        (48, 71),
+	]
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
 	return wgt
 
 """

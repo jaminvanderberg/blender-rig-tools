@@ -10,7 +10,7 @@ from rigtools.twist_bones import create_twist_chain, get_twist_chain
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones, match_orientation
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
-from rigtools.utils.widget import create_box_widget, create_chest_widget, create_fk_widget, get_widget_collection
+from rigtools.utils.widget import apply_widget
     
 class TorsoFK:
 	def __init__(self, *,
@@ -388,54 +388,44 @@ class TorsoFK:
 		
 		# Create widgets
 		# FK widgets
-		coll = get_widget_collection(context, settings.widget_collection)
-		if settings.do_create_widgets and self.fk_widget != "NONE":
-			for i, fk_name in enumerate(self.fk_bone_names):
-				fk_bone = pose_bones[fk_name]
-				widget_name = generate_bone_name(fk_name, settings.widget_template)
-				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
-				fk_bone.custom_shape = wgt
+		for i, fk_name in enumerate(self.fk_bone_names):
+			fk_bone = pose_bones[fk_name]
+			wgt = apply_widget(context, fk_bone, self.fk_widget)
+			if wgt is None: continue
 
-				# make all torso widgets the same size
-				scale = avg_size / fk_bone.length * 1.5 # but scaled up a little
-				if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
-					scale = 1.5 # Keep neck size, but scale up as well
-				if i == len(self.fk_bone_names) - 1:
-					scale = 1.0 # Head bone is already the right size
-				fk_bone.custom_shape_scale_xyz = (scale, 1.0, scale)
+			# make all torso widgets the same size
+			scale = avg_size / fk_bone.length * 1.5 # but scaled up a little
+			if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
+				scale = 1.5 # Keep neck size, but scale up as well
+			if i == len(self.fk_bone_names) - 1:
+				scale = 1.0 # Head bone is already the right size
+			fk_bone.custom_shape_scale_xyz = (scale, 1.0, scale)
 
-				if i < self.lower_torso_bone_count:
-					# Move the lower torso widgets down to their original bone position
-					fk_bone.custom_shape_translation = (0.0, -fk_bone.length, 0.0)
-				if i == len(self.fk_bone_names) - 1:
-					# Move the head widget up just past the end of the bone
-					fk_bone.custom_shape_translation = (0.0, fk_bone.length * 0.6, 0.0)
+			if i < self.lower_torso_bone_count:
+				# Move the lower torso widgets down to their original bone position
+				fk_bone.custom_shape_translation = (0.0, -fk_bone.length, 0.0)
+			if i == len(self.fk_bone_names) - 1:
+				# Move the head widget up just past the end of the bone
+				fk_bone.custom_shape_translation = (0.0, fk_bone.length * 0.6, 0.0)
 
-				self.object_names.append(wgt.name)
+			self.object_names.append(wgt.name)
 
 		# Master Control widgets
-		if settings.do_create_widgets:
-			hips_widget_name = generate_bone_name(self.hip_bone_name, settings.widget_template)
-			hips_wgt = create_chest_widget(hips_widget_name, coll)
-			hip_bone = pose_bones[self.hip_bone_name]
-			hip_bone.custom_shape = hips_wgt
-			hip_bone.custom_shape_rotation_euler[1] = math.pi
-			hip_bone.custom_shape_translation = (0.0, 0.0, -hip_bone.length * 0.25)  # toward head = down
-			self.object_names.append(hips_wgt.name)
+		hip_bone = pose_bones[self.hip_bone_name]
+		hips_wgt = apply_widget(context, hip_bone, 'CHEST')
+		hip_bone.custom_shape_rotation_euler[1] = math.pi
+		hip_bone.custom_shape_translation = (0.0, 0.0, -hip_bone.length * 0.25)  # toward head = down
+		self.object_names.append(hips_wgt.name)
 
-			chest_widget_name = generate_bone_name(self.chest_bone_name, settings.widget_template)
-			chest_wgt = create_chest_widget(chest_widget_name, coll)
-			chest_bone = pose_bones[self.chest_bone_name]
-			chest_bone.custom_shape = chest_wgt
-			chest_bone.custom_shape_translation = (0.0, 0.0, chest_bone.length)  # toward tip = up
-			self.object_names.append(chest_wgt.name)
+		chest_bone = pose_bones[self.chest_bone_name]
+		chest_wgt = apply_widget(context, chest_bone, 'CHEST')
+		chest_bone.custom_shape_translation = (0.0, 0.0, chest_bone.length)  # toward tip = up
+		self.object_names.append(chest_wgt.name)
 
-			torso_widget_name = generate_bone_name(self.torso_bone_name, settings.widget_template)
-			torso_wgt = create_box_widget(torso_widget_name, coll)
-			torso_bone = pose_bones[self.torso_bone_name]
-			torso_bone.custom_shape = torso_wgt
-			torso_bone.custom_shape_translation = (0.0, -torso_bone.length * 0.5, 0.0) # center on the head
-			self.object_names.append(torso_wgt.name)
+		torso_bone = pose_bones[self.torso_bone_name]
+		torso_wgt = apply_widget(context, torso_bone, 'BOX')
+		torso_bone.custom_shape_translation = (0.0, -torso_bone.length * 0.5, 0.0) # center on the head
+		self.object_names.append(torso_wgt.name)
 
 		# Bone Colors
 		for i, fk_name in enumerate(self.fk_bone_names):

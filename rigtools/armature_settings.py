@@ -46,21 +46,6 @@ class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 		description="Property bone name",
 		default=""
 	)
-	do_create_widgets: bpy.props.BoolProperty(
-		name="Create Widgets",
-		description="Create widgets for the bones",
-		default=True
-	)
-	widget_collection: bpy.props.StringProperty(
-		name="Wgt Coll",
-		description="Widget collection name",
-		default=""
-	)
-	widget_template: bpy.props.StringProperty(
-		name="Wgt Obj",
-		description="Widget object name",
-		default=""
-	)
 
 def get_armature_settings(armature_data, context):
 	if not armature_data.rigtools.is_initialized:
@@ -78,9 +63,6 @@ def initialize_armature_settings(armature_data, context):
 	settings.chest_bone_name = prefs.chest_bone_name
 	settings.head_bone_name = prefs.head_bone_name
 	settings.property_bone_name = prefs.property_bone_name
-	settings.do_create_widgets = prefs.do_create_widgets
-	settings.widget_collection = prefs.widget_collection
-	settings.widget_template = prefs.widget_template
 	if not was_initialized and not armature_data.rigtools_assemblies:
 		settings.rig_data_version = CURRENT_RIG_DATA_VERSION
 	settings.is_initialized = True

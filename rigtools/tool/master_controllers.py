@@ -1,9 +1,9 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
-from rigtools.utils.naming import bone_template, generate_bone_name, name_bone
+from rigtools.utils.naming import bone_template, name_bone
 from rigtools.preferences import get_preferences
-from rigtools.utils.widget import create_fk_widget, get_widget_collection
+from rigtools.utils.widget import apply_widget
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class MasterControllers:
@@ -84,10 +84,7 @@ class MasterControllers:
 		obj = context.object
 
 		pose_bones = obj.pose.bones
-		settings = get_armature_settings(obj.data, context)
 		prefs = get_preferences()
-
-		coll = get_widget_collection(context, settings.widget_collection)
 
 		for segment in self.segments:
 			master_name = segment["master"]
@@ -119,11 +116,8 @@ class MasterControllers:
 				scale.owner_space = 'LOCAL'
 
 				# Widgets
-				if settings.do_create_widgets:
-					widget_name = generate_bone_name(master_name, settings.widget_template)
-					wgt = create_fk_widget(self.master_controller_widget, widget_name, coll)
-					master_bone.custom_shape = wgt
-					self.object_names.append(wgt.name)
+				wgt = apply_widget(context, master_bone, self.master_controller_widget)
+				self.object_names.append(wgt.name)
 
 			# Bone Colors
 			master_bone.color.palette = prefs.control_bone_color

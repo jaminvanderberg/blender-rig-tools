@@ -251,7 +251,7 @@ class RIG_PT_find_dependents(bpy.types.Panel):
 	bl_idname = "RIG_PT_find_dependents"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
-	bl_category = "Rig Tools"
+	bl_category = "Item"
 
 	@classmethod
 	def poll(cls, context):

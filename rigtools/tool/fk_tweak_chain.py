@@ -3,7 +3,7 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_reparent_rule
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.widget import get_widget_collection, create_sphere_widget, create_fk_widget, fk_widget_types
+from rigtools.utils.widget import apply_widget
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 
@@ -190,30 +190,24 @@ class FKTweakChain:
 			
 
 		# Widgets
-		coll = get_widget_collection(context, settings.widget_collection)
 		n = len(self.fk_bone_names)
 		avg = sum(pose_bones[name].length for name in self.fk_bone_names) / n if n else 0.0
-		if settings.do_create_widgets and self.fk_widget != "NONE":
-			for i, fk_name in enumerate(self.fk_bone_names):
-				fk_bone = pose_bones[fk_name]
-				widget_name = generate_bone_name(fk_name, settings.widget_template)
-				wgt = create_fk_widget(self.fk_widget, widget_name, coll)
-				fk_bone.custom_shape = wgt
 
-				if self.normalize_fk_widget_scale:
-					s = avg / fk_bone.length
-					if n > 1 and self.fk_widget_taper:
-						t = i / (n - 1)
-						s *= 1.0 - self.fk_widget_taper * t
-					fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
+		for i, fk_name in enumerate(self.fk_bone_names):
+			fk_bone = pose_bones[fk_name]
+			wgt = apply_widget(context, fk_bone, self.fk_widget)
+			if wgt is None: continue
 
-				self.object_names.append(wgt.name)
+			if self.normalize_fk_widget_scale:
+				s = avg / fk_bone.length
+				if n > 1 and self.fk_widget_taper:
+					t = i / (n - 1)
+					s *= 1.0 - self.fk_widget_taper * t
+				fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
 
-		if settings.do_create_widgets:
-			for tweak_name in tweakers:
-				tweak_bone = pose_bones[tweak_name]
-				widget_name = generate_bone_name(tweak_name, settings.widget_template)
-				wgt = create_sphere_widget(widget_name, coll)
-				tweak_bone.custom_shape = wgt
+			self.object_names.append(wgt.name)
 
-				self.object_names.append(wgt.name)
+		for tweak_name in tweakers:
+			tweak_bone = pose_bones[tweak_name]
+			wgt = apply_widget(context, tweak_bone, 'SPHERE')
+			self.object_names.append(wgt.name)

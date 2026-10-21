@@ -4,8 +4,8 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.bone_chain import find_curl_axis
-from rigtools.utils.naming import bone_template, generate_bone_name, name_bone
-from rigtools.utils.widget import create_paddle_widget, get_widget_collection
+from rigtools.utils.naming import bone_template, name_bone
+from rigtools.utils.widget import apply_widget
 
 
 class FingerCurl:
@@ -90,12 +90,8 @@ class FingerCurl:
 			driver.expression = expr
 
 		# Widgets
-		coll = get_widget_collection(context, settings.widget_collection)
-		if settings.do_create_widgets:
-			control_widget_name = generate_bone_name(self.control_bone_name, settings.widget_template)
-			control_wgt = create_paddle_widget(control_widget_name, coll)
-			control.custom_shape = control_wgt
-			self.object_names.append(control_wgt.name)
+		control_wgt = apply_widget(context, control, 'PADDLE')
+		self.object_names.append(control_wgt.name)
 
 		# Bone Colors
 		control.color.palette = prefs.control_bone_color

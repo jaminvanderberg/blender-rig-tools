@@ -18,7 +18,6 @@ class RIG_PT_ik_panel(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 
-		layout.label(text="Templates")
 		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
 		grid.operator_context = 'INVOKE_DEFAULT'
 		for template_id, template in IK_TEMPLATES.items():

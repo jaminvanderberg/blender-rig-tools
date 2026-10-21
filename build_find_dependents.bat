@@ -1,0 +1,24 @@
+@echo off
+setlocal
+
+set "ROOT=%~dp0"
+set "SRC=%ROOT%find_dependents"
+set "OUT=%ROOT%find_dependents.zip"
+
+if not exist "%SRC%\__init__.py" (
+  echo ERROR: %SRC%\__init__.py not found.
+  exit /b 1
+)
+
+if exist "%OUT%" del /f "%OUT%"
+
+powershell -NoProfile -Command ^
+  "Compress-Archive -Path '%SRC%' -DestinationPath '%OUT%' -Force"
+
+if errorlevel 1 (
+  echo ERROR: Failed to create zip.
+  exit /b 1
+)
+
+echo Created: %OUT%
+exit /b 0
