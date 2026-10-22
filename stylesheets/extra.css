@@ -58,3 +58,14 @@
   -webkit-mask-image: var(--md-admonition-icon--screenshot);
   mask-image: var(--md-admonition-icon--screenshot);
 }
+
+/* Larger header logo (Material's default is 1.2rem) */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.8rem;
+  width: auto;
+}
+.md-header__button.md-logo {
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+}
