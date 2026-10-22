@@ -20,3 +20,41 @@
 
   --md-typeset-a-color: #1ab8e8;
 }
+
+/* "Requires" box: !!! requires "Requires" */
+:root {
+  --md-admonition-icon--requires: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-7 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m-2 14-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9z"/></svg>');
+  --md-admonition-icon--screenshot: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 4h3l2-2h6l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m8 3a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3"/></svg>');
+}
+
+.md-typeset .admonition.requires,
+.md-typeset details.requires {
+  border-color: #117fa6;
+}
+.md-typeset .requires > .admonition-title,
+.md-typeset .requires > summary {
+  background-color: rgba(17, 127, 166, 0.1);
+}
+.md-typeset .requires > .admonition-title::before,
+.md-typeset .requires > summary::before {
+  background-color: #117fa6;
+  -webkit-mask-image: var(--md-admonition-icon--requires);
+  mask-image: var(--md-admonition-icon--requires);
+}
+
+/* Image placeholder box: !!! screenshot "Image placeholder"
+   Dashed so placeholders stand out until the real screenshots are added. */
+.md-typeset .admonition.screenshot,
+.md-typeset details.screenshot {
+  border: 0.075rem dashed #9e9e9e;
+}
+.md-typeset .screenshot > .admonition-title,
+.md-typeset .screenshot > summary {
+  background-color: rgba(158, 158, 158, 0.1);
+}
+.md-typeset .screenshot > .admonition-title::before,
+.md-typeset .screenshot > summary::before {
+  background-color: #9e9e9e;
+  -webkit-mask-image: var(--md-admonition-icon--screenshot);
+  mask-image: var(--md-admonition-icon--screenshot);
+}
