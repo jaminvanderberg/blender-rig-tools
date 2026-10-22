@@ -1,16 +1,21 @@
 # FK Chain
 
-!!! info
-    This is AI-generated documentation that has not yet been human reviewed.
-
-Creates FK control bones along a selected chain, typically used with tweak bones as an FK/Tweak stack.
+Used for the "FK only" assembly type.  Creates FK controls without tweaks.
 
 ## Overview
 
-TODO: document FK bone creation, widgets, naming, and parenting to ORG/DEF.
+Created an FK chain without tweak bones and adds the appropriate FK widget.
+
+The FK only assembly also includes the option to create *[master controllers](master_controllers.md)*
+
+See *[FK/Tweak Chain](fk_tweak_chain.md)* for FK chain with tweak controls.
+
+## Parameters
+
+- FK Widget: the custom bone shape to use for FK controls.  Default: CIRCLE.  See *[widgets](../utils/widget.md)*.
 
 ## Related
 
 - [FK Assemblies](../fk_assemblies.md)
-- [IK Assemblies](../ik_assemblies.md)
+- [Widgets](../utils/widget.md)
 - [FK Tweak Chain](fk_tweak_chain.md)

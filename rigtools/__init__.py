@@ -2,7 +2,7 @@ bl_info = {
 	"name": "Rig Tools",
 	"author": "Jamin VanderBerg",
 	"version": (0, 97),
-	"blender": (4, 1, 0),
+	"blender": (4, 0, 0),
 	"location": "View3D > Sidebar > Rig Tools",
 	"description": "Helper functions for rig building",
 	"category": "Rigging"

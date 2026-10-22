@@ -78,7 +78,7 @@ The torso includes the option for [twist bones](tools/twist_bones.md) on the che
 
 The Simple FK assembly is a general-purpose FK chain with tweaks. Use it for hair strands, cloth strips, or any chain that does not need a specialized template.
 
-- Creates an [FK/Tweak chain](tools/fk_chain.md) with circle widgets by default.
+- Creates an [FK/Tweak chain](tools/fk_tweak_chain.md) with circle widgets by default.
 - [Master Controllers](tools/master_controllers.md) are enabled as FK follow from the second bone (skip first).
 - [Rotation Isolation](tools/rotation_isolation.md) is available but off by default.
 
@@ -86,7 +86,7 @@ The Simple FK assembly is a general-purpose FK chain with tweaks. Use it for hai
 
 Same idea as Simple FK, but without tweak bones — especially useful for short (1-2 bone) chains.
 
-- Creates FK controls only (no tweaks).
+- Creates [FK controls](tools/fk_chain.md) only (no tweaks).
 - [Master Controllers](tools/master_controllers.md) are enabled as FK follow from the second bone (skip first).
 - [Rotation Isolation](tools/rotation_isolation.md) is available but off by default.
 

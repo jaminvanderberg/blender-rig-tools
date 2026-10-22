@@ -13,6 +13,10 @@ This configuration can be modified to fit different torso types.  It uses two pa
 
 The torso uses [twist bones](tools/twist_bones.md) in a manner similar to the [IK assemblies](../ik_assemblies.md), but slightly different.  The chest twist bones aren't technically twist bones.  They are used primarily as a way to add an additional tweak bone without adding another FK controller.  The chest twist bones do not twist; in that way they are somewhat like the shin.  But there is not way to add twist capabilities to the chest, unlike the shin.  The neck twist bones do twist, following the head will fall-off.  This is an optional setting that can be disabled, but is usually desireable.  If neck falloff is disabled, the neck twist bones will behave like the chest: adding an additional tweak bone without adding an FK controller.  Twist bones are technically not required to have neck rotation fall-off from the head.  All that is required is more than 1 neck bone.  As stated above, though, this adds an additional FK controller for the neck, and is usually not desirable.  If there is only one neck bone and no twist bones, neck fall-off cannot operate.
 
+## Parameters
+
+-  
+
 ## Related
 
 - [FK Assemblies](../fk_assemblies.md#torso)

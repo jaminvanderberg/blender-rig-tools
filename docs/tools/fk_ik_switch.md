@@ -7,7 +7,11 @@ Builds the FK/IK blend mechanism so a limb can switch between FK and IK control 
 
 ## Overview
 
-TODO: document switch property setup, driven constraints, and how assemblies wire FK vs IK.
+Creates the primary mechanism for switching between FK and IK setups.
+
+## Paramters
+
+- FK Widget: the custom bone shape to use for FK controls.  Default: CIRCLE.  See *[widgets](../utils/widget.md)*.
 
 ## Related
 
