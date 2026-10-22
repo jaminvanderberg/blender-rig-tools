@@ -1851,7 +1851,7 @@
 <p>This is AI-generated documentation that has not yet been human reviewed.</p>
 </div>
 <p>Creates an ORG bone for every DEF bone, and links the DEF bones to follow the ORG bones.</p>
-<p><strong>Where:</strong> n-Panel &gt; RigTools &gt; Tools &gt; Generate ORG Bones</p>
+<p class="where"><strong>Where:</strong> n-Panel &gt; RigTools &gt; Tools &gt; Generate ORG Bones</p>
 <h2 id="overview">Overview</h2>
 <p>Assemblies are built on ORG bones, not on the deform bones directly.  Generate ORG Bones duplicates each DEF bone as an ORG bone, with the same hierarchy, and adds a Copy Transforms constraint so the DEF bone follows its ORG bone.  See <em><a href="../../org_def/">ORG &amp; DEF</a></em> for why the rig is split this way.</p>
 <p>It's safe to run Generate ORG Bones more than once.  ORG bones that already exist aren't changed (other than making sure the DEF bone is linked to them), and only the missing ORG bones are created.  This makes it easy to add new DEF bones to the rig later, such as an accessory or a skirt, and generate ORG bones for just those.</p>

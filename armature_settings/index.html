@@ -2044,12 +2044,8 @@
 
 
 <h1 id="armature-settings">Armature Settings</h1>
-<div class="admonition info">
-<p class="admonition-title">Info</p>
-<p>This is AI-generated documentation that has not yet been human reviewed.</p>
-</div>
 <p>Each armature stores a few bone names that RigTools needs to know about: the root, the property bone, and the torso bones.  These are set in the <strong>Armature Settings</strong> panel.</p>
-<p><strong>Where:</strong> n-Panel &gt; RigTools &gt; Armature Settings</p>
+<p class="where"><strong>Where:</strong> n-Panel &gt; RigTools &gt; Armature Settings</p>
 <h2 id="overview">Overview</h2>
 <p>The first time RigTools is used on an armature, the armature settings are filled in from the <em><a href="#addon-preferences">addon preferences</a></em>.  After that, each armature keeps its own settings, so different rigs can use different names.</p>
 <p><strong>Reinitialize from Preferences</strong> resets the armature's settings back to the current addon preferences.</p>
@@ -2063,48 +2059,9 @@ The <em><a href="../operators/human_skeleton/">RigTools Human Skeleton</a></em> 
 <p><code>image/armature_settings.png</code> — The Armature Settings panel in the RigTools n-panel with the default bone names filled in, plus the Reinitialize from Preferences button.</p>
 </div>
 <h2 id="settings">Settings</h2>
-<table>
-<thead>
-<tr>
-<th>Setting</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Root</td>
-<td><code>root</code></td>
-<td>The root bone of the rig.  Used for IK controls, rotation isolation, and the torso.</td>
-</tr>
-<tr>
-<td>Torso</td>
-<td><code>torso</code></td>
-<td>Name of the torso control.  Created by the <em><a href="../fk_assemblies/#torso">torso</a></em> assembly.  Used as an IK parent.</td>
-</tr>
-<tr>
-<td>Hips</td>
-<td><code>hips</code></td>
-<td>Name of the hips control.  Created by the torso assembly.  Used as an IK parent.</td>
-</tr>
-<tr>
-<td>Chest</td>
-<td><code>chest</code></td>
-<td>Name of the chest control.  Created by the torso assembly.  Used as an IK parent.</td>
-</tr>
-<tr>
-<td>Head</td>
-<td><code>head</code></td>
-<td>Name of the head control.  Created by the torso assembly.  Used as an IK parent.</td>
-</tr>
-<tr>
-<td>Property</td>
-<td><code>properties</code></td>
-<td>The <em><a href="#property-bone">property bone</a></em>.</td>
-</tr>
-</tbody>
-</table>
-<p>The torso, hips, chest, and head bones don't need to exist ahead of time.  The <em><a href="../tools/torso_fk/">torso</a></em> assembly creates them using these names, and the <em><a href="../tools/ik_parent/">IK parent switching</a></em> uses the same names to find them.  This is why the torso should be set up before the arms, legs, and spline assemblies.</p>
+<p><strong>Root</strong> and <strong>Property</strong> must already exist in your rig (<code>root</code> and <code>properties</code> by default).  See <em><a href="#property-bone">property bone</a></em> below.</p>
+<p><strong>Torso</strong>, <strong>Hips</strong>, <strong>Chest</strong>, and <strong>Head</strong> are the names the <em><a href="../fk_assemblies/#torso">torso</a></em> assembly gives the controls it creates (<code>torso</code>, <code>hips</code>, <code>chest</code>, and <code>head</code> by default).  <em><a href="../tools/ik_parent/">IK parent switching</a></em> finds them by these names, which is why the torso should be set up before the arms, legs, and spline assemblies.</p>
+<p>Change these if your rig already uses different names, for example when adding RigTools to an existing rig.</p>
 <h3 id="property-bone">Property bone</h3>
 <p>The property bone holds all of the custom properties that animators use to control the rig: FK/IK switches, rotation isolation, IK parents, IK stretch, and skirt collision and ride.  These are displayed in the <em><a href="../rigui/properties/">Rig Properties</a></em> panel.</p>
 <p>The property bone is usually placed above the character's head, and doesn't deform.  <em><a href="../operators/apply_root_widgets/">Apply Root Widgets</a></em> gives it a gear widget and locks its transforms.</p>
@@ -2119,7 +2076,7 @@ The <em><a href="../operators/human_skeleton/">RigTools Human Skeleton</a></em> 
 <p>Save a backup of the file before upgrading the rig.</p>
 </div>
 <h2 id="addon-preferences">Addon Preferences</h2>
-<p><strong>Where:</strong> Edit &gt; Preferences &gt; Add-ons &gt; Rig Tools</p>
+<p class="where"><strong>Where:</strong> Edit &gt; Preferences &gt; Add-ons &gt; Rig Tools</p>
 <p>The addon preferences set the defaults for new rigs.  Changing the preferences doesn't change existing armatures; use <strong>Reinitialize from Preferences</strong> for that.</p>
 <p><strong>Export Settings...</strong> and <strong>Import Settings...</strong> save and load the preferences as a JSON file.  This is useful for sharing settings between machines or Blender versions.</p>
 <h3 id="quick-bone-selection">Quick Bone Selection</h3>

@@ -69,3 +69,14 @@
   padding-top: 0.2rem;
   padding-bottom: 0.2rem;
 }
+
+/* "Where:" menu path lines.  In Markdown, put { .where } on the line after:
+   **Where:** n-Panel > RigTools > Tools > Generate ORG Bones
+   { .where } */
+.md-typeset p.where {
+  font-size: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  border-left: 0.2rem solid var(--md-primary-fg-color);
+  border-radius: 0.1rem;
+  background-color: var(--md-code-bg-color);
+}
