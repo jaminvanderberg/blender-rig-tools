@@ -8,6 +8,10 @@ Blender 4.0+ addon for armature setup and chain building.
 
 ---
 
+## Full Documentation
+
+https://jaminvanderberg.github.io/blender-rig-tools/
+
 ## Introduction
 
 RigTools is a rig creation tool for Blender. If you want an easy rigging setup in Blender, Rigify is a much better fit. This is my attempt at overcoming some of the rigidity of Rigify, turning the rig-building into more of a interactive process rather than the setup-and-click mentality of Rigify. This methodology doesn't leave the rig in an uneditable state, and makes it easier to go back and make changes to the rig.

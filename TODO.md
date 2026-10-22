@@ -12,3 +12,5 @@ pick twist bone count based on existing twist bones, don't let use change (unles
 language packs?
 
 weight pain proxy on a single chain is a cylinder?
+
+rigui script

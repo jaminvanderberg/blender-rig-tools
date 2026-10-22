@@ -14,12 +14,12 @@ on a single limb.
 
 ### Selection
 
-!!! info "Requires"
+!!! requires "Requires"
     Armature selected · Edit or Pose mode · linear bone chain(s)
 
 All assemblies start with a selection.  That selection needs to be one or more linear chains of bones.
 When starting, it may be easier to think of it as a single chain of bones, but all assemblies
-allow you to select multiple chains and it will one assembly per chain.
+allow you to select multiple chains and it will create one assembly per chain.
 For some assemblies, it might not make a lot of sense to do that, but for others it will.
 
 !!! note "Important"
@@ -32,7 +32,7 @@ For some assemblies, it might not make a lot of sense to do that, but for others
 </figure>
     
 Bones in a chain do not need to be connected.  RigTools only cares about parenting, which establishes bone order.  
-If you have a chain that branches, such a hair with off-shoots, you can use the selection to tell RigTools
+If you have a chain that branches, such as hair with off-shoots, you can use the selection to tell RigTools
 which bones make up a chain.
 
 <figure markdown="span">
@@ -48,23 +48,23 @@ which bones make up a chain.
 In this hair example, the main chain for the hair can be used to create an assembly.
 The bones for the bow and the flyaways can be used to make another assembly, or be rigged manually.
 
-The tools *[Select Hierarchy](docs/selection.md#select_hierarchy)* and *[Select Connected](docs/selection.md#select_connected)* can be used to help select chains.  They are particularly useful for selecting multiple chains.
+The tools *[Select Hierarchy](selection.md#select-hierarchy)* and *[Select Connected](selection.md#select-connected)* can be used to help select chains.  They are particularly useful for selecting multiple chains.
 The "Select Connected" tool can be useful for selecting just the connected parts of a branching chain.
 
-### Reversable
+### Reversible
 
-All assemblies are reversable -- to a point.
+All assemblies are reversible -- to a point.
 
 When you create a new assembly, RigTools will save all the data about that assembly, including how to reverse it.
 Assemblies can be deleted or reconfigured after they are created.
 
 !!! warning "Important Caveat"
     You cannot delete or reconfigure an assembly if another assembly depends on it.
-    RigTools checks automatically for dependancies and prevents this from happening.
+    RigTools checks automatically for dependencies and prevents this from happening.
     Deleting or reconfiguring will also delete any manual changes made
-    and any manually dependancies you create will be orphaned.
+    and any manual dependencies you create will be orphaned.
 
-Assembly dependancies usually requires that another assembly reference the control bones of another assembly, 
+Assembly dependencies usually require that another assembly reference the control bones of another assembly, 
 so it shouldn't happen in most normal circumstances.
 
 Note that reconfiguring is just deleting and recreating.  It's not doing anything special to preserve existing bones.
@@ -83,7 +83,7 @@ All other parts of the assemblies are deleted, including: bones (excluding [twis
 
 ## Creating Assemblies
 
-After you've selected the correct bone chain, you can create a new assembly by click on one of the templates
+After you've selected the correct bone chain, you can create a new assembly by clicking on one of the templates
 in RigTools n-panel.
 Currently, there are two sections of the n-panel that include templates: 
 "Inverse Kinematics" and "Forward Kinematics".
@@ -91,19 +91,20 @@ Both of these panels include templates for creating assemblies.  The tools used 
 slightly different, and the Inverse Kinematics are generally more complex and include FK/IK switching.
 Forward kinematics are generally simpler chains that don't include IK constraints.
 
+The "Forward Kinematics" section also includes buttons for a few special assemblies:
+**Torso** (spine, neck, and head), **Shoulder**, and **Palm**.
+
 ![Templates](image/templates.png)
 *This list will almost certainly be expanded in the future*
 
-There are two larger buttons "Generate IK Assembly" and "Generate FK Assembly".
-These are the core assembly generation tools, and they honestly shouldn't be used that often.
-(They may be hidden in the future).
-They offer a ton of flexibility -- almost too much -- but have a lot of settings that may be confusing, 
-especially initially.
-Instead, I recommend using one of the templates that most closely resembles what you're working on.
-Where the generate tools open a dialog with tons of settings, the templates are one-click tools
-that generate the assembly immediately using a sensible set of defaults,
+!!! screenshot "Image placeholder"
+    `image/templates.png` may need to be updated — it should show the current Inverse Kinematics and Forward Kinematics sections, including the Torso, Finger (Curl), Finger (FK), Shoulder, and Palm buttons.
+
+The templates are one-click tools that generate the assembly immediately using a sensible set of defaults,
 while still offering a redo panel with a trimmed-down set of settings that are focused 
 on the specific assembly type.
+Pick the template that most closely resembles what you're working on.
+The Palm template is the exception: it opens a dialog first, so you can confirm the order of the palm bones.
 
 ![Redo Panel](image/redo_panel.png)
 *Redo panel after creating an Arm IK Assembly (specific settings subject to change)*

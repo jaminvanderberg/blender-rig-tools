@@ -4,7 +4,7 @@ Used for the "FK only" assembly type.  Creates FK controls without tweaks.
 
 ## Overview
 
-Created an FK chain without tweak bones and adds the appropriate FK widget.
+Creates an FK chain without tweak bones and adds the appropriate FK widget.
 
 The FK only assembly also includes the option to create *[master controllers](master_controllers.md)*
 

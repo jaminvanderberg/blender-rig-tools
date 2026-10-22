@@ -1,125 +1,76 @@
 # Twist Bones
 
-!!! info 
+!!! info
     This is AI-generated documentation that has not yet been human reviewed.
 
-Twist bones distribute rotational twist along a limb or torso segment so deformation
-doesn't collapse into a single bone's roll. In RigTools they live on the **ORG / deform**
-side of the rig — not as primary animator controls.
+Twist bones spread a twist along a limb, so the forearm twists smoothly from the wrist to the elbow instead of all at once at the wrist.  They're deform bones, not animator controls.
 
-Assemblies (especially Arm IK, Leg IK, and Torso FK) create or reuse twist chains,
-drive them from control bones with a falloff, and hang **tweak** controls on the
-subdivisions. You can also author twist chains yourself and tell RigTools which
-ORG bone they belong to.
+The Arm, Leg, and Torso assemblies use twist bones.  They can create the twist bones for you, or use twist bones you've already created.  Each twist bone also gets a tweak control, which gives the animator extra controls along the limb.
 
 !!! tip "Start here"
-    Twist setup is almost always driven by an [assembly](assemblies.md) template.
-    Read Assemblies first if you haven't.
+    Twist bones are set up by the *[assemblies](assemblies.md)*.  Read Assemblies first if you haven't.
 
 !!! note "Not spline twist"
-    Spline IK has its own "twist controllers" on the spline. That is a separate feature.
-    This page covers limb/torso twist deform bones and the twist parent map.
+    Spline IK has its own twist controllers on the spline.  That's a separate feature; see *[Spline IK](tools/spline_ik.md)*.
+
+!!! screenshot "Image placeholder"
+    `image/twist_bones.png` — A forearm with 4 twist bones, shown with the hand rotated 90 degrees so the twist is visibly spread along the forearm.  Ideally side-by-side with the same pose and no twist bones (candy-wrapper deformation at the wrist).
 
 ## Concepts
 
-### What they are for
+### Twist parent
 
-| Layer | Role |
-| --- | --- |
-| Twist bones | Subdivided bones along a segment (usually named like `ORG-upper_arm.1.L`). Used for skinning / ORG→DEF. |
-| Segment ORG | The bone the twists "belong to" (upper arm, thigh, neck, etc.). |
-| Controls (FK / IK / switch) | Animator-facing bones that **drive** twist via Copy Rotation falloff. |
-| Tweaks | Fine controls created on the twist subdivisions. |
-| Isolators | Mechanism bones that absorb unwanted twist at the start of some segments (e.g. upper arm) or at the neck. |
+RigTools doesn't rely on bone names to know which bones are twist bones.  Instead, each twist bone is assigned a **twist parent**: the bone it belongs to.  For example, the forearm twist bones have the forearm as their twist parent.
 
-### Twist parent map
+The twist bones for one bone must form a single chain, parented from the start of the bone to the end.
 
-Identity of a twist bone is **not** inferred from naming alone.
-RigTools stores a map on the armature:
+The twist parent of the active bone can be viewed and changed in **Bone Properties > Rig Tools > Twist Parent**.  The panel also lists the twist bones that belong to the active bone.
 
-- Each twist bone points at the deform/ORG bone it belongs to ("Twist Parent").
-- A set of twists for one parent must form a **single linear chain** (parenting root → tip).
-
-You can view and edit Twist Parent on the active bone under **Bone Properties → Rig Tools**,
-or use **Set / Clear Twist Parent** from the armature Parent menu
-(`Ctrl+Shift+P` / `Ctrl+Alt+P` by default).
+To assign many twist bones at once, select the twist bones, then select the twist parent last so it's the active bone, and use **Set Twist Parent** (++ctrl+shift+p++) from the Edit mode **Armature > Parent** menu.  **Clear Twist Parent** (++ctrl+alt+p++) removes the assignment.  Both work with X-Axis Mirror, so the other side is assigned at the same time.
 
 !!! note
-    *Generate ORG Bones* copies twist-parent links from DEF → ORG, so authored DEF twist
-    chains survive ORG generation.
+    *[Generate ORG Bones](operators/generate_org_bones.md)* copies twist parents from the DEF bones to the ORG bones.  Twist bones created on the DEF bones will carry over.
 
-### Persistence
+### Creating twist bones
 
-When you delete or reconfigure an assembly:
+Twist bones can be created three ways:
 
-- Twist **constraints** are removed and twist **parenting** is restored to the pre-assembly state.
-- The twist **bones themselves are kept**.
-- Bone collections are also kept (see [Assemblies](assemblies.md)).
+1. **Create Twist Bones**: the *[Create Twist Bones](operators/create_twist_bones.md)* tool splits each selected DEF bone into twist bones.  This is the recommended approach, since the twist bones can be weight painted along with the rest of the rig.
+2. **By the assembly**: if an assembly needs twist bones and none exist, it creates them, both DEF and ORG.  The new DEF twist bones will need to be weight painted.
+3. **Manually**: create the bones yourself, parent them into a chain, and assign their twist parent.  This is useful for custom layouts.
 
-That means regenerating an arm with the same twist count reuses existing twist bones
-instead of creating duplicates.
+### Deleting assemblies
 
-!!! warning "Count mismatch"
-    If twist bones already exist for a segment but the count doesn't match what the
-    assembly asks for, generation fails with an error. Clear or fix the chain first
-    if you intentionally change the count.
+When an assembly is deleted or reconfigured, its twist bones are **kept**, so the weight painting isn't lost.  The next assembly will use the same twist bones.
 
-!!! warning "DEF gap"
-    Auto-created twists are ORG bones only — matching DEF bones are not generated yet.
-    Prefer authoring DEF twists and using Generate ORG Bones, or link DEFs yourself afterward.
+!!! warning "Twist bone count"
+    If twist bones already exist for a bone, the assembly's twist bone count must match.  Otherwise, the assembly fails with an error.  The redo panel shows the status of the twist bones before the assembly is created.
 
 ## In assemblies
 
-### Arm and Leg IK
+### Arm and Leg
 
-When **Use Twist Bones** is enabled (default on Arm / Leg templates):
+The Arm and Leg assemblies use twist bones by default, on the upper arm and forearm, or the thigh and shin.  The twist is picked up from the controls, and fades along each segment.
 
-1. RigTools looks up existing twists for each configured segment.
-2. If none exist, it subdivides the segment ORG into the requested count and registers them.
-3. It builds tweak controls on those subdivisions and wires Copy Rotation falloff from the
-   appropriate control bones.
+| Assembly | Segment | Twist from | Falloff | Twist bones |
+| --- | --- | --- | --- | --- |
+| Arm | Upper arm | Upper arm | Root | 4 |
+| Arm | Forearm | Hand | Linear | 4 |
+| Leg | Thigh | Thigh | Sharp | 4 |
+| Leg | Shin | (none) | — | 4 |
 
-**Segment source** controls what drives the falloff:
+The shin twist bones don't twist by default.  They're included for consistency, and for the additional tweak controls.
 
-| Source | Meaning | Typical use |
-| --- | --- | --- |
-| Self | Twist from that segment's own control | Upper arm, thigh |
-| Child | Twist from the child segment's control | Forearm from hand |
-| None | Deform / tweaks only — no Copy Rotation falloff | Shin |
+See *[Twist Bones (tool)](tools/twist_bones.md)* for the parameters, and what each falloff does.
 
-**Falloff** presets (`Linear`, `Smooth`, `Round`, `Root`, `Sharp`) shape how much influence
-each twist bone gets along the chain. Influence is stronger toward the tip of the twist chain
-by default.
+### Torso
 
-Default templates:
-
-| Template | Segments | Count |
-| --- | --- | --- |
-| Arm | Arm → Self / Root · Forearm → Child / Linear | 4 |
-| Leg | Thigh → Self / Sharp · Shin → None | 4 |
-
-The redo panel exposes twist enable, count, and the segment list (name, bone index, source, falloff).
-
-### Torso FK
-
-Torso does not use the same tool class, but the same map and create/reuse rules:
-
-- Optional **neck** and **chest** twist counts (enabled when Use Twist Bones is on).
-- Neck falloff can drive the neck/head FK chain across twist subdivisions.
-- A neck isolator may be created when rotation isolation is on and the neck has multiple pieces.
-
-## Manual workflow
-
-Useful when you want a custom twist layout before generating an assembly:
-
-1. Create the twist bones (subdivide / duplicate as you like).
-2. Parent them into one linear chain per segment.
-3. **Set Twist Parent** on those bones to the segment ORG (or DEF, then Generate ORG Bones).
-4. Run the assembly with a matching twist count — RigTools will reuse your chain.
+The *[torso](fk_assemblies.md#torso)* has optional twist bones on the chest and the neck (2 each by default).  The neck twist bones follow the head, with the falloff set by **Neck Falloff**.  The chest twist bones don't twist; they add an extra tweak control to the chest.  See *[Torso FK](tools/torso_fk.md)*.
 
 ## Related
 
 - [Assemblies](assemblies.md)
 - [Inverse Kinematics Assemblies](ik_assemblies.md) (Arm / Leg twist options)
 - [Forward Kinematics Assemblies](fk_assemblies.md#torso) (Torso twist options)
-- [Twist Bones tool](tools/twist_bones.md)
+- [Twist Bones (tool)](tools/twist_bones.md)
+- [Create Twist Bones](operators/create_twist_bones.md)

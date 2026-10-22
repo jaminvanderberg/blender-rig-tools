@@ -1,31 +1,97 @@
 site_name: Rig Tools
+site_url: https://jaminvanderberg.github.io/blender-rig-tools/
+repo_url: https://github.com/jaminvanderberg/blender-rig-tools
 docs_dir: docs
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  palette:
+    # Follow the operating system's light/dark setting until the user picks one
+    - media: "(prefers-color-scheme)"
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - content.code.copy
 
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+  - glightbox
+
+# navigation.sections shows top-level groups as headings;
+# groups nested one level down stay collapsible.
 nav:
-  - Assemblies: assemblies.md
-  - Inverse Kinematics Assemblies: ik_assemblies.md
-  - Forward Kinematics Assemblies: fk_assemblies.md
-  - Twist Bones: twist_bones.md
-  - ORG & DEF: org_def.md
-  - Rig UI: rig_ui.md
-  - Tools:
-    - FK/IK Switching: tools/fk_ik_switch.md
-    - FK Chain: tools/fk_chain.md
-    - FK Tweak Chain: tools/fk_tweak_chain.md
-    - Standard IK: tools/standard_ik.md
-    - Spline IK: tools/spline_ik.md
-    - Twist Bones (tool): tools/twist_bones.md
-    - Rotation Isolation: tools/rotation_isolation.md
-    - Rotation Follow: tools/rotation_follow.md
-    - Master Controllers: tools/master_controllers.md
-    - Foot Roll: tools/foot_roll.md
-    - IK Parent Switching: tools/ik_parent.md
-    - Skirt Collision: tools/skirt_collision.md
-    - Skirt Ride: tools/skirt_ride.md
-    - Torso FK: tools/torso_fk.md
+  - Getting Started:
+    - Home: index.md
+    - Workflow: workflow.md
+    - ORG & DEF: org_def.md
+    - Armature Settings: armature_settings.md
+    - Selection: selection.md
+  - Assemblies:
+    - Assemblies: assemblies.md
+    - IK Assemblies: ik_assemblies.md
+    - FK Assemblies: fk_assemblies.md
+    - Twist Bones: twist_bones.md
+  - Reference:
+    - Rig UI:
+      - Overview: rig_ui.md
+      - Collections: rigui/collections.md
+      - Rig Properties: rigui/properties.md
+      - Visibility: rigui/visibility.md
+    - Setup Tools:
+      - RigTools Human Skeleton: operators/human_skeleton.md
+      - Create Twist Bones: operators/create_twist_bones.md
+      - Generate ORG Bones: operators/generate_org_bones.md
+      - Apply Root Widgets: operators/apply_root_widgets.md
+      - Rename Chain(s): operators/rename_chain.md
+      - Parent Along Chain: operators/parent_along_chain.md
+      - Weight Paint Proxy: operators/weight_paint_proxy.md
+    - Tools:
+      - FK/IK Switching: tools/fk_ik_switch.md
+      - FK Chain: tools/fk_chain.md
+      - FK Tweak Chain: tools/fk_tweak_chain.md
+      - Standard IK: tools/standard_ik.md
+      - Spline IK: tools/spline_ik.md
+      - Twist Bones (tool): tools/twist_bones.md
+      - Rotation Isolation: tools/rotation_isolation.md
+      - Rotation Follow: tools/rotation_follow.md
+      - Master Controllers: tools/master_controllers.md
+      - Foot Roll: tools/foot_roll.md
+      - IK Parent Switching: tools/ik_parent.md
+      - Skirt Collision: tools/skirt_collision.md
+      - Skirt Ride: tools/skirt_ride.md
+      - Torso FK: tools/torso_fk.md
+      - Finger Curl: tools/finger_curl.md
+      - Palm: tools/palm.md
+      - Shoulder: tools/shoulder.md
+      - Widgets: utils/widget.md
 
 markdown_extensions:
   - admonition
@@ -33,3 +99,4 @@ markdown_extensions:
   - pymdownx.superfences
   - attr_list
   - md_in_html
+  - pymdownx.keys

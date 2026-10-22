@@ -3,95 +3,71 @@
 !!! info
     This is AI-generated documentation that has not yet been human reviewed.
 
-Rig Tools expects a clear split between **deform** bones and the **ORG** layer assemblies
-run on. Most pipelines author DEF (skinned) bones first, generate ORG mirrors, then build
-assemblies on ORG chains.
+RigTools splits the skeleton into two layers: **DEF** bones that deform the mesh, and **ORG** bones that the assemblies are built on.  The DEF bones follow the ORG bones.
 
 !!! tip
-    Assemblies select “the chain you want to control” — by convention that is ORG.
-    Naming templates and Generate ORG Bones assume patterns like `DEF-{name}` / `ORG-{name}`.
+    Assemblies are created on ORG chains.  When selecting a chain for an assembly, select the ORG bones.
 
-## Mental model
+## Why two layers?
+
+The DEF bones are the ones that are weight painted.  Keeping them separate from the rig mechanics means:
+
+- Assemblies can be created, deleted, and reconfigured without touching the weight painting.
+- The DEF bones stay in a simple hierarchy that's easy to export to game engines and other tools.
+- New DEF bones (an accessory, a skirt, a ponytail) can be added later, and ORG bones generated for just those.
 
 | Layer | Role |
 | --- | --- |
-| **DEF** | Deform / skinning. Weights live here. |
-| **ORG** | Target layer for assemblies. Usually non-deform; DEF follows ORG (Copy Transforms or parent). |
-| **Controls / MCH** | Created by assemblies (FK, IK, tweaks, switches, isolators, …). |
+| **DEF** | Deform bones.  The mesh is weight painted to these. |
+| **ORG** | The bones assemblies are built on.  Don't deform.  The DEF bones follow these. |
+| **Controls / MCH** | Created by the assemblies: FK, IK, tweaks, and the mechanism (MCH) bones that make them work. |
 
-Typical order:
+!!! screenshot "Image placeholder"
+    `image/org_def_layers.png` — An arm shown three ways: the DEF bones only, the ORG bones only, and the finished arm with FK/IK controls and tweaks visible.
 
-1. Build and weight the **DEF** skeleton.
-2. Optionally set [twist parents](twist_bones.md) and [heel pivots](#heel-pivots) on DEF.
-3. **Generate ORG Bones**.
-4. Select ORG chains → [IK](ik_assemblies.md) / [FK](fk_assemblies.md) / torso assemblies.
-5. Animate via [Rig UI](rig_ui.md).
+## Typical order
+
+1. Build the **DEF** skeleton, or start from the *[RigTools Human Skeleton](operators/human_skeleton.md)*.
+2. Optionally, add *[twist bones](twist_bones.md)* and assign *[heel pivots](#heel-pivots)*.
+3. Weight paint the DEF bones.
+4. Run *[Generate ORG Bones](operators/generate_org_bones.md)*.
+5. Select ORG chains and create the *[torso](fk_assemblies.md#torso)*, then the *[IK](ik_assemblies.md)* and *[FK](fk_assemblies.md)* assemblies.
+6. Animate with the *[Rig UI](rig_ui.md)*.
+
+See *[Workflow](workflow.md)* for the full process.
 
 ## Generate ORG Bones
 
-**Where:** Rig Tools n-panel → **Generate ORG Bones**
+*[Generate ORG Bones](operators/generate_org_bones.md)* creates an ORG bone for each DEF bone, with the same hierarchy, and makes the DEF bone follow it with a Copy Transforms constraint.  It's safe to run more than once; only the missing ORG bones are created.
 
-Creates or updates ORG bones to match DEF bones:
-
-- Safe to re-run: missing ORGs are created; relationships are reapplied for pairs that already exist.
-- New ORGs copy hierarchy / `use_connect` from DEF where possible.
-- DEF is linked to ORG with **Copy Transforms** (default) or by parenting DEF under ORG.
-- ORG deform is disabled by default so only DEF deforms the mesh.
-- Collection structure can be mirrored (`DEF…` → `ORG…`) or flattened into a single ORG collection.
-
-Name templates default from addon preferences (`DEF-{name}`, `ORG-{name}`) and preserve `.L` / `.R`.
-
-Selection modes: Selected / Visible / All matching DEF bones (Selected needs Edit or Pose mode).
-
-### What carries over from DEF
-
-| Data | Behavior |
-| --- | --- |
-| Twist parent map | Remapped onto new ORGs so [twist](twist_bones.md) chains survive |
-| Heel pivot | Copied onto the corresponding ORG foot bone |
+Twist bone and heel pivot assignments made on the DEF bones are copied to the ORG bones.
 
 ## Heel pivots
 
-Foot roll on [leg IK](ik_assemblies.md) needs a heel pivot bone associated with the foot.
+*[Foot roll](tools/foot_roll.md)* on the *[Leg](ik_assemblies.md#leg)* assembly needs a heel pivot bone assigned to the foot.
 
-- Assign under **Bone Properties → Rig Tools → Heel Pivot** (assign to the **foot**, not the toe).
-- Set on DEF before Generate ORG, or on ORG before/with a leg assembly that enables foot roll.
+- Assign it in **Bone Properties > Rig Tools > Heel Pivot**, with the **foot** bone active (not the toe).
+- Assign it on the DEF foot before running Generate ORG Bones, or on the ORG foot before creating the leg.
 
-## Armature settings
+See *[Foot Roll](tools/foot_roll.md#heel-pivot)* for where to place the heel pivot.
 
-Per-armature settings live on the armature (`Rig Tools → Armature Settings`) and are
-initialized from addon preferences.
+!!! screenshot "Image placeholder"
+    `image/bone_properties_rigtools.png` — The Rig Tools section of Bone Properties with a foot bone active, showing the Twist Parent field and the Heel Pivot field.
 
-| Setting | Why it matters |
-| --- | --- |
-| **Root** | Parent for many IK / isolation / torso setups |
-| **Properties** | Bone that holds assembly custom properties; required for generation and Rig Properties |
-| **Torso / Hips / Chest / Head** | IK parent-switch targets; torso assembly also writes these when it creates controls |
-| Widgets | Whether to create widgets and where to put them |
+## Naming
 
-!!! warning
-    If the properties bone is missing, assembly generation fails.
-    Initialize armature settings (or create the bone) before building limbs.
-
-### Preferences that matter here
-
-Under addon preferences (trimmed naming surface):
-
-- **DEF / ORG / FK** name templates — boundaries for Generate ORG and FK controls
-- Strip tags / separators — how base names are derived
-- MCH collection + MCH parent — where non-limb / nested MCH collections go
-- Default armature structure names (root, properties, …)
+RigTools uses the bone names to tell DEF and ORG bones apart, and to name the bones it creates.  The defaults are `DEF-{name}` and `ORG-{name}`, with `.L` / `.R` suffixes kept at the end.  For example, `DEF-forearm.L` and `ORG-forearm.L`.  The naming templates can be changed in the *[addon preferences](armature_settings.md#naming)*.
 
 ## Tips
 
-- Keep DEF and ORG naming consistent so Generate ORG and later tools stay predictable.
-- Author custom [twist](twist_bones.md) chains on DEF, generate ORG, then run assemblies with a matching twist count to reuse them.
-- After assemblies exist, don’t rename the properties bone casually — Rig UI and drivers depend on it.
+- Keep DEF and ORG naming consistent so Generate ORG Bones and the assemblies can find the right bones.
+- Create twist bones on the DEF bones and weight paint them before generating ORG bones.  The assemblies will use the existing twist bones, as long as the twist bone count matches.
+- Bone parenting is what makes a chain.  If your DEF chain isn't parented correctly, the ORG chain won't be either.  See *[Parent Along Chain](operators/parent_along_chain.md)*.
 
 ## Related
 
 - [Assemblies](assemblies.md)
+- [Generate ORG Bones](operators/generate_org_bones.md)
 - [Twist Bones](twist_bones.md)
-- [IK Assemblies](ik_assemblies.md)
-- [FK Assemblies](fk_assemblies.md)
-- [Rig UI](rig_ui.md)
+- [Armature Settings](armature_settings.md)
+- [Workflow](workflow.md)
