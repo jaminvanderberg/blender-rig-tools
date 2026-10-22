@@ -1,0 +1,22 @@
+/* Theme colors, based on #1ab8e8.
+   #1ab8e8 is too light for white text or for links on a white background,
+   so the title bar and light-mode links use a darker shade (#117fa6, 4.6:1 contrast). */
+
+:root {
+  --md-primary-fg-color: #117fa6;
+  --md-primary-fg-color--light: #1ab8e8;
+  --md-primary-fg-color--dark: #0e6f8f;
+
+  --md-accent-fg-color: #0f7699;
+  --md-accent-fg-color--transparent: rgba(26, 184, 232, 0.1);
+
+  --md-typeset-a-color: #117fa6;
+}
+
+/* Dark mode: #1ab8e8 has 7:1 contrast on the dark background */
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #1ab8e8;
+  --md-accent-fg-color--transparent: rgba(26, 184, 232, 0.1);
+
+  --md-typeset-a-color: #1ab8e8;
+}
