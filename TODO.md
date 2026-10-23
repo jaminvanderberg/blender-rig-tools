@@ -14,3 +14,10 @@ language packs?
 weight pain proxy on a single chain is a cylinder?
 
 rigui script
+
+keep selection
+
+figure out why the flyaway wont work
+collection hand.r already exist.  WHO CARES?!?
+item in collection ui twice
+Way to mass change limb name

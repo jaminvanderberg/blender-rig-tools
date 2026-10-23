@@ -11,8 +11,18 @@ class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
 def rename_layout_collection(armature_data, old_name, new_name):
 	if not old_name or old_name == new_name:
 		return
-	for item in armature_data.rig_ui_layout:
-		if not item.is_gap and item.collection_name == old_name:
+	layout = armature_data.rig_ui_layout
+	new_already_exists = any(
+		not item.is_gap and item.collection_name == new_name
+		for item in layout
+	)
+	for i in range(len(layout) - 1, -1, -1):
+		item = layout[i]
+		if item.is_gap or item.collection_name != old_name:
+			continue
+		if new_already_exists:
+			layout.remove(i)
+		else:
 			item.collection_name = new_name
 
 def _all_collections(armature_data):
