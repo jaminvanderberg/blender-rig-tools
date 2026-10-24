@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/favicon.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -26,10 +26,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -954,6 +954,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../animators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sharing with Animators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1194,6 +1222,34 @@
     
   
     Weight Paint Proxy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operators/embed_ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embed Animator UI
   
 
     
@@ -1880,25 +1936,25 @@
 
 
 <h1 id="rig-ui-collections">Rig UI (Collections)</h1>
-<div class="admonition info">
-<p class="admonition-title">Info</p>
-<p>This is AI-generated documentation that has not yet been human reviewed.</p>
-</div>
 <p>Buttons for showing and hiding the rig's bone collections.</p>
 <p class="where"><strong>Where:</strong> n-Panel &gt; Item &gt; Rig UI (armature, or a mesh deformed by the armature)</p>
 <h2 id="overview">Overview</h2>
 <p>The Rig UI panel shows a toggle button for each bone collection, so animators can quickly hide or show FK controls, IK controls, tweaks, and so on.  It works with the armature selected, and also with one of the character's meshes selected.</p>
 <p>New bone collections are added to the bottom of the panel automatically.  Bone collections whose parent collection is hidden in Blender aren't shown.</p>
 <p>The button layout is stored on the armature, so it's saved with the rig and shared with anyone who uses it.  The layout is separate from Blender's bone collection list; rearranging or hiding buttons in the Rig UI doesn't change the order or visibility of the bone collections themselves.</p>
-<div class="admonition screenshot">
-<p class="admonition-title">Image placeholder</p>
-<p><code>image/rig_ui_collections.png</code> — The Rig UI panel for a finished character, with the collection buttons arranged into rows (e.g. Torso; Arm.FK.L / Arm.FK.R; Arm.IK.L / Arm.IK.R; tweaks) and gaps between groups.</p>
-</div>
+<figure>
+    <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../image/rigui_collections.png" data-desc-position="bottom"><img alt="Rig UI panel" src="../../image/rigui_collections.png" width="240"></a>
+    <figcaption>A finished character's Rig UI.</figcaption>
+</figure>
 <h3 id="assembly-bone-collections">Assembly bone collections</h3>
 <p>Assemblies put their controls into bone collections named after the limb and side.  For example, an arm on the left side creates collections for its FK controls, IK controls, and tweaks, such as <code>Arm.FK.L</code>, <code>Arm.IK.L</code>, and <code>Arm.Tweak.L</code>.  Mechanism bones go into MCH collections, grouped under a parent <strong>MCH</strong> collection.</p>
 <p>Assemblies that share a limb name and side share the same collections.  For example, the left shoulder goes in with the left arm, and the left palm and fingers share the left hand collections.</p>
 <p>The collections for a limb can be renamed from the <em><a href="../../assemblies/#assembly-panel">Assembly Panel</a></em>.  Click the collection icon next to the assembly name, and enter the new names.  The Rig UI layout is updated to match.</p>
 <h2 id="editing-the-layout">Editing the layout</h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Editing needs the full RigTools add-on.  With the embedded script or the RigTools UI add-on, the panel shows the layout but has no <strong>Edit</strong> button.</p>
+</div>
 <p>Click <strong>Edit</strong> to rearrange the buttons.  In edit mode, clicking a button selects it instead of toggling the collection.  With a button selected:</p>
 <table>
 <thead>
@@ -2000,10 +2056,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.instant", "search.suggest", "search.highlight", "toc.follow", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.instant", "search.suggest", "search.highlight", "toc.follow", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   
