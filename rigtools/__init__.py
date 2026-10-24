@@ -33,6 +33,7 @@ from rigtools.panels.assembly import assembly_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import snapping_data
 from rigtools.rig_ui import rig_ui
+from rigtools.rig_ui import embed_ui
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -66,6 +67,7 @@ def register():
 	snapping_data.register()
 	rig_ui.register()
 	collections_panel.register()
+	embed_ui.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -74,6 +76,7 @@ def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
+	embed_ui.unregister()
 	collections_panel.unregister()
 	rig_ui.unregister()
 	snapping_data.unregister()

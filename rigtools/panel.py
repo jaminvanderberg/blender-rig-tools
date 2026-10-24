@@ -1,5 +1,7 @@
 import bpy
 
+from rigtools.rig_ui.embed_ui import draw_embed_button
+
 class RIG_PT_tools_npanel(bpy.types.Panel):
 	bl_label = "Tools"
 	bl_idname = "RIG_PT_tools_npanel"
@@ -21,6 +23,7 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 			layout.operator("rig.generate_org_bones", icon='CON_TRANSLIKE')
 			layout.operator("rig.create_twist_bones", icon='MOD_SCREW')
 			layout.operator("rig.apply_root_widgets", icon='ORIENTATION_GLOBAL')
+			draw_embed_button(layout, context.object.data)
 
 		if mode in {'POSE', 'EDIT_ARMATURE'}:
 			layout.label(text="Chain Tools:")

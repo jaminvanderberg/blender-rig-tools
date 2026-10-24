@@ -1,13 +1,12 @@
 # RigTools UI: animator script / add-on (`rig_ui.py`)
 
 ## Next steps (start here)
-Steps 1–5 are done, tested and committed (step 4 in `389802a`). Step 6 bow-out/conflict handling is built and tested, not yet committed; the version check is still to do.
-The file is now **`rigtools/rig_ui/rig_ui.py`** (renamed from `rigui.py`; plan text below still says `rigui.py`).
+Steps 1-5, step 6 bow-out/conflict, and step 7 (embed operator) are done and tested, including embedding, the update flow, and linking into a shot file. The step 6 version check is not started.
+The file is now **`rigtools/rig_ui/rig_ui.py`** (renamed from `rigui.py`; plan text below still says `rigui.py`). The embedded text block is named `rigtools_ui.py`.
 
 **Resume here:**
-1. Commit the step 6 bow-out/conflict work.
-2. **Step 6, version check:** `RIG_DATA_VERSION` constant in rig_ui; red "Update RigTools UI" row when the rig's `rig_data_version` is higher.
-3. **Step 7:** embed operator.
+1. **Step 6, version check:** `RIG_DATA_VERSION` constant in rig_ui; red "Update RigTools UI" row when the rig's `rig_data_version` is higher.
+2. **Step 8:** build + docs. Docs should cover: linked rigs only run the embedded script when the shot file is opened (save + reopen after linking), and animators must allow scripts.
 
 ## Context
 Animators currently need full RigTools to see the Rig UI panels. The goal is **one small file**, `rigtools/rig_ui/rigui.py`, used three ways:
@@ -50,8 +49,14 @@ How we'll work: the user builds this. Claude explains, reviews and helps on requ
 3. ~~**Properties and snapping.**~~ Done: in `rig_ui.py` with `stored()` reads; X-mirror kept (`flip_side_name` copied in, `naming.py`/`bone.py` import it back); `snapping_data.py` registers the snap data classes.
 4. ~~**Collections view.**~~ Done: panel, read helpers and `draw_collections_view` in rig_ui; edit mode stays in `collections_panel.py` and plugs in via `RIG_PT_collection_ui.edit_hook` (called as `self.edit_hook(context, armature_data)` — stored functions bind like methods). `_panel_armature()` fixes the armature-modifier-without-object crash.
 5. ~~**Visibility.**~~ Done: in `rig_ui.py` with hardcoded separators.
-6. **Bow-out, conflict handling, version check.** Bow-out and conflict done (see Core design → Who registers). Remaining: version check.
-7. **Embed operator `rig.embed_rigui`.** Writes `rigui.py` into `bpy.data.texts` with `use_module=True`. Offers an update when the embedded copy is older.
+6. **Bow-out, conflict handling, version check.** Bow-out and conflict done and committed (see Core design > Who registers). Remaining: version check.
+7. ~~**Embed operator.**~~ Done and tested (embed, update, linked into a shot file with library override).
+   - [embed_ui.py](rigtools/rig_ui/embed_ui.py) (rigtools-only, never part of the embedded file): `RIG_OT_embed_ui` / `rig.embed_ui`. Button is the last item under Tools > Rig Setup ([panel.py](rigtools/panel.py)).
+   - Click opens a confirmation dialog (`invoke_props_dialog`) explaining the script; wording changes for embed vs update. Undoable.
+   - `execute` reads the add-on's `rig_ui.py` from disk into text `rigtools_ui.py` (reused if it exists), sets `use_module = True`, and points `armature.rigtools.ui_script` (new `PointerProperty(type=Text)` on `RigToolsArmatureSettings`, no migration needed) at it so linking the armature brings the text along (same trick as Rigify's `rigify_rig_ui`). Confirmed: the linked text runs when the shot file is next opened (not at link time).
+   - Button states from `embed_state()`: MISSING "Embed Animator UI...", OUTDATED red "Update Animator UI (v0.1 > v0.2)...", CURRENT greyed "Animator UI Embedded (v0.2)". Version is parsed from the embedded text's `bl_info` with `ast` (never executed); a newer embedded copy counts as current (no downgrades).
+   - **Release habit: bump `bl_info["version"]` in `rig_ui.py` on every change**, or old embedded copies won't be flagged. (Currently `(0, 2)`.)
+   - Known gap (not yet decided): `execute` finds the text by name, so a renamed embedded text gets a fresh copy instead of an update. Fix: check `armature_data.rigtools.ui_script` before `texts.get(TEXT_NAME)`.
 8. **Build and docs.**
    - `build.sh` / `build.bat` copy `rigui.py` out as `rigtools_ui.py`, and fail if it imports `rigtools`.
    - Update [docs/rig_ui.md](docs/rig_ui.md).

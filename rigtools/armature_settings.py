@@ -47,6 +47,8 @@ class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 		default=""
 	)
 
+	ui_script: bpy.props.PointerProperty(type=bpy.types.Text)
+
 def get_armature_settings(armature_data, context):
 	if not armature_data.rigtools.is_initialized:
 		initialize_armature_settings(armature_data, context)

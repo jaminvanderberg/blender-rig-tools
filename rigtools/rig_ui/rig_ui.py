@@ -1,7 +1,7 @@
 bl_info = {
 	"name": "RigTools UI",
 	"author": "Jamin VanderBerg",
-	"version": (0, 1),
+	"version": (0, 2),
 	"blender": (4, 0, 0),
 	"location": "View3D > Sidebar > Item",
 	"description": "Animator panels for rigs built with Rig Tools",
