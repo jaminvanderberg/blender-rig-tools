@@ -2,6 +2,7 @@ import math
 import re
 import string
 from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
+from rigtools.rig_ui.rig_ui import get_base_name, flip_side_name
 
 GROUP_REMAP = {
 	"hand": "Arm",
@@ -103,18 +104,6 @@ def name_collection(role, base_name, side):
 def name_property(role, base_name, side):
 	return generate_property_name(PROPERTY[role], base_name, side)
 
-def get_base_name(bone_name) -> tuple[str, str]:
-	symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
-	match = re.search(symmetry_pattern, bone_name, re.IGNORECASE)
-
-	if match:
-		base_name = bone_name[:match.start()]
-		extension = match.group(0)
-	else:
-		base_name = bone_name
-		extension = ""
-
-	return base_name, extension
 
 def get_side_letter(bone_name):
 	_base, side = get_base_name(bone_name)
@@ -124,18 +113,6 @@ def get_side_letter(bone_name):
 	elif "L" in s:
 		return "L"
 	return "C"
-
-def flip_side_name(bone_name):
-	"""Return the L/R flipped bone name, or None if there is no side suffix."""
-	base_name, extension = get_base_name(bone_name)
-	if not extension:
-		return None
-	flipped = extension.replace('L', '\0').replace('R', 'L').replace('\0', 'R')
-	flipped = flipped.replace('l', '\0').replace('r', 'l').replace('\0', 'r')
-	if flipped == extension:
-		return None
-	return base_name + flipped
-
 
 def same_side_names(name_a, name_b):
 	"""True if both lack a side, or both are L, or both are R."""

@@ -1,11 +1,25 @@
 # RigUI animator script / lite add-on (`rigui.py`)
 
 ## Next steps (start here)
-1. ~~Finish step 2~~ (code done).
-2. **Test step 2.**
-   - Open the Sarah rig, run Upgrade Rig (v5 → v6). Check the console output and that Rig Properties shows the same groups as before.
-   - Build a new assembly and check it lands in the right group (not a blank one).
-3. **Start step 3** (properties and snapping into rigui).
+Step 2 is done and tested. Step 3 is in progress, nothing committed since `7c9928d`.
+The file is now **`rigtools/rig_ui/rig_ui.py`** (renamed from `rigui.py`; plan text below still says `rigui.py`).
+
+**Done (3a + 3b), not yet tested:**
+- `rig_ui.py` has `stored()`, `property_bone()`, `find_assemblies()` / `find_snap_chain()` (stored copies), `get_selected_bones`, `mirror_pose_selection`, `get_base_name`, `flip_side_name`, `get_matrix`, and both snap operators using `item["key"]` reads plus a None guard. Spike panel removed.
+- `utils/bone.py` and `utils/naming.py` re-export the moved helpers from `rig_ui.py`.
+
+**Left over from step 2 / cleanup:**
+- `property_panel.py` line 26: still `assembly.ui_label`, needs `or assembly.name` (Rig UI version: `assembly.get("ui_label") or assembly.get("name", "")`).
+- Add the "keep in sync" comment above both `find_assemblies` and both `find_snap_chain`.
+- Docstring typo in `property_bone`: "of None" should be "or None". `poll(self, ...)` should be `cls` (optional).
+
+**Resume here:**
+1. Review 3b for errors (the user's own pass).
+2. **3c:** move `RIG_OT_set_id_float` (swap `get_armature_settings` for `property_bone`), `RIG_PT_properties_ui`, `ROLE_DATA`, `_iterate_assemblies`, `get_selected_assemblies` and `draw_float_with_buttons` into `rig_ui.py`, converting to `.get()` reads.
+3. **3d:** rigtools `__init__.py` calls `rig_ui.register()`/`unregister()`; delete `property_panel.py`; strip the operators out of `snapping_operator.py`, leaving only the `RigUISnap*` data registration.
+   - **Until 3d is done, rigtools and `rig_ui.py` both define `rig.snap_ik_to_fk` / `rig.snap_fk_to_ik`.** Don't register `rig_ui.py` alongside rigtools yet.
+4. Test: rigtools enabled (panel, auto-key, both snaps, X-mirror), then rigtools disabled with `rig_ui.py` run as a text block, on 4.x and 5.x.
+5. Commit. Stage the rename with `git add rigtools/rig_ui/rigui.py rigtools/rig_ui/rig_ui.py` so git records it as a rename.
 
 ## Context
 Animators currently need full RigTools to see the Rig UI panels. The goal is **one small file**, `rigtools/rig_ui/rigui.py`, used three ways:

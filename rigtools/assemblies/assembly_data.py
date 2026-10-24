@@ -8,10 +8,10 @@ from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.utils.naming import limb_group_label
 
-def find_assemblies(arm, bone_names):
+def find_assemblies(armature_data, bone_names):
 	wanted = set(bone_names)
 	assemblies = []
-	for assembly in arm.rigtools_assemblies:
+	for assembly in armature_data.rigtools_assemblies:
 		names = {o.name for o in assembly.org_states}
 		names.update(b.name for b in assembly.mechanism_bones)
 		if names & wanted:

@@ -1,2 +1,4 @@
 # MkDocs build output (published separately with mkdocs gh-deploy)
 site/
+.claude/
+claude.md
