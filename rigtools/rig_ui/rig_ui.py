@@ -99,7 +99,7 @@ def flip_side_name(bone_name):
 	return base_name + flipped
 
 ###############################################################################
-# Collections Panel
+# COLLECTION PANEL
 
 def _all_collections(armature_data):
 	return list(getattr(armature_data, "collections_all", armature_data.collections))
@@ -665,6 +665,19 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 			op.enabled = not all_solidify_enabled
 
 ###############################################################################
+# CONFLICT HANDLER
+
+def _draw_conflict(self, context):
+	box = self.layout.box()
+	col = box.column(align=True)
+	col.alert = True
+	col.label(text="RigTools and RigTools UI", icon='ERROR')
+	col.label(text="are both enabled and will conflict.")
+	col.label(text="Disable one, then restart Blender.")
+
+_conflict_panel = None
+
+###############################################################################
 # REGISTER
 
 classes = (
@@ -678,13 +691,42 @@ classes = (
 	RIG_PT_visibility_ui,	
 )
 
+_registered = False
+
 def register():
+	global _registered, _conflict_panel
+	_registered = False
+	_conflict_panel = None
+	is_addon = __name__ != "__main__"
+
+	existing = getattr(bpy.types, RIG_PT_collection_ui.bl_idname, None)
+	if existing:
+		if not is_addon:
+			return # RigTools addon already active, gracefully bow out
+		if existing.rig_ui_embedded:
+			existing.rig_ui_unregister() # unregister the embedded script so the addon can take over
+		else:
+			existing.prepend(_draw_conflict)
+			_conflict_panel = existing
+			return
+	
+	# Provide unregister function so the addon can unregister the embedded script, if needed
+	RIG_PT_collection_ui.rig_ui_embedded = not is_addon
+	RIG_PT_collection_ui.rig_ui_unregister = unregister
+
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	_registered = True
 
 def unregister():
-	for cls in reversed(classes):
-		bpy.utils.unregister_class(cls)
+	global _registered, _conflict_panel
+	if _registered:
+		for cls in reversed(classes):
+			bpy.utils.unregister_class(cls)
+	elif _conflict_panel:
+		_conflict_panel.remove(_draw_conflict)
+	_registered = False
+	_conflict_panel = None
 
 if __name__ == "__main__":
 	register()
