@@ -1,6 +1,9 @@
 import bpy
 from bpy.props import BoolProperty, StringProperty, EnumProperty, CollectionProperty
 
+from rigtools.rig_ui import rig_ui
+from rigtools.rig_ui.rig_ui import _coll_by_name, _hidden_map, _is_hidden, _iter_rows, draw_collections_view
+
 
 class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
 	collection_name: StringProperty()
@@ -25,87 +28,8 @@ def rename_layout_collection(armature_data, old_name, new_name):
 		else:
 			item.collection_name = new_name
 
-def _all_collections(armature_data):
-	return list(getattr(armature_data, "collections_all", armature_data.collections))
-
-
-def _coll_by_name(armature_data, name):
-	if not name:
-		return None
-	colls = getattr(armature_data, "collections_all", armature_data.collections)
-	if hasattr(colls, "get"):
-		return colls.get(name)
-	for coll in colls:
-		if coll.name == name:
-			return coll
-	return None
-
-def _hidden_by_ancestor(coll):
-	parent = coll.parent
-	while parent:
-		if not parent.is_visible:
-			return True
-		parent = parent.parent
-	return False
-
-
-def _iter_descendants(coll):
-	for child in getattr(coll, "children", []):
-		yield child
-		yield from _iter_descendants(child)
-
-
-def _has_rig_ui_children(armature_data, coll):
-	for child in _iter_descendants(coll):
-		if not _is_hidden(armature_data, child.name):
-			return True
-	return False
-
-
-def _collection_toggle_icon(armature_data, coll):
-	if not _has_rig_ui_children(armature_data, coll):
-		return None
-	return 'DISCLOSURE_TRI_DOWN' if coll.is_visible else 'DISCLOSURE_TRI_RIGHT'
-
-def _iter_rows(armature_data):
-	rows = []
-	item_row = None
-	seen = set()
-	for item in armature_data.rig_ui_layout:
-		if item.is_gap:
-			rows.append({'type': 'gap'})
-			item_row = None
-			continue
-		coll = _coll_by_name(armature_data, item.collection_name)
-		if coll is None:
-			continue
-		seen.add(coll.name)
-		if item.same_row and item_row is not None:
-			item_row.append(coll)
-		else:
-			item_row = [coll]
-			rows.append({'type': 'items', 'colls': item_row})
-	for coll in _all_collections(armature_data):
-		if coll.name not in seen:
-			rows.append({'type': 'items', 'colls': [coll]})
-	return rows
-
-
 def _cleanup_rows(rows):
 	rows[:] = [row for row in rows if row['type'] == 'gap' or row['colls']]
-
-
-def _hidden_map(armature_data):
-	return {
-		item.collection_name: item.hidden
-		for item in armature_data.rig_ui_layout
-		if not item.is_gap
-	}
-
-
-def _is_hidden(armature_data, name):
-	return _hidden_map(armature_data).get(name, False)
-
 
 def _apply_rows(armature_data, rows):
 	hidden = _hidden_map(armature_data)
@@ -123,7 +47,6 @@ def _apply_rows(armature_data, rows):
 			item.same_row = i > 0
 			item.hidden = hidden.get(coll.name, False)
 
-
 def _find_collection_row(rows, name):
 	for i, row in enumerate(rows):
 		if row['type'] != 'items':
@@ -132,7 +55,6 @@ def _find_collection_row(rows, name):
 			if coll.name == name:
 				return i, j, coll
 	return -1, -1, None
-
 
 def _find_gap_before(rows, owner_name):
 	if owner_name:
@@ -147,13 +69,11 @@ def _find_gap_before(rows, owner_name):
 		return len(rows) - 1
 	return -1
 
-
 def _gap_owner_name(rows, gap_i):
 	for row in rows[gap_i + 1:]:
 		if row['type'] == 'items' and row['colls']:
 			return row['colls'][0].name
 	return ""
-
 
 def _move_horizontal(rows, name, direction):
 	row_i, col_i, _ = _find_collection_row(rows, name)
@@ -165,7 +85,6 @@ def _move_horizontal(rows, name, direction):
 		return False
 	colls[col_i], colls[new_i] = colls[new_i], colls[col_i]
 	return True
-
 
 def _join_row(rows, name, direction):
 	src_i, src_j, coll = _find_collection_row(rows, name)
@@ -192,7 +111,6 @@ def _join_row(rows, name, direction):
 		return True
 	return _full_row(rows, name, 'DOWN')
 
-
 def _full_row(rows, name, direction):
 	src_i, src_j, coll = _find_collection_row(rows, name)
 	if src_i < 0:
@@ -211,7 +129,6 @@ def _full_row(rows, name, direction):
 		rows.insert(src_i + 1, new_row)
 	return True
 
-
 def _move_gap(rows, owner_name, direction):
 	gap_i = _find_gap_before(rows, owner_name)
 	if gap_i < 0:
@@ -221,7 +138,6 @@ def _move_gap(rows, owner_name, direction):
 		return -1
 	rows[gap_i], rows[swap] = rows[swap], rows[gap_i]
 	return swap
-
 
 def _edit_selection(context):
 	obj = context.object
@@ -239,7 +155,6 @@ def _edit_selection(context):
 		return None, False, None
 	return coll, False, name
 
-
 def _set_selection(context, name, is_gap):
 	wm = context.window_manager
 	wm.rig_ui_sel_name = name
@@ -248,7 +163,6 @@ def _set_selection(context, name, is_gap):
 		coll = _coll_by_name(context.object.data, name)
 		if coll is not None:
 			context.object.data.collections.active = coll
-
 
 class RIG_OT_ui_select_collection(bpy.types.Operator):
 	bl_idname = "rig.ui_select_collection"
@@ -265,7 +179,6 @@ class RIG_OT_ui_select_collection(bpy.types.Operator):
 			return {'CANCELLED'}
 		_set_selection(context, self.collection_name, self.is_gap)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_move(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_move"
@@ -292,9 +205,9 @@ class RIG_OT_ui_collection_move(bpy.types.Operator):
 		return coll is not None
 
 	def execute(self, context):
-		arm = context.object.data
+		armature_data = context.object.data
 		coll, is_gap, name = _edit_selection(context)
-		rows = _iter_rows(arm)
+		rows = _iter_rows(armature_data)
 		is_up = self.direction in {'JOIN_UP', 'ROW_UP'}
 		vert = 'UP' if is_up else 'DOWN'
 
@@ -304,7 +217,7 @@ class RIG_OT_ui_collection_move(bpy.types.Operator):
 			new_gap_i = _move_gap(rows, name, vert)
 			if new_gap_i < 0:
 				return {'CANCELLED'}
-			_apply_rows(arm, rows)
+			_apply_rows(armature_data, rows)
 			_set_selection(context, _gap_owner_name(rows, new_gap_i), True)
 			return {'FINISHED'}
 
@@ -314,10 +227,9 @@ class RIG_OT_ui_collection_move(bpy.types.Operator):
 			ok = _full_row(rows, name, vert)
 		if not ok:
 			return {'CANCELLED'}
-		_apply_rows(arm, rows)
+		_apply_rows(armature_data, rows)
 		_set_selection(context, name, False)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_shift(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_shift"
@@ -339,14 +251,13 @@ class RIG_OT_ui_collection_shift(bpy.types.Operator):
 		return obj and obj.type == 'ARMATURE' and context.window_manager.rig_ui_edit_collections
 
 	def execute(self, context):
-		arm = context.object.data
-		rows = _iter_rows(arm)
+		armature_data = context.object.data
+		rows = _iter_rows(armature_data)
 		if not _move_horizontal(rows, self.collection_name, self.direction):
 			return {'CANCELLED'}
-		_apply_rows(arm, rows)
+		_apply_rows(armature_data, rows)
 		_set_selection(context, self.collection_name, False)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_add_gap(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_add_gap"
@@ -360,9 +271,9 @@ class RIG_OT_ui_collection_add_gap(bpy.types.Operator):
 		return context.window_manager.rig_ui_edit_collections and (coll is not None or is_gap)
 
 	def execute(self, context):
-		arm = context.object.data
+		armature_data = context.object.data
 		_, is_gap, name = _edit_selection(context)
-		rows = _iter_rows(arm)
+		rows = _iter_rows(armature_data)
 
 		if is_gap:
 			gap_i = _find_gap_before(rows, name)
@@ -375,10 +286,9 @@ class RIG_OT_ui_collection_add_gap(bpy.types.Operator):
 				return {'CANCELLED'}
 			rows.insert(row_i, {'type': 'gap'})
 
-		_apply_rows(arm, rows)
+		_apply_rows(armature_data, rows)
 		_set_selection(context, name, is_gap)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_remove_gap(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_remove_gap"
@@ -392,17 +302,16 @@ class RIG_OT_ui_collection_remove_gap(bpy.types.Operator):
 		return context.window_manager.rig_ui_edit_collections and is_gap
 
 	def execute(self, context):
-		arm = context.object.data
+		armature_data = context.object.data
 		_, is_gap, name = _edit_selection(context)
-		rows = _iter_rows(arm)
+		rows = _iter_rows(armature_data)
 		gap_i = _find_gap_before(rows, name)
 		if gap_i < 0:
 			return {'CANCELLED'}
 		rows.pop(gap_i)
-		_apply_rows(arm, rows)
+		_apply_rows(armature_data, rows)
 		_set_selection(context, name, False)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_hide(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_hide"
@@ -416,16 +325,15 @@ class RIG_OT_ui_collection_hide(bpy.types.Operator):
 		return context.window_manager.rig_ui_edit_collections and coll is not None and not is_gap
 
 	def execute(self, context):
-		arm = context.object.data
+		armature_data = context.object.data
 		_, _, name = _edit_selection(context)
-		_apply_rows(arm, _iter_rows(arm))
-		for item in arm.rig_ui_layout:
+		_apply_rows(armature_data, _iter_rows(armature_data))
+		for item in armature_data.rig_ui_layout:
 			if not item.is_gap and item.collection_name == name:
 				item.hidden = not item.hidden
 				break
 		_set_selection(context, name, False)
 		return {'FINISHED'}
-
 
 class RIG_OT_ui_collection_rename(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_rename"
@@ -484,7 +392,6 @@ class RIG_OT_ui_collection_rename(bpy.types.Operator):
 		self.report({'INFO'}, f"Renamed collection '{old_name}' to '{new_name}'")
 		return {'FINISHED'}
 
-
 class RIG_MT_ui_collection_actions(bpy.types.Menu):
 	bl_idname = "RIG_MT_ui_collection_actions"
 	bl_label = "Collection Actions"
@@ -500,129 +407,86 @@ class RIG_MT_ui_collection_actions(bpy.types.Menu):
 			icon='HIDE_ON' if hidden else 'HIDE_OFF',
 		)
 
+###############################################################################
+# Panel Hooks
+ 
+def draw_collection_editing(panel, context, armature_data):	
+	wm = context.window_manager
 
-class RIG_PT_collection_ui(bpy.types.Panel):
-	bl_label = "Rig UI"
-	bl_idname = "RIG_PT_collection_ui"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'UI'
-	bl_category = "Item"
-
-	@classmethod
-	def poll(cls, context):
-		if not context.object:
-			return False
-		if context.object.type == 'ARMATURE':
-			return True
-		if bool([mod for mod in context.object.modifiers if mod.type == 'ARMATURE']):
-			return True
-		return False
-
-	def draw_edit_buttons(self, context, layout):
-		wm = context.window_manager
-		if not wm.rig_ui_edit_collections:
-			return False
-
-		col = layout.column()
-		header = col.row(align=True)
-		header.operator("rig.ui_collection_add_gap", text="Gap")
-		header.separator()
-		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP_BAR').direction = 'ROW_UP'
-		header.operator("rig.ui_collection_move", text="", icon='TRIA_UP', emboss=False).direction = 'JOIN_UP'
-		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN', emboss=False).direction = 'JOIN_DOWN'
-		header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN_BAR').direction = 'ROW_DOWN'
-		header.separator()
-		header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
+	if not wm.rig_ui_edit_collections:
+		# Show the standard view with the edit button at the bottom
+		draw_collections_view(panel.layout.column(align=True), armature_data)
+		row = panel.layout.row(align=True)
+		row.alignment = 'RIGHT'
+		row.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 		return True
+	
+	_draw_edit_buttons(context, panel.layout)
+	_draw_edit(
+		panel.layout.column(align=True), 
+		armature_data,
+		wm.rig_ui_sel_name,
+		wm.rig_ui_sel_gap
+	)
+	_draw_edit_buttons(context, panel.layout)
+	return True
 
-	def draw(self, context):
+def _draw_edit_buttons(context, layout):
+	wm = context.window_manager
 
-		if context.object.type == 'ARMATURE':
-			armature_data = context.object.data
-		else:
-			armature_data = [mod for mod in context.object.modifiers if mod.type == 'ARMATURE'][0].object.data
-		wm = context.window_manager
-		editing = wm.rig_ui_edit_collections
-		sel_name = wm.rig_ui_sel_name
-		sel_gap = wm.rig_ui_sel_gap
+	col = layout.column()
+	header = col.row(align=True)
+	header.operator("rig.ui_collection_add_gap", text="Gap")
+	header.separator()
+	header.operator("rig.ui_collection_move", text="", icon='TRIA_UP_BAR').direction = 'ROW_UP'
+	header.operator("rig.ui_collection_move", text="", icon='TRIA_UP', emboss=False).direction = 'JOIN_UP'
+	header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN', emboss=False).direction = 'JOIN_DOWN'
+	header.operator("rig.ui_collection_move", text="", icon='TRIA_DOWN_BAR').direction = 'ROW_DOWN'
+	header.separator()
+	header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
 
-		layout = self.layout
-
-		self.draw_edit_buttons(context, layout)
-
-		col = layout.column(align=True)
-
-		if editing:
-			self._draw_edit(col, armature_data, sel_name, sel_gap)
-		else:
-			self._draw_view(col, armature_data)
-
-		if not self.draw_edit_buttons(context, layout):
-			header = layout.row(align=True)
-			header.alignment = 'RIGHT'
-			header.prop(wm, "rig_ui_edit_collections", text="Edit", icon='SETTINGS', toggle=True)
-
-	def _draw_view(self, col, arm):
-		for row in _iter_rows(arm):
-			if row['type'] == 'gap':
-				col.separator()
-				continue
-			visible = [
-				coll for coll in row['colls'] 
-				if not _is_hidden(arm, coll.name) and not _hidden_by_ancestor(coll)
-			]
-			if not visible:
-				continue
+def _draw_edit(col, armature_data, sel_name, sel_gap):
+	rows = _iter_rows(armature_data)
+	for i, row in enumerate(rows):
+		if row['type'] == 'gap':
+			owner = _gap_owner_name(rows, i)
 			ui_row = col.row(align=True)
-			for coll in visible:
-				cell = ui_row.row(align=True)
-				cell.prop(coll, "is_visible", text=coll.name, toggle=True)
-				icon = _collection_toggle_icon(arm, coll)
-				if icon:
-					cell.prop(coll, "is_visible", text="", toggle=True, icon=icon)
-
-	def _draw_edit(self, col, armature_data, sel_name, sel_gap):
-		rows = _iter_rows(armature_data)
-		for i, row in enumerate(rows):
-			if row['type'] == 'gap':
-				owner = _gap_owner_name(rows, i)
-				ui_row = col.row(align=True)
-				op = ui_row.operator(
-					"rig.ui_select_collection",
-					text="────",
-					depress=(sel_gap and owner == sel_name),
-				)
-				op.collection_name = owner
-				op.is_gap = True
-				if sel_gap and owner == sel_name:
-					ui_row.operator("rig.ui_collection_remove_gap", text="", icon='X')
-				continue
-			ui_row = col.row(align=True)
-			count = len(row['colls'])
-			for j, coll in enumerate(row['colls']):
-				hidden = _is_hidden(armature_data, coll.name)
-				selected = not sel_gap and coll.name == sel_name
-				if count > 1 and j > 0 and selected:
-					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_LEFT')
-					shift.collection_name = coll.name
-					shift.direction = 'LEFT'
-				btn = ui_row.row(align=True)
-				btn.active = not hidden
-				op = btn.operator(
-					"rig.ui_select_collection",
-					text=coll.name,
-					depress=selected,
-				)
-				op.collection_name = coll.name
-				op.is_gap = False
-				if selected:
-					menu_cell = ui_row.row(align=True)
-					menu_cell.emboss = 'NONE'
-					menu_cell.menu("RIG_MT_ui_collection_actions", text="", icon='DOWNARROW_HLT')
-				if count > 1 and j < count - 1 and selected:
-					shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_RIGHT')
-					shift.collection_name = coll.name
-					shift.direction = 'RIGHT'
+			op = ui_row.operator(
+				"rig.ui_select_collection",
+				text="────",
+				depress=(sel_gap and owner == sel_name),
+			)
+			op.collection_name = owner
+			op.is_gap = True
+			if sel_gap and owner == sel_name:
+				ui_row.operator("rig.ui_collection_remove_gap", text="", icon='X')
+			continue
+		ui_row = col.row(align=True)
+		count = len(row['colls'])
+		for j, coll in enumerate(row['colls']):
+			hidden = _is_hidden(armature_data, coll.name)
+			selected = not sel_gap and coll.name == sel_name
+			if count > 1 and j > 0 and selected:
+				shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_LEFT')
+				shift.collection_name = coll.name
+				shift.direction = 'LEFT'
+			btn = ui_row.row(align=True)
+			btn.active = not hidden
+			op = btn.operator(
+				"rig.ui_select_collection",
+				text=coll.name,
+				depress=selected,
+			)
+			op.collection_name = coll.name
+			op.is_gap = False
+			if selected:
+				menu_cell = ui_row.row(align=True)
+				menu_cell.emboss = 'NONE'
+				menu_cell.menu("RIG_MT_ui_collection_actions", text="", icon='DOWNARROW_HLT')
+			if count > 1 and j < count - 1 and selected:
+				shift = ui_row.operator("rig.ui_collection_shift", text="", icon='TRIA_RIGHT')
+				shift.collection_name = coll.name
+				shift.direction = 'RIGHT'
 
 
 classes = (
@@ -635,7 +499,6 @@ classes = (
 	RIG_OT_ui_collection_hide,
 	RIG_OT_ui_collection_rename,
 	RIG_MT_ui_collection_actions,
-	RIG_PT_collection_ui,
 )
 
 def register():
@@ -650,7 +513,10 @@ def register():
 	bpy.types.WindowManager.rig_ui_sel_name = StringProperty(default="")
 	bpy.types.WindowManager.rig_ui_sel_gap = BoolProperty(default=False)
 
+	rig_ui.RIG_PT_collection_ui.edit_hook = draw_collection_editing
+
 def unregister():
+	rig_ui.RIG_PT_collection_ui.edit_hook = None
 	del bpy.types.WindowManager.rig_ui_sel_gap
 	del bpy.types.WindowManager.rig_ui_sel_name
 	del bpy.types.WindowManager.rig_ui_edit_collections

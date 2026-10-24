@@ -1,18 +1,11 @@
 # RigUI animator script / lite add-on (`rigui.py`)
 
 ## Next steps (start here)
-Step 2 is done and tested. Steps 3 (properties + snapping) and 5 (visibility) are moved into `rig_ui.py` and wired into rigtools' `__init__.py`; old `property_panel.py`, `snapping_operator.py`, `visibility_panel.py`, `rig_ui_sample.py` deleted; `snapping_data.py` registers the snap data classes. Not yet tested or committed.
+Steps 1, 2, 3 and 5 are done, tested (rig_ui alone and inside rigtools) and committed (`b585c50`).
 The file is now **`rigtools/rig_ui/rig_ui.py`** (renamed from `rigui.py`; plan text below still says `rigui.py`).
+Bow-out (step 6) isn't built yet: **never load `rig_ui.py` as a text block/add-on while rigtools is enabled.**
 
-**Resume here:**
-1. **Fix in `rig_ui.py`:**
-   - `_iterate_assemblies`: `find_snap_chain(..., property.name)` → `name`; the `snap["switch_property"]` read runs before `if snap` (crashes on every non-switch property). Use `if snap and name not in group["snaps"]` and drop `switch_prop`.
-   - `find_assemblies`: `o.get("name")` / `b.get("name")` → `o["name"]` / `b["name"]`.
-2. **Test with rigtools enabled:** Upgrade Rig on the dev rig (v5 → v6) first. Then properties panel groups, FK/IK and On/Off buttons (with auto-key), both snap buttons, X-mirror selection, visibility masks/solidify, and disabling rigtools without errors.
-3. **Test with rigtools disabled:** `rig_ui.py` as a text block, then as an add-on, on 4.x and 5.x. Same checks.
-   - Bow-out (step 6) isn't built yet: **never load `rig_ui.py` while rigtools is enabled.**
-4. **Commit.**
-5. **Step 4: collections view** — the hardest split (see below).
+**Resume here: step 4, collections view** (details under Build steps).
 
 ## Context
 Animators currently need full RigTools to see the Rig UI panels. The goal is **one small file**, `rigtools/rig_ui/rigui.py`, used three ways:
@@ -25,8 +18,8 @@ Rigui contains **only** what animators need: collections (read-only), properties
 How we'll work: the user builds this. Claude explains, reviews and helps on request. We start and fix problems as they come up.
 
 ## Core design
-- **Rigui registers no data classes.** It reads stored data by key through `stored(arm)` (already in `rigui.py`). Rigtools keeps its PropertyGroups exactly as they are.
-  - 5.x: `arm.bl_system_properties_get()`. 4.x: `arm[...]`. Both confirmed with rigtools disabled.
+- **Rigui registers no data classes.** It reads stored data by key through `stored(armature_data)` (already in `rigui.py`). Rigtools keeps its PropertyGroups exactly as they are.
+  - 5.x: `armature_data.bl_system_properties_get()`. 4.x: `armature_data[...]`. Both confirmed with rigtools disabled.
   - Fields never written (e.g. a collection nothing was ever added to) have **no key**.
   - **No silent failures:** index required data directly (`assembly["name"]`) and let it raise. Use `.get(key, default)` only where absence is legitimate: no `rigtools` settings / not initialized, no assemblies, no snap chains, an assembly with no `properties`, a missing properties bone. Custom error messages only when they tell the user something actionable (e.g. missing `ui_label` → version incompatible).
   - Enum fields read back as ints. Rigui currently reads none.
@@ -46,17 +39,17 @@ How we'll work: the user builds this. Claude explains, reviews and helps on requ
 
 ## Build steps
 1. ~~**Spike.**~~ Done on 4.x and 5.2: raw reads work with rigtools disabled; `rigui.py` registers as a text block and as an add-on.
-2. **Store `ui_label`.** *(code done, needs testing)*
-   - `ui_label` field on `AssemblyData`, set in `create_assembly_data`; `CURRENT_RIG_DATA_VERSION = 6`; `migrate_5_to_6` backfills it; property panel groups by `ui_label`.
-3. **Properties and snapping.**
-   - Move the read-only parts of [property_panel.py](rigtools/rig_ui/property_panel.py) and [snapping_operator.py](rigtools/rig_ui/snapping_operator.py) into rigui, rewritten to use `stored()` reads. Drop `get_armature_settings`.
-   - X-mirror selection: copy `flip_side_name` (hardcoded regex, ~10 lines) into rigui, or drop the feature from rigui. Decide here.
-   - Rigtools registers rigui's classes instead of its own.
-   - Delete the spike panel.
-4. **Collections view.**
-   - Move the read-only drawing (`_iter_rows`, `_hidden_map`, `_is_hidden`, `_hidden_by_ancestor`, `_has_rig_ui_children`, `_collection_toggle_icon`, `_coll_by_name`, view draw) into rigui.
-   - Edit mode and its operators stay in rigtools, layered on top.
-5. **Visibility.** Move [visibility_panel.py](rigtools/rig_ui/visibility_panel.py) into rigui with hardcoded separators.
+2. ~~**Store `ui_label`.**~~ Done: field on `AssemblyData`, set in `create_assembly_data`, `migrate_5_to_6` backfills it.
+3. ~~**Properties and snapping.**~~ Done: in `rig_ui.py` with `stored()` reads; X-mirror kept (`flip_side_name` copied in, `naming.py`/`bone.py` import it back); `snapping_data.py` registers the snap data classes.
+4. **Collections view.** `RIG_PT_collection_ui` mixes an animator view and a rigger edit mode in one panel. The panel moves to rig_ui; edit mode stays in rigtools and plugs in through a hook.
+   - **Moves to `rig_ui.py`:** the panel, `_all_collections`, `_coll_by_name`, `_hidden_by_ancestor`, `_iter_descendants`, `_has_rig_ui_children`, `_collection_toggle_icon`, `_iter_rows`, `_hidden_map`, `_is_hidden`, and the view drawing (`_draw_view` → module function `draw_collections_view(col, armature_data)`).
+   - **Stays in [collections_panel.py](rigtools/rig_ui/collections_panel.py):** `RigUICollectionLayoutItem` + `Armature.rig_ui_layout` registration, the WindowManager edit/selection props, all `RIG_OT_ui_collection_*` operators, `RIG_MT_ui_collection_actions`, `rename_layout_collection`, `_apply_rows` and the row-editing helpers, `draw_edit_buttons`, `_draw_edit`. It imports `_iter_rows` / `_is_hidden` back from rig_ui.
+   - **The hook:** the rig_ui panel has a class attribute `edit_hook = None`. In `draw()`, if `edit_hook` is set, call it; if it returns True it drew the edit UI and the view is skipped. Rigtools sets `rig_ui.RIG_PT_collection_ui.edit_hook = draw_collection_editing` in `collections_panel.register()` and sets it back to `None` in `unregister()`. Standalone rig_ui never sets it, so it only draws the view and has no Edit button.
+   - **Raw reads:** `stored(armature_data).get("rig_ui_layout", ())` (no layout yet is legitimate). `_apply_rows` is the only code that creates layout items: it writes `collection_name`/`same_row`/`hidden` on every collection item and only `is_gap` on gaps. So `item.get("is_gap", False)` (never written on collection items), and `item["collection_name"]`, `item["same_row"]`, `item["hidden"]` (always written, required).
+   - **Register the panel in rig_ui's `classes`, before `RIG_PT_properties_ui`** (registration order = sidebar order).
+   - **Fix while there:** `poll()` accepts any object with an Armature modifier, but `draw()` does `[...][0].object.data` and crashes if the modifier has no object. Put the lookup in one helper (`_panel_armature(obj)` returning armature data or None) used by both.
+   - **Test:** rigtools enabled — view, Edit toggle, all edit operations, disabling rigtools. Rigtools disabled — view matches layout/gaps/hidden collections, no Edit button.
+5. ~~**Visibility.**~~ Done: in `rig_ui.py` with hardcoded separators.
 6. **Bow-out, conflict handling, version check.** Embedded skip, lite+full red panel, "Update Rig UI" row.
 7. **Embed operator `rig.embed_rigui`.** Writes `rigui.py` into `bpy.data.texts` with `use_module=True`. Offers an update when the embedded copy is older.
 8. **Build and docs.**

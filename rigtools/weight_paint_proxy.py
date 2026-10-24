@@ -253,7 +253,7 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 		def execute(self, context):
 			_remove_preview(context)
 
-			arm = context.object
+			armature_obj = context.object
 
 			chains = find_chains_from_selection(context)
 			if self.stitch_chain and len(chains) > 1:
@@ -261,7 +261,7 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 
 			bpy.ops.object.mode_set(mode='EDIT')
 
-			bones = context.object.data.edit_bones
+			bones = armature_obj.data.edit_bones
 			align_end = self.chain_align == 'END'
 
 			vertices = []
@@ -304,13 +304,13 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 			mesh.validate(verbose=True)
 			mesh.update()
 
-			obj = bpy.data.objects.new(mesh_name, mesh)
-			obj["rigtools_helper"] = True
-			context.collection.objects.link(obj)
+			proxy_obj = bpy.data.objects.new(mesh_name, mesh)
+			proxy_obj["rigtools_helper"] = True
+			context.collection.objects.link(proxy_obj)
 
 			if self.armature_modifier:
-				modifier = obj.modifiers.new(type='ARMATURE', name='Armature')
-				modifier.object = context.object
+				modifier = proxy_obj.modifiers.new(type='ARMATURE', name='Armature')
+				modifier.object = armature_obj
 
 			if self.seed_weights:
 				weights = seed_weight_map(chains, grid)
@@ -322,14 +322,14 @@ class RIG_OT_weight_paint_proxy(bpy.types.Operator):
 						iterations = self.iterations,
 						close_loop = self.close_loop,
 						align_end = align_end)
-				write_vertex_groups(obj, weights)
+				write_vertex_groups(proxy_obj, weights)
 
 			bpy.ops.object.mode_set(mode='OBJECT')
 			for o in context.selected_objects:
 				o.select_set(False)
-			arm.select_set(True)
-			obj.select_set(True)
-			context.view_layer.objects.active = obj
+			proxy_obj.select_set(True)
+			armature_obj.select_set(True)
+			context.view_layer.objects.active = proxy_obj
 			bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
 
 			return {'FINISHED'}

@@ -98,6 +98,128 @@ def flip_side_name(bone_name):
 		return None
 	return base_name + flipped
 
+###############################################################################
+# Collections Panel
+
+def _all_collections(armature_data):
+	return list(getattr(armature_data, "collections_all", armature_data.collections))
+
+def _coll_by_name(armature_data, name):
+	if not name:
+		return None
+	colls = getattr(armature_data, "collections_all", armature_data.collections)
+	if hasattr(colls, "get"):
+		return colls.get(name)
+	for coll in colls:
+		if coll.name == name:
+			return coll
+	return None
+
+def _hidden_by_ancestor(coll):
+	parent = coll.parent
+	while parent:
+		if not parent.is_visible:
+			return True
+		parent = parent.parent
+	return False
+
+def _iter_descendants(coll):
+	for child in getattr(coll, "children", []):
+		yield child
+		yield from _iter_descendants(child)
+
+def _has_rig_ui_children(armature_data, coll):
+	for child in _iter_descendants(coll):
+		if not _is_hidden(armature_data, child.name):
+			return True
+	return False
+
+def _collection_toggle_icon(armature_data, coll):
+	if not _has_rig_ui_children(armature_data, coll):
+		return None
+	return 'DISCLOSURE_TRI_DOWN' if coll.is_visible else 'DISCLOSURE_TRI_RIGHT'
+
+def _iter_rows(armature_data):
+	rows = []
+	item_row = None
+	seen = set()
+	for item in stored(armature_data).get("rig_ui_layout", ()):
+		if item.get("is_gap", False):
+			rows.append({'type': 'gap'})
+			item_row = None
+			continue
+		coll = _coll_by_name(armature_data, item["collection_name"])
+		if coll is None:
+			continue
+		seen.add(coll.name)
+		if item["same_row"] and item_row is not None:
+			item_row.append(coll)
+		else:
+			item_row = [coll]
+			rows.append({'type': 'items', 'colls': item_row})
+	for coll in _all_collections(armature_data):
+		if coll.name not in seen:
+			rows.append({'type': 'items', 'colls': [coll]})
+	return rows
+
+def _hidden_map(armature_data):
+	return {
+		item["collection_name"]: item["hidden"]
+		for item in stored(armature_data).get("rig_ui_layout", ())
+		if not item.get("is_gap", False)
+	}
+
+def _is_hidden(armature_data, name):
+	return _hidden_map(armature_data).get(name, False)
+
+def _panel_armature(obj):
+	"""Panel visible for armatures, but also objects with valid armature modifiers (helps with weight paint)"""
+	if obj.type == 'ARMATURE':
+		return obj.data
+	for mod in obj.modifiers:
+		if mod.type == 'ARMATURE' and mod.object:
+			return mod.object.data
+	return None
+
+class RIG_PT_collection_ui(bpy.types.Panel):
+	bl_label = "Rig UI"
+	bl_idname = "RIG_PT_collection_ui"
+	bl_space_type = 'VIEW_3D'
+	bl_region_type = 'UI'
+	bl_category = "Item"
+
+	edit_hook = None	# Full add-on uses this hook to enable editing
+
+	@classmethod
+	def poll(cls, context):
+		return context.object and _panel_armature(context.object) is not None
+
+	def draw(self, context):
+
+		armature_data = _panel_armature(context.object)
+
+		if self.edit_hook and self.edit_hook(context, armature_data):
+			return	# Full add-on drew edit UI
+		draw_collections_view(self.layout.column(align=True), armature_data)
+
+def draw_collections_view(col, armature_data):
+	for row in _iter_rows(armature_data):
+		if row['type'] == 'gap':
+			col.separator()
+			continue
+		visible = [
+			coll for coll in row['colls'] 
+			if not _is_hidden(armature_data, coll.name) and not _hidden_by_ancestor(coll)
+		]
+		if not visible:
+			continue
+		ui_row = col.row(align=True)
+		for coll in visible:
+			cell = ui_row.row(align=True)
+			cell.prop(coll, "is_visible", text=coll.name, toggle=True)
+			icon = _collection_toggle_icon(armature_data, coll)
+			if icon:
+				cell.prop(coll, "is_visible", text="", toggle=True, icon=icon)
 
 ###############################################################################
 # PROPERTY PANEL
@@ -355,10 +477,10 @@ class RIG_OT_snap_fk_to_ik(bpy.types.Operator):
 		return context.active_object and context.active_object.type == 'ARMATURE'
 
 	def execute(self, context):
-		arm = context.active_object
-		item = find_snap_chain(arm.data, self.switch_property)
-		pose_bones = arm.pose.bones
-		prop_bone = property_bone(arm)
+		obj = context.active_object
+		item = find_snap_chain(obj.data, self.switch_property)
+		pose_bones = obj.pose.bones
+		prop_bone = property_bone(obj)
 		if item is None or prop_bone is None:
 			self.report({'ERROR'}, "Snap data not found for this rig.")
 			return {'CANCELLED'}
@@ -366,7 +488,7 @@ class RIG_OT_snap_fk_to_ik(bpy.types.Operator):
 		for i, fk_bone in enumerate(item["fk_bones"]):
 			fk_bone = pose_bones[fk_bone["name"]]
 			mch_bone = pose_bones[item["ik_bones"][i]["name"]]
-			fk_bone.matrix = get_matrix(arm, mch_bone, fk_bone)
+			fk_bone.matrix = get_matrix(obj, mch_bone, fk_bone)
 			context.view_layer.update()
 
 		prop_bone[item["switch_property"]] = 0 #FK 
@@ -546,6 +668,7 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 # REGISTER
 
 classes = (
+	RIG_PT_collection_ui,
 	RIG_OT_set_id_float,
 	RIG_OT_snap_ik_to_fk,
 	RIG_OT_snap_fk_to_ik,

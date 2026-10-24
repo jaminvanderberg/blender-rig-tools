@@ -63,9 +63,9 @@ def register():
 	human_skeleton.register()
 	create_twist_bones.register()
 
-	collections_panel.register()
 	snapping_data.register()
 	rig_ui.register()
+	collections_panel.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -74,9 +74,9 @@ def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
+	collections_panel.unregister()
 	rig_ui.unregister()
 	snapping_data.unregister()
-	collections_panel.unregister()
 
 	create_twist_bones.unregister()
 	human_skeleton.unregister()
