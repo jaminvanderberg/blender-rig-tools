@@ -5,6 +5,7 @@ from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.limb_collections import find_bones_by_limb_role, find_limb_collections
 from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.icons import icon
 
 ASSEMBLY_TYPE_OPERATORS = {
 	'IK': "rig.advanced_ik_setup",
@@ -260,7 +261,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 				op.assembly_uids = ",".join(a.uid for a in assemblies)
 
 		if not assemblies:
-			layout.label(text="No assemblies selected", icon='STATUS_INFO')
+			layout.label(text="No assemblies selected", icon=icon('STATUS_INFO'))
 
 classes = (
 	RIG_OT_delete_assembly,

@@ -2,6 +2,7 @@ import bpy
 
 from rigtools.assemblies.fk_templates import FK_TEMPLATES
 from rigtools.panels.fk import fk_setup, palm_setup, torso_setup
+from rigtools.utils.icons import icon
 
 
 class RIG_PT_fk_panel(bpy.types.Panel):
@@ -30,7 +31,7 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 			operator = grid.operator(
 				"rig.advanced_fk_setup",
 				text=template.label,
-				icon=template.icon or 'ARMATURE_DATA',
+				icon=icon(template.icon or 'ARMATURE_DATA'),
 			)
 			operator.template_id = template_id
 			operator.assembly_uid = ""

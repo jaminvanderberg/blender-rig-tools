@@ -6,6 +6,7 @@ import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
+from rigtools.utils.naming import limb_group_label
 
 def find_assemblies(arm, bone_names):
 	wanted = set(bone_names)
@@ -57,6 +58,7 @@ class AssemblyData(PropertyGroup):
 	uid: StringProperty()
 	name: StringProperty()
 	side: StringProperty()
+	ui_label: StringProperty()
 	assembly_type: EnumProperty(items=[
 		('FK', "FK", ""),
 		('IK', "IK", ""),
@@ -159,6 +161,9 @@ def create_assembly_data(obj, org_bones, name, assembly_type, template_id, templ
 	assembly_data.options_json = _options_to_json(options)
 	assembly_data.template_id = template_id
 	assembly_data.template_name = template_name
+
+	limb = getattr(options, 'limb_property_base_name', "") or ""
+	assembly_data.ui_label = limb_group_label(limb.strip(), side) or name
 
 	bones = obj.data.edit_bones if obj.mode == 'EDIT' else obj.data.bones
 

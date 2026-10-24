@@ -11,6 +11,7 @@ from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_cont
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.bone import select_bones
+from rigtools.utils.icons import icon
 from rigtools.utils.naming import guess_limb_name
 from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_selection
@@ -320,10 +321,10 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				col.label(text="No chains selected.", icon='ERROR')
 				return
 			snapshot = json.loads(self.dialog_twist_json or "{}")
-			status, icon, message = evaluate_twist_snapshot(snapshot, self._torso_twist_expected(chains))
+			status, status_icon, message = evaluate_twist_snapshot(snapshot, self._torso_twist_expected(chains))
 			if self.assembly_uid and status == TwistChainStatus.OK:
 				return
-			col.label(text=message, icon=icon)
+			col.label(text=message, icon=icon(status_icon))
 
 		draw.draw_section(layout, ["use_twist_bones", "neck_twist_bone_count", "chest_twist_bone_count"], lambda: (
 			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),

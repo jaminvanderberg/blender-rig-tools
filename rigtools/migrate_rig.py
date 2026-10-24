@@ -1,7 +1,7 @@
 import bpy
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
-from rigtools.utils.naming import name_bone
+from rigtools.utils.naming import limb_group_label, name_bone
 
 # Note to AI: ALWAYS provide thorough debug output when migrating data.
 
@@ -103,9 +103,36 @@ def migrate_4_to_5(armature_data, context):
 	)
 
 
+def migrate_5_to_6(armature_data, context):
+	"""Backfill ui_label (Rig UI property group label) from limb name and side."""
+	print(f"migrate_5_to_6: {len(armature_data.rigtools_assemblies)} assemblies")
+	labeled = 0
+	fallback = 0
+
+	for assembly in armature_data.rigtools_assemblies:
+		limb = (assembly.get_options().get("limb_property_base_name") or "").strip()
+		label = limb_group_label(limb, assembly.side)
+		if not label:
+			label = assembly.name
+			fallback += 1
+			print(f"  {assembly.name}: no limb name (side={assembly.side!r}), using assembly name")
+		else:
+			labeled += 1
+			print(f"  {assembly.name}: limb={limb!r} side={assembly.side!r} -> {label!r}")
+		if assembly.ui_label and assembly.ui_label != label:
+			print(f"    overwriting existing ui_label {assembly.ui_label!r}")
+		assembly.ui_label = label
+
+	print(
+		f"migrate_5_to_6 done: labeled={labeled} "
+		f"fallback_to_name={fallback}"
+	)
+
+
 MIGRATIONS = {
 	3: migrate_3_to_4,
 	4: migrate_4_to_5,
+	5: migrate_5_to_6,
 }
 
 def upgrade_rig(armature_data, context):

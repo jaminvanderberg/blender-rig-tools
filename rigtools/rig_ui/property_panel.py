@@ -4,7 +4,6 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.rig_ui.snapping_data import find_snap_chain
 from rigtools.utils.bone import get_selected_bones, mirror_pose_selection
-from rigtools.utils.naming import limb_group_label
 
 ROLE_DATA = {
 	"FK_IK_SWITCH": {"label": "FK > IK Switch", "order": 1},
@@ -21,17 +20,10 @@ def get_selected_assemblies(context):
 	assemblies = find_assemblies(context.object.data, selected_names)
 	return sorted(assemblies, key=lambda x: x.name)
 
-def _group_label(assembly):
-	base = (assembly.get_options().get("limb_property_base_name") or "").strip()
-	label = limb_group_label(base, assembly.side)
-	if label:
-		return label
-	return assembly.name
-
 def _iterate_assemblies(context, prop_bone):
 	groups = {}
 	for assembly in get_selected_assemblies(context):
-		label = _group_label(assembly)
+		label = assembly.ui_label
 		key = label.lower()
 		group = groups.get(key)
 		if group is None:

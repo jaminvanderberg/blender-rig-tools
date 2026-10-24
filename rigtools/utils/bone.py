@@ -132,10 +132,11 @@ def match_orientation(bone, reference):
 
 
 def is_bone_visible(bone):
-	if bone.hide:
-		return False
-
 	data_bone = getattr(bone, "bone", bone)
+
+	# PoseBone.hide only exists in 5.0+; 4.x keeps it on the data bone
+	if getattr(bone, "hide", data_bone.hide):
+		return False
 
 	if hasattr(data_bone, "collections"):
 		if not data_bone.collections:

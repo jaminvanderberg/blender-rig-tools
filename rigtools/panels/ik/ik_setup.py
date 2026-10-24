@@ -17,6 +17,7 @@ from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_sk
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
 from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.naming import guess_limb_name
+from rigtools.utils.icons import icon
 from rigtools.tool.spline_ik import spline_twist_type
 from rigtools.tool.skirt_ride import SkirtLeg
 from rigtools.tool.twist_bones import falloff_presets, twist_source_types
@@ -660,12 +661,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 						expected.append((chain[seg.index], self.twist_bone_count))
 
 			snapshot = json.loads(self.dialog_twist_json or "{}")
-			status, icon, message = evaluate_twist_snapshot(snapshot, expected)
+			status, status_icon, message = evaluate_twist_snapshot(snapshot, expected)
 			if self.assembly_uid and status == TwistChainStatus.OK:
 				return
 
 			row = layout.row()
-			row.label(text=message, icon=icon)
+			row.label(text=message, icon=icon(status_icon))
 
 		def draw_twist_segments(context, box):
 			if not draw.do_show("twist_segments"):

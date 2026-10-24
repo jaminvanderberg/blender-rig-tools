@@ -2,6 +2,7 @@ import bpy
 
 from rigtools.assemblies.ik_templates import IK_TEMPLATES
 from rigtools.panels.ik import ik_setup
+from rigtools.utils.icons import icon
 
 
 class RIG_PT_ik_panel(bpy.types.Panel):
@@ -24,7 +25,7 @@ class RIG_PT_ik_panel(bpy.types.Panel):
 			operator = grid.operator(
 				"rig.advanced_ik_setup",
 				text=template.label,
-				icon=template.icon or 'ARMATURE_DATA',
+				icon=icon(template.icon or 'ARMATURE_DATA'),
 			)
 			operator.template_id = template_id
 			operator.assembly_uid = ""
