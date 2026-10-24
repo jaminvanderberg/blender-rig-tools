@@ -1,25 +1,18 @@
 # RigUI animator script / lite add-on (`rigui.py`)
 
 ## Next steps (start here)
-Step 2 is done and tested. Step 3 is in progress, nothing committed since `7c9928d`.
+Step 2 is done and tested. Steps 3 (properties + snapping) and 5 (visibility) are moved into `rig_ui.py` and wired into rigtools' `__init__.py`; old `property_panel.py`, `snapping_operator.py`, `visibility_panel.py`, `rig_ui_sample.py` deleted; `snapping_data.py` registers the snap data classes. Not yet tested or committed.
 The file is now **`rigtools/rig_ui/rig_ui.py`** (renamed from `rigui.py`; plan text below still says `rigui.py`).
 
-**Done (3a + 3b), not yet tested:**
-- `rig_ui.py` has `stored()`, `property_bone()`, `find_assemblies()` / `find_snap_chain()` (stored copies), `get_selected_bones`, `mirror_pose_selection`, `get_base_name`, `flip_side_name`, `get_matrix`, and both snap operators using `item["key"]` reads plus a None guard. Spike panel removed.
-- `utils/bone.py` and `utils/naming.py` re-export the moved helpers from `rig_ui.py`.
-
-**Left over from step 2 / cleanup:**
-- `property_panel.py` line 26: still `assembly.ui_label`, needs `or assembly.name` (Rig UI version: `assembly.get("ui_label") or assembly.get("name", "")`).
-- Add the "keep in sync" comment above both `find_assemblies` and both `find_snap_chain`.
-- Docstring typo in `property_bone`: "of None" should be "or None". `poll(self, ...)` should be `cls` (optional).
-
 **Resume here:**
-1. Review 3b for errors (the user's own pass).
-2. **3c:** move `RIG_OT_set_id_float` (swap `get_armature_settings` for `property_bone`), `RIG_PT_properties_ui`, `ROLE_DATA`, `_iterate_assemblies`, `get_selected_assemblies` and `draw_float_with_buttons` into `rig_ui.py`, converting to `.get()` reads.
-3. **3d:** rigtools `__init__.py` calls `rig_ui.register()`/`unregister()`; delete `property_panel.py`; strip the operators out of `snapping_operator.py`, leaving only the `RigUISnap*` data registration.
-   - **Until 3d is done, rigtools and `rig_ui.py` both define `rig.snap_ik_to_fk` / `rig.snap_fk_to_ik`.** Don't register `rig_ui.py` alongside rigtools yet.
-4. Test: rigtools enabled (panel, auto-key, both snaps, X-mirror), then rigtools disabled with `rig_ui.py` run as a text block, on 4.x and 5.x.
-5. Commit. Stage the rename with `git add rigtools/rig_ui/rigui.py rigtools/rig_ui/rig_ui.py` so git records it as a rename.
+1. **Fix in `rig_ui.py`:**
+   - `_iterate_assemblies`: `find_snap_chain(..., property.name)` → `name`; the `snap["switch_property"]` read runs before `if snap` (crashes on every non-switch property). Use `if snap and name not in group["snaps"]` and drop `switch_prop`.
+   - `find_assemblies`: `o.get("name")` / `b.get("name")` → `o["name"]` / `b["name"]`.
+2. **Test with rigtools enabled:** Upgrade Rig on the dev rig (v5 → v6) first. Then properties panel groups, FK/IK and On/Off buttons (with auto-key), both snap buttons, X-mirror selection, visibility masks/solidify, and disabling rigtools without errors.
+3. **Test with rigtools disabled:** `rig_ui.py` as a text block, then as an add-on, on 4.x and 5.x. Same checks.
+   - Bow-out (step 6) isn't built yet: **never load `rig_ui.py` while rigtools is enabled.**
+4. **Commit.**
+5. **Step 4: collections view** — the hardest split (see below).
 
 ## Context
 Animators currently need full RigTools to see the Rig UI panels. The goal is **one small file**, `rigtools/rig_ui/rigui.py`, used three ways:
@@ -34,7 +27,8 @@ How we'll work: the user builds this. Claude explains, reviews and helps on requ
 ## Core design
 - **Rigui registers no data classes.** It reads stored data by key through `stored(arm)` (already in `rigui.py`). Rigtools keeps its PropertyGroups exactly as they are.
   - 5.x: `arm.bl_system_properties_get()`. 4.x: `arm[...]`. Both confirmed with rigtools disabled.
-  - Fields never written (empty collections, untouched defaults) have **no key**. Every read uses `.get(key, default)`.
+  - Fields never written (e.g. a collection nothing was ever added to) have **no key**.
+  - **No silent failures:** index required data directly (`assembly["name"]`) and let it raise. Use `.get(key, default)` only where absence is legitimate: no `rigtools` settings / not initialized, no assemblies, no snap chains, an assembly with no `properties`, a missing properties bone. Custom error messages only when they tell the user something actionable (e.g. missing `ui_label` → version incompatible).
   - Enum fields read back as ints. Rigui currently reads none.
 - **What rigui reads** (the whole contract with rigtools — don't rename these in rigtools without updating rigui):
   - Collections: `rig_ui_layout[*]`: `collection_name`, `is_gap`, `same_row`, `hidden`; plus native bone collections.

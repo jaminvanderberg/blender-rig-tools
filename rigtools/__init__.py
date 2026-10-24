@@ -31,9 +31,8 @@ from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
 from rigtools.rig_ui import collections_panel
-from rigtools.rig_ui import property_panel
-from rigtools.rig_ui import visibility_panel
-from rigtools.rig_ui import snapping_operator
+from rigtools.rig_ui import snapping_data
+from rigtools.rig_ui import rig_ui
 
 classes = (
 	preferences.RigToolsPreferences,
@@ -60,13 +59,13 @@ def register():
 
 	rename_chain.register()
 	weight_paint_proxy.register()
-	collections_panel.register()
-	property_panel.register()
-	visibility_panel.register()
-	snapping_operator.register()
 	root_widget.register()
 	human_skeleton.register()
 	create_twist_bones.register()
+
+	collections_panel.register()
+	snapping_data.register()
+	rig_ui.register()
 
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -75,11 +74,13 @@ def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
+	rig_ui.unregister()
+	snapping_data.unregister()
+	collections_panel.unregister()
+
 	create_twist_bones.unregister()
 	human_skeleton.unregister()
 	root_widget.unregister()
-	collections_panel.unregister()
-	property_panel.unregister()
 	weight_paint_proxy.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()
@@ -91,8 +92,6 @@ def unregister():
 	skirt_legs_panel.unregister()
 	config_registry.unregister()
 	assembly_data.unregister()
-	visibility_panel.unregister()
-	snapping_operator.unregister()
 	migrate_rig.unregister()
 	armature_settings.unregister()
 

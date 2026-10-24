@@ -1,4 +1,4 @@
-from rigtools.utils.naming import flip_side_name, generate_bone_name
+from rigtools.utils.naming import generate_bone_name
 from rigtools.rig_ui.rig_ui import get_selected_bones, mirror_pose_selection
 
 def duplicate_bone(armature_data, bone, name, scale):

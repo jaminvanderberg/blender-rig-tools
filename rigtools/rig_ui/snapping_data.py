@@ -33,8 +33,17 @@ def delete_snap_chain(armature_data, switch_property):
 			armature_data.rig_ui_snap_chains.remove(i)
 			break
 
-def find_snap_chain(armature_data, switch_property):
-	for item in armature_data.rig_ui_snap_chains:
-		if item.switch_property == switch_property:
-			return item
-	return None
+classes = (
+	RigUISnapBoneItem,
+	RigUISnapChainItem,
+)
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+	bpy.types.Armature.rig_ui_snap_chains = CollectionProperty(type=RigUISnapChainItem)
+
+def unregister():
+	del bpy.types.Armature.rig_ui_snap_chains
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)

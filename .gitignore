@@ -2,3 +2,4 @@
 site/
 .claude/
 claude.md
+.venv/
