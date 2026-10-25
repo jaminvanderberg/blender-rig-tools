@@ -376,9 +376,6 @@ class RIG_OT_ui_collection_rename(bpy.types.Operator):
 			return {'FINISHED'}
 
 		existing = _coll_by_name(armature_data, new_name)
-		if existing is not None and existing != coll:
-			self.report({'ERROR'}, f"Collection '{new_name}' already exists.")
-			return {'CANCELLED'}
 
 		for row in armature_data.rigtools_limb_collections:
 			for role in ("fk", "ik", "tweak", "mch", "master", "control"):
@@ -386,11 +383,31 @@ class RIG_OT_ui_collection_rename(bpy.types.Operator):
 					setattr(row, role, new_name)
 
 		rename_layout_collection(armature_data, old_name, new_name)
+
+		if existing is not None:
+			_merge_collection(context, armature_data, coll, existing)
+			_set_selection(context, new_name, False)
+			self.report({'INFO'}, f"Merged collection '{old_name}' into '{new_name}'")
+			return {'FINISHED'}
+
 		coll.name = new_name
 		_set_selection(context, new_name, False)
 
 		self.report({'INFO'}, f"Renamed collection '{old_name}' to '{new_name}'")
 		return {'FINISHED'}
+
+def _merge_collection(context, armature_data, src, dst):
+	# Bone membership isn't synced to coll.bones in edit mode, so read edit bones there
+	if context.mode == 'EDIT_ARMATURE':
+		bones = [eb for eb in armature_data.edit_bones if src.name in eb.collections]
+	else:
+		bones = list(src.bones)
+	for bone in bones:
+		dst.assign(bone)
+	for child in list(src.children):
+		if child != dst:
+			child.parent = dst
+	armature_data.collections.remove(src)
 
 class RIG_MT_ui_collection_actions(bpy.types.Menu):
 	bl_idname = "RIG_MT_ui_collection_actions"

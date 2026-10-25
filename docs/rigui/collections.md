@@ -43,7 +43,7 @@ Click **Edit** to rearrange the buttons.  In edit mode, clicking a button select
 
 Gaps can be selected, moved with Row up / Row down, and removed with the **X** button next to them.
 
-Renaming from the Rig UI renames the actual bone collection, and keeps the assemblies that use it up to date.  Everything else in edit mode only changes the layout.
+Renaming from the Rig UI renames the actual bone collection, and keeps the assemblies that use it up to date.  Renaming to the name of another collection merges the two: the bones and child collections are moved into the existing collection, and the renamed one is removed.  Everything else in edit mode only changes the layout.
 
 Hidden collections are shown greyed out in edit mode, and aren't shown at all outside of edit mode.  Hiding is useful for collections that animators should never need, like MCH, ORG, and DEF.
 

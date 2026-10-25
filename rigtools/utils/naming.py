@@ -4,23 +4,10 @@ import string
 from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
 from rigtools.rig_ui.rig_ui import get_base_name, flip_side_name
 
-GROUP_REMAP = {
-	"hand": "Arm",
-	"foot": "Leg",
-	"neck": "Head",
-	"spine": "Torso",
-	"thigh": "Leg",
-	"shin": "Leg",
-	"calf": "Leg",
-	"forearm": "Arm",
-}
-
 SIDE_NAMES = {
 	"L": "Left",
 	"R": "Right"
 }
-
-QUALIFIER_NAMES = ("upper", "lower", "left", "right", "front", "back", "top", "bottom", "inner", "outer")
 
 # Tool-owned naming contract. User-facing boundaries (DEF/ORG/FK) stay in preferences.
 BONE = {
@@ -239,13 +226,12 @@ def generate_property_name(template, base_name, side):
 def generate_bone_collection_name(template, base_name, side):
 	ret = template
 	if "{Name}" in template:
-		ret = ret.replace("{Name}", base_name.capitalize())
+		ret = ret.replace("{Name}", capitalize_limb_name(base_name))
 	if "{name}" in template:
 		ret = ret.replace("{name}", base_name)
 	if "{side}" in template:
 		ret = ret.replace("{side}", side)
 	return ret
-
 
 def _tokens(name, context=None):
 	separators = re.escape(get_preferences(context).strip_separators.strip())
@@ -254,18 +240,28 @@ def _tokens(name, context=None):
 
 	return [t for t in re.split(rf"[{separators}]", name) if t]
 
-
 def guess_limb_name(bone_name, context=None):
 	base, _extension = get_base_name(bone_name)
 	base = strip_bone_tags(base, context)
-	tokens = _tokens(base, context)
-	tokens = [t for t in tokens if t.lower() not in QUALIFIER_NAMES and not t.isdigit()]
-	if not tokens:
-		return ""
-	key = tokens[0].lower()
-	if key in GROUP_REMAP:
-		return GROUP_REMAP[key].capitalize()
-	return key.capitalize()
+	separators = re.escape(get_preferences(context).strip_separators.strip())
+	if not separators:
+		return base.lower()
+
+	# Even indices are tokens, odd indices are the separators between them
+	parts = re.split(rf"([{separators}])", base)
+	kept = []
+	for i in range(0, len(parts), 2):
+		token = parts[i]
+		if not token or token.isdigit() or len(token) == 1:
+			continue
+		if kept:
+			kept.append(parts[i - 1])
+		kept.append(token)
+	return "".join(kept).lower()
+
+
+def capitalize_limb_name(name):
+	return re.sub(r"[A-Za-z0-9]+", lambda m: m.group(0).capitalize(), name)
 
 
 def guess_assembly_instance(bone_name, context=None):
@@ -311,7 +307,7 @@ def limb_group_label(property_base, side=""):
 	if not base:
 		return ""
 	side_name = side_display_name(side)
-	label = base.capitalize()
+	label = capitalize_limb_name(base)
 	if side_name:
 		return f"{side_name} {label}"
 	return label
@@ -321,11 +317,12 @@ def guess_assembly_name(armature_data, chain, property_base, side="", context=No
 	side_name = side_display_name(side)
 
 	instance = guess_assembly_instance(chain[0], context)
+	base = capitalize_limb_name(property_base)
 	
 	if side_name:
-		name = f"{side_name} {property_base.capitalize()}{instance}"
+		name = f"{side_name} {base}{instance}"
 	else:
-		name = f"{property_base.capitalize()}{instance}"
+		name = f"{base}{instance}"
 	return unique_assembly_name(armature_data, name)
 
 

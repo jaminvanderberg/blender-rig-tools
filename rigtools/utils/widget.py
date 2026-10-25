@@ -11,6 +11,7 @@ fk_widget_types = [
 	('FK', 'FK Shape', 'Create a FK widget'),
 	('BOX', 'Box', 'Create a box widget'),
 	('PILL', 'Pill', 'Create a pill widget'),
+	('SPHERE', 'Sphere', 'Create a sphere widget'),
 	('SHOULDER', 'Shoulder', 'Create a shoulder widget'),
 	('IK', 'IK Shape', 'Create an IK widget'),
 	('NONE', 'None', 'No widget'),

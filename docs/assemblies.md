@@ -51,6 +51,14 @@ The bones for the bow and the flyaways can be used to make another assembly, or 
 The tools *[Select Hierarchy](selection.md#select-hierarchy)* and *[Select Connected](selection.md#select-connected)* can be used to help select chains.  They are particularly useful for selecting multiple chains.
 The "Select Connected" tool can be useful for selecting just the connected parts of a branching chain.
 
+### Limb Name
+
+Every assembly belongs to a limb.  The limb name, together with the side, decides which bone collections the controls go into, how the properties are named, and how they're grouped in the *[Rig Properties](rigui/properties.md)* panel.  Assemblies with the same limb name and side share collections and properties.
+
+Templates for common limbs (Arm, Leg, Hand, Torso) use a fixed limb name.  Otherwise, the limb name is guessed from the bone names, ignoring the side, prefixes like `DEF` and `ORG`, numbers, and single letters.  For example, `DEF-ponytail.flyaway.A.003.L` guesses `ponytail.flyaway`.  The guess can be changed in the redo panel.
+
+When several chains are selected, all of the assemblies get the same limb name.  Only their sides can differ.  To give chains different limb names, create them separately.
+
 ### Reversible
 
 All assemblies are reversible -- to a point.
