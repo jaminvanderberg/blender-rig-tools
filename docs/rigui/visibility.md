@@ -21,8 +21,12 @@ With a mesh selected instead of the armature, the panel shows that mesh's mask m
 !!! tip
     Modifiers whose names start with an underscore (`_`) are ignored by the Visibility panel.  Use this for modifiers that animators shouldn't touch.
 
-!!! screenshot "Image placeholder"
-    `image/visibility_panel.png` — The Visibility panel for a clothed character, showing the body mesh box with its mask modifier toggles, the list of other meshes with eye toggles, and the Toggle Solidify button.
+
+<figure markdown="span">
+    ![Visibility panel](../image/visibility_panel.png){ width="240" }
+    <figcaption>Meshes with mask modifiers get their own box (Bunny Outfit, Hair.Baked), and other meshes are listed below (Kendra). Toggle Solidify switches every solidify modifier at once.</figcaption>
+</figure>
+
 
 ## Related
 

@@ -47,5 +47,17 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+UI_SRC="${SRC}/rig_ui/rig_ui.py"
+UI_OUT="${ROOT}/rigtools_ui.py"
+
+# rig_ui.py must stand alone: it runs embedded in .blend files and as its own add-on
+if grep -qiE '(from|import)[[:space:]]+rigtools' "${UI_SRC}"; then
+  echo "ERROR: rig_ui.py imports rigtools. It must not depend on the RigTools add-on."
+  exit 1
+fi
+
+cp "${UI_SRC}" "${UI_OUT}" || { echo "ERROR: Failed to copy ${UI_OUT}."; exit 1; }
+echo "Created: ${UI_OUT}"
+
 echo "Created: ${OUT}"
 exit 0

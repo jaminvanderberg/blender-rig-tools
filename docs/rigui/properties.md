@@ -14,8 +14,10 @@ The Rig Properties panel shows the properties for every assembly that the select
 
 The properties are stored on the *[property bone](../armature_settings.md#property-bone)*, so they can be keyframed like any other custom property.  When auto keying is on, clicking one of the buttons next to a property inserts a keyframe.
 
-!!! screenshot "Image placeholder"
-    `image/rig_properties.png` — The Rig Properties panel with an arm control selected, showing FK > IK Switch, IK Stretch, FK Rotation Follow, and IK Parent, plus the IK > FK / FK > IK snap buttons.
+<figure markdown="span">
+    ![Rig Properties panel](../image/rig_properties.png){ width="360" }
+    <figcaption>A left arm control selected: the arm's switches and IK parent, plus its snap buttons.</figcaption>
+</figure>
 
 ## Properties
 

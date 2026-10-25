@@ -1,7 +1,9 @@
 # Workflow
+<figure markdown="span">
+    ![Finished rig](image/workflow_finished_rig.png){ width="360" }
+    <figcaption>A finished rig in Pose mode, with the Rig UI and Rig Properties panels open.</figcaption>
+</figure>
 
-!!! screenshot "Image placeholder"
-    `image/workflow_finished_rig.png` — A finished character rig in Pose mode (torso, arms, legs, fingers, and a skirt or hair assembly), with the Rig UI panel open.  Shows where the workflow ends up.
 
 1. Create the initial rig skeleton:<br>
 

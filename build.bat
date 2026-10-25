@@ -19,5 +19,22 @@ if errorlevel 1 (
     exit /b 1
 )
 
+set "UI_SRC=%SRC%\rig_ui\rig_ui.py"
+set "UI_OUT=%ROOT%rigtools_ui.py"
+
+rem rig_ui.py must stand alone: it runs embedded in .blend files and as its own add-on
+findstr /I /C:"from rigtools" /C:"import rigtools" "%UI_SRC%" >nul
+if not errorlevel 1 (
+    echo ERROR: rig_ui.py imports rigtools. It must not depend on the RigTools add-on.
+    exit /b 1
+)
+
+copy /y "%UI_SRC%" "%UI_OUT%" >nul
+if errorlevel 1 (
+    echo ERROR: Failed to copy %UI_OUT%.
+    exit /b 1
+)
+echo Created: %UI_OUT%
+
 echo Created: %OUT%
 exit /b 0

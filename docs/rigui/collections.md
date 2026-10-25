@@ -1,8 +1,5 @@
 # Rig UI (Collections)
 
-!!! info
-    This is AI-generated documentation that has not yet been human reviewed.
-
 Buttons for showing and hiding the rig's bone collections.
 
 **Where:** n-Panel > Item > Rig UI (armature, or a mesh deformed by the armature)
@@ -16,8 +13,10 @@ New bone collections are added to the bottom of the panel automatically.  Bone c
 
 The button layout is stored on the armature, so it's saved with the rig and shared with anyone who uses it.  The layout is separate from Blender's bone collection list; rearranging or hiding buttons in the Rig UI doesn't change the order or visibility of the bone collections themselves.
 
-!!! screenshot "Image placeholder"
-    `image/rig_ui_collections.png` — The Rig UI panel for a finished character, with the collection buttons arranged into rows (e.g. Torso; Arm.FK.L / Arm.FK.R; Arm.IK.L / Arm.IK.R; tweaks) and gaps between groups.
+<figure markdown="span">
+    ![Rig UI panel](../image/rigui_collections.png){ width="240" }
+    <figcaption>A finished character's Rig UI.</figcaption>
+</figure>
 
 ### Assembly bone collections
 
@@ -28,6 +27,9 @@ Assemblies that share a limb name and side share the same collections.  For exam
 The collections for a limb can be renamed from the *[Assembly Panel](../assemblies.md#assembly-panel)*.  Click the collection icon next to the assembly name, and enter the new names.  The Rig UI layout is updated to match.
 
 ## Editing the layout
+
+!!! note
+    Editing needs the full RigTools add-on.  With the embedded script or the RigTools UI add-on, the panel shows the layout but has no **Edit** button.
 
 Click **Edit** to rearrange the buttons.  In edit mode, clicking a button selects it instead of toggling the collection.  With a button selected:
 

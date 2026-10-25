@@ -1,12 +1,14 @@
 bl_info = {
 	"name": "RigTools UI",
 	"author": "Jamin VanderBerg",
-	"version": (0, 2),
+	"version": (0, 3),
 	"blender": (4, 0, 0),
 	"location": "View3D > Sidebar > Item",
 	"description": "Animator panels for rigs built with Rig Tools",
 	"category": "Rigging"
 }
+
+RIG_DATA_VERSION = 6 # highest rig version this script understands
 
 import bpy
 import re
@@ -195,8 +197,16 @@ class RIG_PT_collection_ui(bpy.types.Panel):
 		return context.object and _panel_armature(context.object) is not None
 
 	def draw(self, context):
-
 		armature_data = _panel_armature(context.object)
+
+		settings = stored(armature_data).get("rigtools")
+		if settings and settings.get("rig_data_version", 0) > RIG_DATA_VERSION:
+			col = self.layout.box().column(align=True)
+			col.alert = True
+			col.label(text="This rig was made with a", icon='ERROR')
+			col.label(text="newer version of RigTools.")
+			col.label(text="Update RigTools UI version so that")
+			col.label(text="all features will be available.")
 
 		if self.edit_hook and self.edit_hook(context, armature_data):
 			return	# Full add-on drew edit UI

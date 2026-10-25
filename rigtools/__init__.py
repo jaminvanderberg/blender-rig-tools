@@ -1,5 +1,5 @@
 bl_info = {
-	"name": "Rig Tools",
+	"name": "RigTools",
 	"author": "Jamin VanderBerg",
 	"version": (0, 97),
 	"blender": (4, 0, 0),
@@ -45,6 +45,11 @@ classes = (
 )
 
 def register():
+	if rig_ui.RIG_DATA_VERSION != armature_settings.CURRENT_RIG_DATA_VERSION:
+		raise RuntimeError(
+			f"rig_ui.RIG_DATA_VERSION ({rig_ui.RIG_DATA_VERSION}) must match "
+			f"CURRENT_RIG_DATA_VERSION ({armature_settings.CURRENT_RIG_DATA_VERSION})"
+		)
 
 	armature_settings.register()
 	migrate_rig.register()

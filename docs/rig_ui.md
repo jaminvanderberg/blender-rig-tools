@@ -3,7 +3,7 @@
 !!! info
     This is AI-generated documentation that has not yet been human reviewed.
 
-After the assemblies are built, animators work from the Rig UI panels in the **Item** tab of the n-panel, not the RigTools build panels.  The Rig UI is built into the addon.  These is currently no script to generate, but this is a planned development for the future.
+After the assemblies are built, animators work from the Rig UI panels in the **Item** tab of the n-panel, not the RigTools build panels.  The panels are built into RigTools, and can also be shared with animators who don't have RigTools installed.  See *[Sharing with Animators](rigui/animators.md)*.
 
 !!! tip
     Bone collections created by assemblies are **kept** when you delete or reconfigure an
@@ -23,7 +23,7 @@ With the armature selected (or a mesh deformed by the armature):
     `image/rig_ui_overview.png` — The Item tab with all three panels open (Rig UI, Rig Properties, Visibility) while an arm control is selected.
 
 !!! note
-    The Rig UI panels are part of the RigTools addon.  Animators need RigTools installed to see them.
+    Animators don't need RigTools to see these panels.  Embed the script in the rig with *[Embed Animator UI](operators/embed_ui.md)*, or have animators install the **RigTools UI** add-on.  See *[Sharing with Animators](rigui/animators.md)*.
 
 ## Typical animator workflow
 
@@ -34,6 +34,7 @@ With the armature selected (or a mesh deformed by the armature):
 
 ## Related
 
+- [Sharing with Animators](rigui/animators.md)
 - [Assemblies](assemblies.md)
 - [IK Assemblies](ik_assemblies.md)
 - [FK Assemblies](fk_assemblies.md)
