@@ -74,12 +74,18 @@ class TemplateDraw:
 		row = layout.row(align=True)
 		row.prop(self.op, prop, expand=True)
 
-	def split_row(self, layout, sections: list[SplitSection]):
+	def split_row(self, layout, sections: list[SplitSection], *, align_to_split=False):
+		"""align_to_split: split two sections at split_size, lining the second up with split_field values."""
 		if not self.do_show_any([section.prop for section in sections]):
 			return
-		row = layout.row(align=True)
+		if align_to_split:
+			row = layout.split(align=True, factor=self.split_size)
+		else:
+			row = layout.row(align=True)
 		for section in sections:
 			if not self.do_show(section.prop):
+				if align_to_split:
+					row.row(align=True) # keep the column position
 				continue
 			sub = row.row(align=True)
 			sub.enabled = section.enabled

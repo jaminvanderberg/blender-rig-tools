@@ -1,4 +1,5 @@
 import bpy
+import json
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
 from rigtools.utils.naming import limb_group_label, name_bone
@@ -129,10 +130,35 @@ def migrate_5_to_6(armature_data, context):
 	)
 
 
+def migrate_6_to_7(armature_data, context):
+	"""Convert the fk_widget_taper float option to the taper_fk_widgets bool."""
+	print(f"migrate_6_to_7: {len(armature_data.rigtools_assemblies)} assemblies")
+	converted = 0
+	skipped = 0
+
+	for assembly in armature_data.rigtools_assemblies:
+		options = assembly.get_options()
+		if "fk_widget_taper" not in options:
+			skipped += 1
+			print(f"  {assembly.name} ({assembly.assembly_type}): no fk_widget_taper")
+			continue
+		old_value = options.pop("fk_widget_taper")
+		options["taper_fk_widgets"] = old_value > 0
+		assembly.options_json = json.dumps(options)
+		converted += 1
+		print(f"  {assembly.name} ({assembly.assembly_type}): fk_widget_taper={old_value!r} -> taper_fk_widgets={options['taper_fk_widgets']}")
+
+	print(
+		f"migrate_6_to_7 done: converted={converted} "
+		f"skipped={skipped}"
+	)
+
+
 MIGRATIONS = {
 	3: migrate_3_to_4,
 	4: migrate_4_to_5,
 	5: migrate_5_to_6,
+	6: migrate_6_to_7,
 }
 
 def upgrade_rig(armature_data, context):

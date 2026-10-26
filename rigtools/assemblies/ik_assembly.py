@@ -40,6 +40,8 @@ class IKAssemblyOptions:
 	enable_snapping: bool = True
 	tip_widget: str = 'CIRCLE'
 	fk_end_widget: str = 'SAME'
+	normalize_fk_widget_scale: bool = False
+	taper_fk_widgets: bool = False
 
 	add_foot_roll: bool = False
 
@@ -137,6 +139,8 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				switch_property_name = switch_property_name,
 				fk_widget_type = options.fk_widget,
 				fk_end_widget_type = options.fk_end_widget,
+				normalize_fk_widget_scale = options.normalize_fk_widget_scale,
+				taper_fk_widgets = options.taper_fk_widgets,
 			)
 			fk_ik_switch.edit_mode(context, switch_chain, name_source = org_chain)
 			fk_bone_names, ik_bone_names = fk_ik_switch.fk_bone_names, fk_ik_switch.ik_bone_names

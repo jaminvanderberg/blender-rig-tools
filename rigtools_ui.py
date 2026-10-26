@@ -1,14 +1,14 @@
 bl_info = {
 	"name": "RigTools UI",
 	"author": "Jamin VanderBerg",
-	"version": (0, 3),
+	"version": (0, 4),
 	"blender": (4, 0, 0),
 	"location": "View3D > Sidebar > Item",
 	"description": "Animator panels for rigs built with Rig Tools",
 	"category": "Rigging"
 }
 
-RIG_DATA_VERSION = 6 # highest rig version this script understands
+RIG_DATA_VERSION = 7 # highest rig version this script understands
 
 import bpy
 import re

@@ -1,16 +1,14 @@
-import cProfile # TEMP: profiling
-import pstats # TEMP: profiling
 import bpy
 from bpy.props import (
 	StringProperty,
 	BoolProperty,
 	EnumProperty,
 	IntProperty,
-	FloatProperty,
 )
 
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.utils.profiling import profile
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.fk_assembly import FKAssemblyOptions, create_fk_assembly
 from rigtools.assemblies.fk_templates import get_fk_template, validate_fk_templates
@@ -208,16 +206,14 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 	normalize_fk_widget_scale: BoolProperty(
 		name="Normalize FK Widget Scale",
-		description="Normalize the scale of the FK widgets.",
+		description="Size every FK widget to the chain's average bone length.",
 		default=False
 	)
 
-	fk_widget_taper: FloatProperty(
-		name="FK Widget Taper",
-		description="Shrink FK widgets toward the tip when normalize is on (0 = flat, 1 = tip vanishes).",
-		default=0.0,
-		min=0.0,
-		max=0.8,
+	taper_fk_widgets: BoolProperty(
+		name="Taper FK Widgets",
+		description="Shrink normalized FK widgets toward the tip.",
+		default=False
 	)
 
 	create_shoulder_vis: BoolProperty(
@@ -345,6 +341,8 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				return self.control_mode != 'FK' and (self.add_tweak_bones or self.control_mode == 'TWEAK')
 			if field_name in ["fk_widget"]:
 				return self.control_mode != 'TWEAK'
+			if field_name in ["normalize_fk_widget_scale", "taper_fk_widgets"]:
+				return self.control_mode != 'TWEAK' and self.fk_widget != 'NONE'
 			if field_name in ["add_tweak_bones"]:
 				control_mode_visible = template is None or "control_mode" in template.redo_fields
 				return self.control_mode != 'TWEAK' and not control_mode_visible
@@ -375,13 +373,17 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"], 
+		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"],
 			"FK Chain Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets"], lambda: (
 				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
 				draw.split_field(col, "Control Mode:", "control_mode"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
+				draw.split_row(col, [
+					SplitSection(label="Normalize Widget Scale", prop="normalize_fk_widget_scale"),
+					SplitSection(label="Taper", prop="taper_fk_widgets", enabled=self.normalize_fk_widget_scale),
+				], align_to_split=True),
 			)),
 			draw.draw_section(col, ["add_tweak_bones", "tweak_relationship", "skip_first_tweak"], lambda: (
 				draw.full_field(col, "Add Tweak Bones", "add_tweak_bones"),
@@ -475,7 +477,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			add_finger_curl=self.add_finger_curl,
 			finger_curl_axis=self.finger_curl_axis,
 			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
-			fk_widget_taper=self.fk_widget_taper,
+			taper_fk_widgets=self.taper_fk_widgets,
 			create_shoulder_vis=self.create_shoulder_vis,
 			share_fk_ik_role=self.share_fk_ik_role,
 		)
@@ -521,18 +523,13 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			else:
 				return create(None, chains, {})
 
-		# TEMP: profiling - output goes to Window > Toggle System Console
-		profiler = cProfile.Profile()
-		profiler.enable()
 		try:
-			fk_controls = run_assembly_transaction(build)
+			with profile():
+				fk_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)
 			return {'CANCELLED'}
-		finally:
-			profiler.disable()
-			pstats.Stats(profiler).sort_stats('cumulative').print_stats(25)
 
 		if fk_controls:
 			if context.object.mode != 'POSE':

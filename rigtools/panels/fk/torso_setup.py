@@ -3,6 +3,7 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.utils.profiling import profile
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_torso_assembly
@@ -449,7 +450,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				return create(None, chains, {})
 
 		try:
-			torso_controls = run_assembly_transaction(build)
+			with profile():
+				torso_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)

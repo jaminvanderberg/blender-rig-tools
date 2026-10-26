@@ -1,10 +1,10 @@
 import bpy
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
-from rigtools.assemblies.assembly_data import find_assemblies, find_assembly
+from rigtools.assemblies.assembly_data import find_assemblies, find_assembly, find_similar_assemblies
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.limb_collections import find_bones_by_limb_role, find_limb_collections
-from rigtools.utils.bone import get_selected_bones
+from rigtools.utils.bone import get_selected_bones, select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES
 
@@ -14,6 +14,12 @@ ASSEMBLY_TYPE_OPERATORS = {
 	'TORSO': "rig.advanced_torso_setup",
 	'PALM': "rig.advanced_palm_setup"
 }
+
+SELECT_SIMILAR_MODES = [
+	('LIMB', "Same Limb", "Select assemblies with the same limb name"),
+	('CONFIG', "Same Configuration", "Select assemblies with the same limb name and options"),
+]
+SELECT_SIMILAR_ROLES = ("fk", "ik", "control", "master")
 
 def find_assemblies_from_selection(context):
 	bones = get_selected_bones(context)
@@ -38,38 +44,8 @@ def get_active_assembly(context, assemblies):
 			return assembly
 	return None
 
-class RIG_OT_rename_assembly(bpy.types.Operator):
-	bl_description = "Rename the selected assembly"
-	bl_idname = "rig.rename_assembly"
-	bl_label = "Rename Assembly"
-	bl_options = {'REGISTER', 'UNDO'}
-
-	assembly_uid: bpy.props.StringProperty()
-	name: bpy.props.StringProperty(name="Name")
-
-	def invoke(self, context, event):
-		assembly = find_assembly(context.object, self.assembly_uid)
-		if not assembly:
-			self.report({'ERROR'}, "Assembly not found")
-			return {'CANCELLED'}
-		self.name = assembly.name
-		return context.window_manager.invoke_props_dialog(self, width=250)
-
-	def draw(self, context):
-		self.layout.prop(self, "name")
-
-	def execute(self, context):
-		assembly = find_assembly(context.object, self.assembly_uid)
-		if not assembly:
-			self.report({'ERROR'}, "Assembly not found")
-			return {'CANCELLED'}
-		if not self.name.strip():
-			self.report({'ERROR'}, "Name cannot be empty")
-			return {'CANCELLED'}
-
-		assembly.name = self.name.strip()
-		
-		return {'FINISHED'}
+def adds_to_selection(armature_data, source, mode, include_mirror, selected_uids):
+	return any(a.uid not in selected_uids for a in find_similar_assemblies(armature_data, source, mode, include_mirror))
 
 class RIG_OT_rename_limb_collections(bpy.types.Operator):
 	bl_idname = "rig.rename_limb_collections"
@@ -150,6 +126,38 @@ class RIG_OT_delete_assembly(bpy.types.Operator):
 		self.report({'INFO'}, f"Assembly {assembly_name} deleted")
 		return {'FINISHED'}
 
+class RIG_OT_select_similar_assemblies(bpy.types.Operator):
+	bl_idname = "rig.select_similar_assemblies"
+	bl_label = "Select Similar Assemblies"
+	bl_description = "Select assemblies similar to this one. Shift to extend the selection"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	assembly_uid: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+	mode: bpy.props.EnumProperty(name="Mode", items=SELECT_SIMILAR_MODES, default='LIMB', options={'SKIP_SAVE'})
+	include_mirror: bpy.props.BoolProperty(name="Include Mirror", description="Also select the matching assemblies on the other side", default=True)
+	extend: bpy.props.BoolProperty(name="Extend", default=False, options={'SKIP_SAVE'})
+
+	def invoke(self, context, event):
+		self.extend = event.shift
+		return self.execute(context)
+
+	def execute(self, context):
+		obj = context.object
+		source = find_assembly(obj, self.assembly_uid)
+		if not source:
+			self.report({'ERROR'}, "Assembly not found")
+			return {'CANCELLED'}
+
+		# Source goes first so its bone becomes active, which Reconfigure All Selected uses as the source
+		similar = [a for a in find_similar_assemblies(obj.data, source, self.mode, self.include_mirror) if a.uid != source.uid]
+		bone_names = []
+		for assembly in [source] + similar:
+			for role in SELECT_SIMILAR_ROLES:
+				bone_names.extend(assembly.get_bones_by_role(role))
+
+		select_bones(obj, bone_names, deselect=not self.extend)
+		return {'FINISHED'}
+
 class RIG_OT_reconfigure_selected_assemblies(bpy.types.Operator):
 	"""Reconfigure all selected assemblies"""
 	bl_idname = "rig.reconfigure_selected_assemblies"
@@ -206,6 +214,9 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			layout.separator()
 
 		assemblies = find_assemblies_from_selection(context)
+		selected_uids = {a.uid for a in assemblies}
+		# Match the greyed-out state to what a click would do, including a remembered Include Mirror
+		include_mirror = context.window_manager.operator_properties_last(RIG_OT_select_similar_assemblies.bl_idname).include_mirror
 
 		for assembly in assemblies:
 			box = layout.box()
@@ -219,7 +230,10 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			
 			row.label(text=template)
 
-			op = row.operator("rig.rename_assembly", text="", icon='GREASEPENCIL')
+			# Same Configuration is a subset of Same Limb, so Same Limb decides whether the button is useful
+			sub = row.row(align=True)
+			sub.enabled = adds_to_selection(armature_data, assembly, 'LIMB', include_mirror, selected_uids)
+			op = sub.operator(RIG_OT_select_similar_assemblies.bl_idname, text="", icon='RESTRICT_SELECT_OFF')
 			op.assembly_uid = assembly.uid
 
 			row.separator(factor=0.5)
@@ -235,7 +249,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			op.assembly_uid = assembly.uid
 			op = row.operator("rig.delete_assembly", text="Delete", icon='TRASH')
 			op.assembly_uid = assembly.uid
-			
+
 			configs = list(iterate_configs(assembly))
 			if configs:
 				col.separator(factor=0.5)
@@ -264,9 +278,9 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 
 classes = (
 	RIG_OT_delete_assembly,
-	RIG_OT_rename_assembly,
 	RIG_OT_rename_limb_collections,
 	RIG_OT_reconfigure_selected_assemblies,
+	RIG_OT_select_similar_assemblies,
 	RIG_PT_assembly_panel,
 )
 

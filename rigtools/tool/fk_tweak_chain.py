@@ -3,7 +3,7 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_reparent_rule
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 
@@ -16,7 +16,7 @@ class FKTweakChain:
 		tweak_relationship: str = "STRETCH_TO",
 		tweak_scale: float = 0.25,
 		normalize_fk_widget_scale: bool = False,
-		fk_widget_taper: float = 0.0,
+		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
 		inherit_xz_scale_from_previous: bool = False, # ik scaling fix
 	):
@@ -27,7 +27,7 @@ class FKTweakChain:
 		self.tweak_relationship = tweak_relationship
 		self.tweak_scale = tweak_scale
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
-		self.fk_widget_taper = fk_widget_taper
+		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
 		self.inherit_xz_scale_from_previous = inherit_xz_scale_from_previous
 
@@ -194,20 +194,15 @@ class FKTweakChain:
 			
 
 		# Widgets
-		n = len(self.fk_bone_names)
-		avg = sum(pose_bones[name].length for name in self.fk_bone_names) / n if n else 0.0
+		scales = chain_widget_scales([pose_bones[name].length for name in self.fk_bone_names],
+			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
 
-		for i, fk_name in enumerate(self.fk_bone_names):
+		for fk_name, scale in zip(self.fk_bone_names, scales):
 			fk_bone = pose_bones[fk_name]
 			wgt = apply_widget(context, fk_bone, self.fk_widget)
 			if wgt is None: continue
 
-			if self.normalize_fk_widget_scale:
-				s = avg / fk_bone.length
-				if n > 1 and self.fk_widget_taper:
-					t = i / (n - 1)
-					s *= 1.0 - self.fk_widget_taper * t
-				fk_bone.custom_shape_scale_xyz = (s, 1.0, s)
+			fk_bone.custom_shape_scale_xyz = widget_scale_xyz(self.fk_widget, scale)
 
 			self.object_names.append(wgt.name)
 

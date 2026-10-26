@@ -19,6 +19,33 @@ fk_widget_types = [
 
 master_widget_types = [item for item in fk_widget_types if item[0] != 'NONE']
 
+# Widgets that should keep their proportions when scaled (everything else scales X/Z only, keeping bone length)
+UNIFORM_SCALE_WIDGETS = {'SPHERE'}
+
+FK_WIDGET_TAPER = 0.2 # tip widget ends at 80% size
+
+def chain_widget_scales(lengths, *, normalize=False, taper=False):
+	"""Per-bone widget scale factor for a chain.
+	normalize: size every widget to the chain's average bone length.
+	taper: shrink widgets toward the tip (only with normalize)."""
+	n = len(lengths)
+	if not normalize:
+		return [1.0] * n
+	avg = sum(lengths) / n if n else 0.0
+	scales = []
+	for i, length in enumerate(lengths):
+		s = avg / length
+		if taper and n > 1:
+			s *= 1.0 - FK_WIDGET_TAPER * i / (n - 1)
+		scales.append(s)
+	return scales
+
+def widget_scale_xyz(widget_type, s):
+	"""custom_shape_scale_xyz for a scale factor."""
+	if widget_type in UNIFORM_SCALE_WIDGETS:
+		return (s, s, s)
+	return (s, 1.0, s)
+
 def create_widget(context, widget_type, bone_name, **kwargs):
 	if widget_type == 'NONE':
 		return None

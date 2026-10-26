@@ -18,6 +18,26 @@ def find_assemblies(armature_data, bone_names):
 			assemblies.append(assembly)
 	return assemblies
 
+# Config payloads that tools write back into options_json; they hold per-chain bone names
+CONFIG_OPTION_KEYS = {"ik_parent_config", "skirt_collision", "skirt_ride"}
+
+def find_similar_assemblies(armature_data, source, mode, include_mirror):
+	"""mode 'LIMB': same limb name. mode 'CONFIG': also the same options.
+	include_mirror matches any side, otherwise only the source's side. Yields the source assembly too."""
+	source_options = source.get_options()
+	limb = source_options["limb_property_base_name"]
+	source_config = {k: v for k, v in source_options.items() if k not in CONFIG_OPTION_KEYS}
+
+	for assembly in armature_data.rigtools_assemblies:
+		if not include_mirror and assembly.side != source.side:
+			continue
+		options = assembly.get_options()
+		if options["limb_property_base_name"] != limb:
+			continue
+		if mode == 'CONFIG' and {k: v for k, v in options.items() if k not in CONFIG_OPTION_KEYS} != source_config:
+			continue
+		yield assembly
+
 def check_assembly_use(armature_data, bone_names):
 	to_check = set(bone_names)
 	assemblies = []

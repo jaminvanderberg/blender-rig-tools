@@ -1,14 +1,12 @@
 import bpy
 
 def remove_object(obj):
-	if obj is None:
-		return
+	remove_objects([obj])
 
-	data = obj.data
-	bpy.data.objects.remove(obj, do_unlink=True)
+def remove_objects(objects):
+	# batch_remove scans the file once, instead of once per object like objects.remove()
+	objects = [obj for obj in objects if obj is not None]
+	data = {obj.data for obj in objects if isinstance(obj.data, (bpy.types.Mesh, bpy.types.Curve))}
 
-	if data is not None and data.users == 0:
-		if isinstance(data, bpy.types.Mesh):
-			bpy.data.meshes.remove(data)
-		elif isinstance(data, bpy.types.Curve):
-			bpy.data.curves.remove(data)
+	bpy.data.batch_remove(objects)
+	bpy.data.batch_remove([d for d in data if d.users == 0])

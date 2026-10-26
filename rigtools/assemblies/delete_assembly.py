@@ -3,7 +3,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.reparent_rules import apply_reparent_rule
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
-from rigtools.utils.object import remove_object
+from rigtools.utils.object import remove_objects
 
 def delete_assembly(context, assembly_uid):
 	return delete_assemblies(context, [assembly_uid])[0]
@@ -56,9 +56,7 @@ def delete_assemblies(context, assembly_uids):
 				del prop_bone[property_name]
 		delete_snap_chain(obj.data, property_name)
 
-	for assembly in assemblies:
-		for ref in assembly.objects:
-			remove_object(bpy.data.objects.get(ref.name))
+	remove_objects(bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects)
 
 	###################
 	# POSE MODE

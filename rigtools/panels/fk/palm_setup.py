@@ -6,6 +6,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, C
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.utils.profiling import profile
 from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
 from rigtools.assemblies.palm_templates import get_palm_template, validate_palm_templates
 from rigtools.assemblies.template_options import resolve_template_options
@@ -452,7 +453,8 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 				return create(None, chains, {})
 
 		try:
-			palm_controls = run_assembly_transaction(build)
+			with profile():
+				palm_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)

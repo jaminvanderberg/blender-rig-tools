@@ -1,4 +1,5 @@
 data cleanliness tool/viewer?
+assembly workpad?  probably not anymore?
 
 further down the line: rename limb_property_base_name to limb? Store on assembly rather than options?
 
@@ -13,13 +14,8 @@ language packs?
 
 weight pain proxy on a single chain is a cylinder?
 
-keep selection (outside of assembly) when reconfiguring an assembly
-
-Way to mass change limb name-kinda fixed, not directly
-
-Pass normalize bone FK sizes/taper to the FK setups?'
-
 default arm to FK?
 
-share widgets (one per type instead of one per bone)? stop tracking them in assembly.objects, apply_widget(replace) shouldn't delete
-preserve hand-edited widgets/shape settings across reconfigure? (store them? "make widget unique" op if shared?)
+preserve hand-edited widgets/shape settings across reconfigure? (store them?)
+
+improve template draw?

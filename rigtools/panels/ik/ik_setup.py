@@ -1,11 +1,10 @@
-import cProfile # TEMP: profiling
 import json
-import pstats # TEMP: profiling
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.utils.profiling import profile
 from rigtools.heel_pivots import get_heel_pivot
 from rigtools.assemblies.ik_templates import (
 	get_ik_template,
@@ -164,6 +163,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		description="Type of widget for the last bone in the FK chain (hand, foot, etc.)",
 		items=fk_widget_types,
 		default='BOX'
+	)
+
+	normalize_fk_widget_scale: BoolProperty(
+		name="Normalize FK Widget Scale",
+		description="Size every FK widget to the chain's average bone length.",
+		default=False
+	)
+
+	taper_fk_widgets: BoolProperty(
+		name="Taper FK Widgets",
+		description="Shrink normalized FK widgets toward the tip.",
+		default=False
 	)
 
 	tip_widget: EnumProperty(
@@ -542,6 +553,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 				return self.use_twist_bones and self.ik_type == 'IK'
 			if field_name in ["skirt_legs"]:
 				return self.add_skirt_collision or self.add_skirt_ride
+			if field_name in ["normalize_fk_widget_scale", "taper_fk_widgets"]:
+				return self.fk_widget != 'NONE'
 			if field_name in ["tip_widget"]:
 				return self.ik_type == 'IK' or (self.ik_type == 'SPLINE' and self.spline_skip_last)
 			if field_name in ["create_master_controllers"]:
@@ -561,12 +574,16 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "tip_widget", "add_tweak_bones", "tweak_relationship"], 
+		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget", "add_tweak_bones", "tweak_relationship"],
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "fk_widget", "tip_widget"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget"], lambda: (
 				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
+				draw.split_row(col, [
+					SplitSection(label="Normalize Widget Scale", prop="normalize_fk_widget_scale"),
+					SplitSection(label="Taper", prop="taper_fk_widgets", enabled=self.normalize_fk_widget_scale),
+				], align_to_split=True),
 				draw.split_field(col, "FK End Widget:", "fk_end_widget"),
 				draw.split_field(col, "Tip Widget:", "tip_widget"),
 			)),
@@ -773,6 +790,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			fk_widget=self.fk_widget,
 			tip_widget=self.tip_widget,
 			fk_end_widget=self.fk_end_widget if self.fk_end_widget != "SAME" else self.fk_widget,
+			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
+			taper_fk_widgets=self.taper_fk_widgets,
 			enable_snapping=self.enable_snapping,
 			ik_parent=self.ik_parent,
 			ik_parents=[
@@ -851,19 +870,14 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			else:
 				return create(None, chains, {})
 
-		# TEMP: profiling - output goes to Window > Toggle System Console
-		profiler = cProfile.Profile()
-		profiler.enable()
 		try:
 			# Run assembly transaction adds TRY / UNDO handling
-			tip_controls = run_assembly_transaction(build)
+			with profile():
+				tip_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)
 			return {'CANCELLED'}
-		finally:
-			profiler.disable()
-			pstats.Stats(profiler).sort_stats('cumulative').print_stats(25)
 
 		# If everything succeeds, we leave it in Pose mode so the user can see the result
 		if tip_controls:
