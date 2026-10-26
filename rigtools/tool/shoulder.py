@@ -28,7 +28,8 @@ class Shoulder:
 		obj = context.object
 		armature_data = obj.data
 
-		bpy.ops.object.mode_set(mode='EDIT')
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = armature_data.edit_bones
 
 		shoulder = edit_bones[fk_bone_name]

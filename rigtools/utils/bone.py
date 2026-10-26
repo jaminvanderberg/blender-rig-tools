@@ -120,8 +120,11 @@ def is_bone_visible(bone):
 def select_bones(obj, bone_names, select_hidden=False, deselect=False) -> [int, int]: # Total selected, total hidden
 	if deselect:
 		if obj.mode == 'POSE':
-			for bone in obj.data.bones:
-				bone.select = False
+			for pose_bone in obj.pose.bones:
+				if hasattr(pose_bone, "select"):
+					pose_bone.select = False
+				else:
+					pose_bone.bone.select = False
 		elif obj.mode == 'EDIT':
 			for bone in obj.data.edit_bones:
 				bone.select = False

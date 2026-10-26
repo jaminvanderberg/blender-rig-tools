@@ -64,8 +64,9 @@ class IKAssemblyOptions:
 	master_controllers_widget: str = 'CIRCLE'
 
 
-def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions, replacement_uid=None, prior_configs=None):
-	"""find_side() throws an error if the side is not the same for all bones in the chain"""
+def create_ik_assembly(context, chains, template_id, template_name, options: IKAssemblyOptions, replacement_uids=None, prior_configs=None):
+	"""find_side() throws an error if the side is not the same for all bones in the chain
+	replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
@@ -79,7 +80,9 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 		##############
 		# Edit mode
 		##############
-		for chain in chains:
+		for i, chain in enumerate(chains):
+			uid = replacement_uids[i] if replacement_uids else None
+			chain_prior_configs = prior_configs[uid] if uid else {}
 
 			org_chain = chain
 			limb = options.limb_property_base_name
@@ -88,7 +91,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=True)
 
 			assembly_name = guess_assembly_name(context.object.data, chain, limb, side)
-			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, side=side, uid=replacement_uid)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "IK", template_id, template_name, options, side=side, uid=uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 			assemblies.append(assembly_chain)
 
@@ -112,7 +115,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					do_create_fk = True,
 					inherit_xz_scale_from_previous = True, # ik scaling fix
 				)
-				tweak_chain.edit_mode(armature_data, limb_chain)
+				tweak_chain.edit_mode(context, limb_chain)
 				switch_chain = tweak_chain.fk_bone_names
 				assembly_chain.tools.append(tweak_chain)
 			else:
@@ -125,7 +128,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					fk_widget = options.tip_widget,
 					fk_role = ['fk', 'ik']
 				)
-				tip_fk.edit_mode(armature_data, fk_tip)
+				tip_fk.edit_mode(context, fk_tip)
 				assembly_chain.tools.append(tip_fk)
 
 			# FK/IK SWITCH
@@ -149,7 +152,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					include_scale = True,
 					disable_scale = False,
 				)
-				rotation_isolation.edit_mode(context, armature_data, [fk_bone_names[0]])
+				rotation_isolation.edit_mode(context, [fk_bone_names[0]])
 				assembly_chain.tools.append(rotation_isolation)
 				twist_parent_name = rotation_isolation.created_bones[0][0] # SOCKET
 			else:
@@ -172,7 +175,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
-					prior_configs=prior_configs,
+					prior_configs=chain_prior_configs,
 				)
 				skirt_collision.edit_mode(context, fk_bone_names)
 				assembly_chain.tools.append(skirt_collision)
@@ -183,7 +186,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,
-					prior_configs=prior_configs,
+					prior_configs=chain_prior_configs,
 				)
 				skirt_ride.edit_mode(context, fk_bone_names[0])
 				assembly_chain.tools.append(skirt_ride)

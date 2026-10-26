@@ -2,7 +2,6 @@ import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name
-from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import apply_widget
 
@@ -27,10 +26,14 @@ class FKChain:
 		self.property_names = []
 		self.object_names = []
 
-	def edit_mode(self, armature_data, org_bone_names):
+	def edit_mode(self, context, org_bone_names):
 		self.org_bone_names = org_bone_names
 
-		bpy.ops.object.mode_set(mode='EDIT')
+		obj = context.object
+		armature_data = obj.data
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 
 		edit_bones = armature_data.edit_bones
 
@@ -55,7 +58,6 @@ class FKChain:
 		obj = context.object
 		prefs = get_preferences()
 		pose_bones = obj.pose.bones
-		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')

@@ -40,7 +40,8 @@ class FKAssemblyOptions:
 	master_controllers_type: str = 'FK' # or 'MASTER'
 	master_controllers_widget: str = 'CIRCLE'
 
-def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uid=None, prior_configs=None):
+def create_fk_assembly(context, chains: list[list[str]], template_id, template_name, options: FKAssemblyOptions, replacement_uids=None, prior_configs=None):
+	"""replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
@@ -55,15 +56,18 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 		##############
 		# Edit mode
 		##############
-		for chain in chains:
+		for i, chain in enumerate(chains):
+			uid = replacement_uids[i] if replacement_uids else None
+			chain_prior_configs = prior_configs[uid] if uid else {}
+
 			limb = options.limb_property_base_name
 			side = find_side(chain)
 
 			limb_collections = ensure_limb_collections(armature_data, limb, side)
-			
+
 			name_base = options.assembly_name_base or limb
 			assembly_name = guess_assembly_name(context.object.data, chain, name_base, side)
-			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options, side=side, uid=replacement_uid)
+			assembly = create_assembly_data(context.object, chain, assembly_name, "FK", template_id, template_name, options, side=side, uid=uid)
 			assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 			assemblies.append(assembly_chain)
 
@@ -78,7 +82,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					fk_widget_taper=options.fk_widget_taper,
 				)
-				tweak.edit_mode(armature_data, chain)
+				tweak.edit_mode(context, chain)
 				assembly_chain.tools.append(tweak)
 				fk_names = tweak.fk_bone_names
 			else:
@@ -90,7 +94,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					fk_widget_taper=options.fk_widget_taper,
 					fk_role=['fk', 'ik'] if options.share_fk_ik_role else 'fk',
 				)
-				fk.edit_mode(armature_data, chain)
+				fk.edit_mode(context, chain)
 				assembly_chain.tools.append(fk)
 				fk_names = fk.fk_bone_names
 
@@ -98,7 +102,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			if options.add_rotation_isolation and len(fk_names) > 0:
 				property_name = name_property("rotation_isolation", options.limb_property_base_name, side)
 				rotation_isolation = RotationIsolation(property_name=property_name)
-				rotation_isolation.edit_mode(context, armature_data, [fk_names[0]])
+				rotation_isolation.edit_mode(context, [fk_names[0]])
 				assembly_chain.tools.append(rotation_isolation)
 
 			# MASTER CONTROLLERS
@@ -126,7 +130,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
-					prior_configs=prior_configs,
+					prior_configs=chain_prior_configs,
 				)
 				skirt_collision.edit_mode(context, fk_names)
 				assembly_chain.tools.append(skirt_collision)
@@ -137,7 +141,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,
-					prior_configs=prior_configs
+					prior_configs=chain_prior_configs
 				)
 				skirt_ride.edit_mode(context, fk_names[0])
 				assembly_chain.tools.append(skirt_ride)

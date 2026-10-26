@@ -43,6 +43,9 @@ class IKParent:
 
 	def edit_mode(self, context, bone_names: list[str], self_parent_name: str = ""):
 		obj = context.object
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = obj.data.edit_bones
 
 		self.self_parent_name = self_parent_name

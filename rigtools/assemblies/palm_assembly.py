@@ -12,21 +12,24 @@ class PalmAssemblyOptions:
 	index_falloff_type: str = "SHARP"
 	pinky_falloff_type: str = "LINEAR"
 
-def create_palm_assembly(context, chains: list[list[str]], template_id, template_name, options: PalmAssemblyOptions, replacement_uid=None, prior_configs=None):
+def create_palm_assembly(context, chains: list[list[str]], template_id, template_name, options: PalmAssemblyOptions, replacement_uids=None, prior_configs=None):
+	"""replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 	prior_configs = prior_configs or {}
 	assemblies = []
 
 	##############
 	# Edit mode
 	##############
-	for chain in chains:
+	for i, chain in enumerate(chains):
+		uid = replacement_uids[i] if replacement_uids else None
+
 		limb = options.limb_property_base_name
 		side = find_side(chain)
 
 		limb_collections = ensure_limb_collections(context.object.data, limb, side)
 		
 		assembly_name = guess_assembly_name(context.object.data, chain, limb, side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "PALM", template_id, template_name, options, side=side, uid=replacement_uid)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "PALM", template_id, template_name, options, side=side, uid=uid)
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 		assemblies.append(assembly_chain)
 

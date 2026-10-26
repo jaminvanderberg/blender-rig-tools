@@ -82,7 +82,10 @@ class MasterControllers:
 
 	def pose_mode(self, context):
 		obj = context.object
-
+		
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
+					
 		pose_bones = obj.pose.bones
 		prefs = get_preferences()
 

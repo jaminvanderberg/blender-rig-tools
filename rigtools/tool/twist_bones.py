@@ -160,7 +160,7 @@ class TwistBones:
 				do_create_fk=False,
 				tweak_relationship=self.tweak_relationship,
 			)
-			tweak.edit_mode(obj.data, flat)
+			tweak.edit_mode(context, flat)
 			self.tweak_chains.append(tweak)
 
 			for i in range(len(group)):
@@ -189,11 +189,15 @@ class TwistBones:
 		return self
 
 	def pose_mode(self, context):
+		obj = context.object
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
+
 		for tweak in self.tweak_chains:
 			tweak.pose_mode(context)
 			self.object_names.extend(tweak.object_names)
 
-		pose_bones = context.object.pose.bones
+		pose_bones = obj.pose.bones
 
 		# Twist isolators
 		for index, isolator_name in self.isolator_names.items():

@@ -58,9 +58,10 @@ class TorsoFK:
 
 		obj = context.object
 		armature_data = obj.data
-		
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		prefs = get_preferences()
-		bpy.ops.object.mode_set(mode='EDIT')
 		settings = get_armature_settings(armature_data, context)
 
 		edit_bones = armature_data.edit_bones
@@ -223,7 +224,7 @@ class TorsoFK:
 			do_create_fk=False,
 			tweak_relationship=self.tweak_relationship,
 			tweak_scale=0.40
-		).edit_mode(armature_data, source_names)
+		).edit_mode(context, source_names)
 
 		# Parent the tweak bones to the fk bones
 		for tweak_name, parent in zip(self.tweak_chain.tweak_bone_names, tweak_parents, strict=True):

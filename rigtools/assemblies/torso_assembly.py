@@ -26,21 +26,24 @@ class TorsoAssemblyOptions:
 	tweak_relationship: str = "STRETCH_TO"
 	neck_falloff_type: str = "ROOT"
 
-def create_torso_assembly(context, chains: list[list[str]], template_id, template_name, options: TorsoAssemblyOptions, replacement_uid=None, prior_configs=None):
+def create_torso_assembly(context, chains: list[list[str]], template_id, template_name, options: TorsoAssemblyOptions, replacement_uids=None, prior_configs=None):
+	"""replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 	prior_configs = prior_configs or {}
 	assemblies = []
 
 	##############
 	# Edit mode
 	##############
-	for chain in chains:
+	for i, chain in enumerate(chains):
+		uid = replacement_uids[i] if replacement_uids else None
+
 		limb = options.limb_property_base_name
 		side = find_side(chain)
 
 		limb_collections = ensure_limb_collections(context.object.data, limb, side, promote=True)
 		
 		assembly_name = guess_assembly_name(context.object.data, chain, limb,side)
-		assembly = create_assembly_data(context.object, chain, assembly_name, "TORSO", template_id, template_name, options, side=side, uid=replacement_uid)
+		assembly = create_assembly_data(context.object, chain, assembly_name, "TORSO", template_id, template_name, options, side=side, uid=uid)
 		assembly_chain = AssemblyChain(assembly_uid=assembly.uid, tools=[], limb_collections=limb_collections)
 		assemblies.append(assembly_chain)
 
@@ -71,7 +74,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 				inherit_scale_from_root = options.neck_inherit_scale_from_root,
 			)
 			neck_name = torso_fk_chain.fk_bone_names[-options.neck_bone_count - 1]
-			neck_rotation_isolation.edit_mode(context, context.object.data, [neck_name])
+			neck_rotation_isolation.edit_mode(context, [neck_name])
 			assembly_chain.tools.append(neck_rotation_isolation)
 
 		# HEAD ROTATION ISOLATION
@@ -88,7 +91,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 				inherit_scale_from_root = options.head_inherit_scale_from_root,
 			)
 			head_name = torso_fk_chain.fk_bone_names[-1]
-			head_rotation_isolation.edit_mode(context, context.object.data, [head_name])
+			head_rotation_isolation.edit_mode(context, [head_name])
 			assembly_chain.tools.append(head_rotation_isolation)
 
 	##############

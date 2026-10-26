@@ -3,7 +3,7 @@ from bpy.props import StringProperty, BoolProperty
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.collections_panel import rename_layout_collection
 from rigtools.utils.bone_collection import ensure_bone_collection
-from rigtools.utils.naming import name_collection
+from rigtools.utils.naming import name_collection, LIMB_COLLECTION_ROLES
 
 def find_bones_by_limb_role(armature_data, limb, side, role):
 	names = []
@@ -17,7 +17,7 @@ def find_bones_by_limb_role(armature_data, limb, side, role):
 
 def _collection_in_use(armature_data, collection_name):
 	for row in armature_data.rigtools_limb_collections:
-		for role in ("fk", "ik", "tweak", "mch", "master", "control"):
+		for role in LIMB_COLLECTION_ROLES:
 			if getattr(row, role) == collection_name:
 				return True
 	return False
@@ -29,7 +29,6 @@ class LimbCollectionMap(PropertyGroup):
 	fk: StringProperty()
 	ik: StringProperty()
 	tweak: StringProperty()
-	mch: StringProperty()
 	master: StringProperty()
 	control: StringProperty()
 
@@ -45,8 +44,7 @@ class LimbCollectionMap(PropertyGroup):
 			return
 
 		armature_data = self.id_data
-		parent = get_preferences().mch_parent_collection if role == "mch" else None
-		new_coll = ensure_bone_collection(armature_data, new_name, parent)
+		new_coll = ensure_bone_collection(armature_data, new_name)
 		
 		all_collections = getattr(armature_data, "collections_all", armature_data.collections)
 		old_coll = all_collections.get(old_name)
@@ -78,12 +76,11 @@ class LimbCollectionMap(PropertyGroup):
 			coll.unassign(bone)
 
 		for role in roles:
-			if not getattr(self, role):
-				raise ValueError(f"Role {role} not found in {self.name}")
-
 			if role == "mch":
-				coll = ensure_bone_collection(armature_data, getattr(self, role), get_preferences().mch_parent_collection)
+				coll = ensure_bone_collection(armature_data, get_preferences().mch_collection_name, hidden=True)
 			else:
+				if not getattr(self, role):
+					raise ValueError(f"Role {role} not found in {self.name}")
 				coll = ensure_bone_collection(armature_data, getattr(self, role))
 			coll.assign(bone)
 
@@ -113,8 +110,6 @@ def ensure_limb_collections(armature_data, limb, side, promote = False):
 		row.ik = name_collection("ik", limb, side)
 	if not row.tweak:
 		row.tweak = name_collection("tweak", limb, side)
-	if not row.mch:
-		row.mch = name_collection("mch", limb, side)
 	if not row.master:
 		row.master = name_collection("fk_master", limb, side)
 	if not row.control:

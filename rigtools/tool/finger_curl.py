@@ -1,5 +1,4 @@
 import bpy
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
@@ -30,8 +29,9 @@ class FingerCurl:
 
 		obj = context.object
 		armature_data = obj.data
-		
-		bpy.ops.object.mode_set(mode='EDIT')
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = armature_data.edit_bones
 
 		self.mch_bone_names = generate_mch_bones(armature_data, fk_bone_names, bone_template('mch'))
@@ -51,7 +51,9 @@ class FingerCurl:
 		obj = context.object
 		pose_bones = obj.pose.bones
 		prefs = get_preferences(context)
-		settings = get_armature_settings(obj.data, context)
+
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
 
 		seg1 = pose_bones[self.fk_bone_names[0]]
 		c = seg1.constraints.new('COPY_LOCATION')

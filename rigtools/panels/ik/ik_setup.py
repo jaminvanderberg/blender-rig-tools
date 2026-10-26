@@ -1,4 +1,6 @@
+import cProfile # TEMP: profiling
 import json
+import pstats # TEMP: profiling
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
 from rigtools.armature_settings import get_armature_settings
@@ -277,14 +279,14 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		name="Assembly UID",
 		description="UID of the assembly to load",
 		default="",
-		options={'HIDDEN'}
+		options={'HIDDEN', 'SKIP_SAVE'}
 	)
 
 	assembly_uids: StringProperty(
 		name="Assembly UIDs",
 		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
 		default="",
-		options={'HIDDEN'}
+		options={'HIDDEN', 'SKIP_SAVE'}
 	)
 
 	dialog_chains_json: StringProperty(
@@ -831,29 +833,27 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			prev_state.restore(context)
 			return {'CANCELLED'}
 
-		def create(uid, chains, prior_configs):
+		def create(uids, chains, prior_configs):
 			return create_ik_assembly(
 				context,
 				chains,
 				self.template_id,
 				self.template_name,
 				options,
-				replacement_uid=uid,
+				replacement_uids=uids,
 				prior_configs=prior_configs,
 			)			
 
 		def build():
 			if len(rebuild_chains) > 0:
-				tip_controls = []
-				for uid in assembly_uids:
-					chain = rebuild_chains[uid]
-					prior_configs = prepare_rebuild(context, uid)
-					tips = create(uid, [chain], prior_configs)
-					tip_controls.extend(tips)
-				return tip_controls
+				prior_configs = prepare_rebuild(context, assembly_uids)
+				return create(assembly_uids, [rebuild_chains[uid] for uid in assembly_uids], prior_configs)
 			else:
-				return create("", chains, {})
+				return create(None, chains, {})
 
+		# TEMP: profiling - output goes to Window > Toggle System Console
+		profiler = cProfile.Profile()
+		profiler.enable()
 		try:
 			# Run assembly transaction adds TRY / UNDO handling
 			tip_controls = run_assembly_transaction(build)
@@ -861,13 +861,15 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)
 			return {'CANCELLED'}
+		finally:
+			profiler.disable()
+			pstats.Stats(profiler).sort_stats('cumulative').print_stats(25)
 
 		# If everything succeeds, we leave it in Pose mode so the user can see the result
 		if tip_controls:
 			if context.object.mode != 'POSE':
 				bpy.ops.object.mode_set(mode='POSE')
-			bpy.ops.pose.select_all(action='DESELECT')
-			select_bones(context.object, tip_controls)
+			select_bones(context.object, tip_controls, deselect=True)
 
 		self.report({'INFO'}, f"Successfully generated {len(chains)} FK/IK switch chain{'s' if len(chains) != 1 else ''}.")
 		prev_state.restore_mirror(context)

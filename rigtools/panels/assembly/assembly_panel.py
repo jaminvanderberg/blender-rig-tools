@@ -6,6 +6,7 @@ from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.limb_collections import find_bones_by_limb_role, find_limb_collections
 from rigtools.utils.bone import get_selected_bones
 from rigtools.utils.icons import icon
+from rigtools.utils.naming import LIMB_COLLECTION_ROLES
 
 ASSEMBLY_TYPE_OPERATORS = {
 	'IK': "rig.advanced_ik_setup",
@@ -82,13 +83,12 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 	fk: bpy.props.StringProperty(name="FK")
 	ik: bpy.props.StringProperty(name="IK")
 	tweak: bpy.props.StringProperty(name="Tweak")
-	mch: bpy.props.StringProperty(name="MCH")
 	master: bpy.props.StringProperty(name="Master")
 	control: bpy.props.StringProperty(name="Control")
 	
 	def _roles_in_use(self, armature_data):
 		return [
-			role for role in ("fk", "ik", "tweak", "mch", "master", "control")
+			role for role in LIMB_COLLECTION_ROLES
 			if find_bones_by_limb_role(armature_data, self.limb, self.side, role)
 		]
 
@@ -103,7 +103,6 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 			"fk": "FK",
 			"ik": "IK",
 			"tweak": "Tweak",
-			"mch": "MCH",
 			"master": "Master",
 			"control": "Control",
 		}

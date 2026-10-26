@@ -99,13 +99,8 @@ class RigToolsPreferences(AddonPreferences):
 		default="properties"
 	)
 	mch_collection_name: StringProperty(
-		name="Non-Limb MCH Collection",
-		description="Name of bone collection where non-limb MCH bones are created",
-		default="MCH-TMP"
-	)
-	mch_parent_collection: StringProperty(
-		name="MCH Parent Collection",
-		description="Name of the parent collection for MCH collections",
+		name="MCH Collection",
+		description="Name of bone collection where MCH bones are created",
 		default="MCH"
 	)
 	widget_collection: StringProperty(
@@ -188,7 +183,6 @@ class RigToolsPreferences(AddonPreferences):
 		box.prop(self, "head_bone_name")
 		box.prop(self, "property_bone_name")
 		box.prop(self, "mch_collection_name")
-		box.prop(self, "mch_parent_collection")
 		box.prop(self, "widget_collection")
 
 		# Control Colors

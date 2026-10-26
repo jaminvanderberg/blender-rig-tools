@@ -13,7 +13,13 @@ language packs?
 
 weight pain proxy on a single chain is a cylinder?
 
-keep selection when creating an assembly
+keep selection (outside of assembly) when reconfiguring an assembly
 
-figure out why the flyaway wont work
-Way to mass change limb name
+Way to mass change limb name-kinda fixed, not directly
+
+Pass normalize bone FK sizes/taper to the FK setups?'
+
+default arm to FK?
+
+share widgets (one per type instead of one per bone)? stop tracking them in assembly.objects, apply_widget(replace) shouldn't delete
+preserve hand-edited widgets/shape settings across reconfigure? (store them? "make widget unique" op if shared?)

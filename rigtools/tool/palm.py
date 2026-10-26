@@ -30,8 +30,9 @@ class Palm:
 
 		obj = context.object
 		armature_data = obj.data
-		
-		bpy.ops.object.mode_set(mode='EDIT')
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = armature_data.edit_bones
 
 		self.fk_chain = FKChain(
@@ -39,7 +40,7 @@ class Palm:
 			fk_widget=self.fk_widget
 		)
 
-		self.fk_chain.edit_mode(armature_data, self.org_bone_names)
+		self.fk_chain.edit_mode(context, self.org_bone_names)
 
 		fk_bones = [edit_bones[name] for name in self.fk_chain.fk_bone_names]
 		for fk_bone, org_name in zip(fk_bones, self.org_bone_names):
@@ -59,8 +60,11 @@ class Palm:
 
 	def pose_mode(self, context):
 		obj = context.object
-		pose_bones = obj.pose.bones
 		prefs = get_preferences()
+
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
+		pose_bones = obj.pose.bones
 
 		self.fk_chain.pose_mode(context)
 		self.object_names.extend(self.fk_chain.object_names)

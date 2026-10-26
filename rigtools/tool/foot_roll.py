@@ -28,9 +28,11 @@ class FootRoll:
 		self.object_names = []
 
 	def edit_mode(self, context, mch_ik_foot_name, ik_foot_name, heel_pivot_name, org_toe_name):
-		bpy.ops.object.mode_set(mode='EDIT')
+		obj = context.object
+		armature_data = obj.data
 
-		armature_data = context.object.data
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		edit_bones = armature_data.edit_bones
 
 		self.mch_ik_foot_name = mch_ik_foot_name

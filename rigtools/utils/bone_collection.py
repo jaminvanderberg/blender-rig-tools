@@ -2,7 +2,7 @@ import re
 from rigtools.preferences import get_preferences
 
 
-def ensure_bone_collection(armature_data, collection_name, parent_collection_name=None):
+def ensure_bone_collection(armature_data, collection_name, parent_collection_name=None, hidden=False):
 	if not collection_name:
 		return None
 
@@ -19,7 +19,10 @@ def ensure_bone_collection(armature_data, collection_name, parent_collection_nam
 		if not parent:
 			parent = colls.new(parent_collection_name)
 
-	return colls.new(collection_name, parent=parent)
+	collection = colls.new(collection_name, parent=parent)
+	# Only applied on creation, so user visibility changes survive rebuilds
+	collection.is_visible = not hidden
+	return collection
 
 
 def set_bone_collection(armature_data, bone, collection_name, parent_collection_name=None):

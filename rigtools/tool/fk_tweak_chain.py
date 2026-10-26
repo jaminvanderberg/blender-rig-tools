@@ -42,10 +42,14 @@ class FKTweakChain:
 		self.object_names = []
 		self.reparent_rules = ReparentRules()
 
-	def edit_mode(self, armature_data, org_bone_names):
+	def edit_mode(self, context, org_bone_names):
 		self.org_bone_names = org_bone_names
 
-		bpy.ops.object.mode_set(mode='EDIT')
+		obj = context.object
+		armature_data = obj.data
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 
 		edit_bones = armature_data.edit_bones
 		

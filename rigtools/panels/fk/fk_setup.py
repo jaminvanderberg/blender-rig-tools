@@ -1,3 +1,5 @@
+import cProfile # TEMP: profiling
+import pstats # TEMP: profiling
 import bpy
 from bpy.props import (
 	StringProperty,
@@ -149,14 +151,14 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		name="Assembly UID",
 		description="UID of the assembly to use for the FK/Tweak chain",
 		default="",
-		options={'HIDDEN'}
+		options={'HIDDEN', 'SKIP_SAVE'}
 	)
 
 	assembly_uids: StringProperty(
 		name="Assembly UIDs",
 		description="Comma-separated UIDs for multi-reconfigure; empty = single assembly_uid",
 		default="",
-		options={'HIDDEN'}
+		options={'HIDDEN', 'SKIP_SAVE'}
 	)
 
 	template_id: StringProperty(
@@ -501,40 +503,41 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			prev_state.restore(context)
 			return {'CANCELLED'}
 
-		def create(uid, chains, prior_configs):
+		def create(uids, chains, prior_configs):
 			return create_fk_assembly(
 				context,
 				chains,
 				self.template_id,
 				self.template_name,
 				options,
-				replacement_uid=uid,
+				replacement_uids=uids,
 				prior_configs=prior_configs,
 			)
 
 		def build():
 			if len(rebuild_chains) > 0:
-				tip_controls = []
-				for uid in assembly_uids:
-					chain = rebuild_chains[uid]
-					prior_configs = prepare_rebuild(context, uid)
-					tip_controls.extend(create(uid, [chain], prior_configs))
-				return tip_controls
+				prior_configs = prepare_rebuild(context, assembly_uids)
+				return create(assembly_uids, [rebuild_chains[uid] for uid in assembly_uids], prior_configs)
 			else:
-				return create("", chains, {})
+				return create(None, chains, {})
 
+		# TEMP: profiling - output goes to Window > Toggle System Console
+		profiler = cProfile.Profile()
+		profiler.enable()
 		try:
 			fk_controls = run_assembly_transaction(build)
 		except AssemblyTransactionError as e:
 			self.report({'ERROR'}, str(e))
 			prev_state.restore(context)
 			return {'CANCELLED'}
+		finally:
+			profiler.disable()
+			pstats.Stats(profiler).sort_stats('cumulative').print_stats(25)
 
 		if fk_controls:
 			if context.object.mode != 'POSE':
 				bpy.ops.object.mode_set(mode='POSE')
-			bpy.ops.pose.select_all(action='DESELECT')
-			select_bones(context.object, fk_controls)
+			select_bones(context.object, fk_controls, deselect=True)
 
 		chain_count = len(chains)
 		self.report({'INFO'}, f"Successfully generated {chain_count} FK/Tweak chain{'s' if chain_count != 1 else ''}.")

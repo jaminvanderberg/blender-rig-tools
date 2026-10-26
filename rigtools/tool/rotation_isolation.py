@@ -1,6 +1,5 @@
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.naming import name_bone
-from rigtools.preferences import get_preferences
 from rigtools.armature_settings import get_armature_settings
 import mathutils
 import bpy
@@ -28,14 +27,16 @@ class RotationIsolation:
 		self.property_names = []
 		self.object_names = []
 
-	def edit_mode(self, context, armature_data, bone_names):
-		prefs = get_preferences()
+	def edit_mode(self, context, bone_names):
+		obj = context.object
+		armature_data = obj.data
+
+		if obj.mode != 'EDIT':
+			bpy.ops.object.mode_set(mode='EDIT')
 		settings = get_armature_settings(armature_data, context)
 
 		root_bone = armature_data.edit_bones.get(settings.root_bone_name)
 		self.root_bone_name = settings.root_bone_name
-
-		bpy.ops.armature.select_all(action='DESELECT')
 
 		self.created_bones = []
 		for bone_name in bone_names:
@@ -76,6 +77,10 @@ class RotationIsolation:
 	def pose_mode(self, context):
 		obj = context.object
 		settings = get_armature_settings(obj.data, context)
+
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
+
 		prop_bone = obj.pose.bones[settings.property_bone_name]
 		property_name = self.property_name
 

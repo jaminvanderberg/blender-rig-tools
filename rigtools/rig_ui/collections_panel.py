@@ -3,6 +3,7 @@ from bpy.props import BoolProperty, StringProperty, EnumProperty, CollectionProp
 
 from rigtools.rig_ui import rig_ui
 from rigtools.rig_ui.rig_ui import _coll_by_name, _hidden_map, _is_hidden, _iter_rows, draw_collections_view
+from rigtools.utils.naming import LIMB_COLLECTION_ROLES
 
 
 class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
@@ -378,7 +379,7 @@ class RIG_OT_ui_collection_rename(bpy.types.Operator):
 		existing = _coll_by_name(armature_data, new_name)
 
 		for row in armature_data.rigtools_limb_collections:
-			for role in ("fk", "ik", "tweak", "mch", "master", "control"):
+			for role in LIMB_COLLECTION_ROLES:
 				if getattr(row, role) == old_name:
 					setattr(row, role, new_name)
 
