@@ -2,6 +2,7 @@ import math
 import bpy
 from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template, name_bone
 from rigtools.utils.widget import apply_widget
 from rigtools.armature_settings import get_armature_settings
@@ -9,7 +10,11 @@ from rigtools.preferences import get_preferences
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class FootRoll:
-	def __init__(self):
+	def __init__(self,
+	    side: str = ""
+	):
+		self.side = side
+		
 		self.mch_ik_foot_name = None
 		self.ik_foot_name = None
 		self.org_toe_name = None
@@ -212,7 +217,7 @@ class FootRoll:
 		ik.custom_shape_transform = pose_bones[self.vis_name]
 
 		# Bone Colors
-		ctrl.color.palette = prefs.ik_bone_color
+		ctrl.color.palette = get_bone_color(prefs, 'ik', self.side)
 		ctrl.custom_shape_wire_width = 1.5			
 
 		return self

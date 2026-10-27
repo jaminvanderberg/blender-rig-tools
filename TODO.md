@@ -19,3 +19,5 @@ default arm to FK?
 preserve hand-edited widgets/shape settings across reconfigure? (store them?)
 
 improve template draw?
+
+remove name string and separators from preferences

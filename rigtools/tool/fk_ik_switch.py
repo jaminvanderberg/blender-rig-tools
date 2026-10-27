@@ -1,11 +1,11 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_chain
-from rigtools.utils.naming import generate_bone_name, bone_template
+from rigtools.utils.naming import bone_template
 from rigtools.armature_settings import get_armature_settings
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
-from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
+from rigtools.utils.widget import LIMB_FK_WIRE_WIDTH, chain_widget_scales, widget_scale_xyz
 
 class FKIKSwitch:
 	def __init__(self, *,
@@ -14,6 +14,7 @@ class FKIKSwitch:
 		fk_end_widget_type: str = "SAME",
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
+		side: str = "",
 	):
 		self.switch_property_name = switch_property_name
 		self.fk_widget_type = fk_widget_type
@@ -45,6 +46,22 @@ class FKIKSwitch:
 		self.mechanism_bones.extend(self.fk_bone_names, 'fk')
 		self.property_names.append((self.switch_property_name, "FK_IK_SWITCH"))
 
+		scales = chain_widget_scales([obj.data.edit_bones[name].length for name in self.fk_bone_names],
+			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
+		for i in range(len(self.fk_bone_names)):
+			fk_name = self.fk_bone_names[i]
+			scale = scales[i]
+			widget_type = (
+				self.fk_end_widget_type
+				if i == len(self.fk_bone_names) - 1 and self.fk_end_widget_type != "SAME"
+				else self.fk_widget_type
+			)
+			self.mechanism_bones.style(fk_name,
+			    widget=widget_type,
+				wire_width=LIMB_FK_WIRE_WIDTH,
+				scale=widget_scale_xyz(widget_type, scale)
+			)
+
 		return self
 
 	def pose_mode(self, context):
@@ -72,9 +89,6 @@ class FKIKSwitch:
 			)
 			prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
 
-		scales = chain_widget_scales([pose_bones[name].length for name in self.fk_bone_names],
-			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
-
 		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
 			fk_bone = pose_bones[fk_bone_name]
 			switch_bone = pose_bones[switch_bone_name]
@@ -97,18 +111,5 @@ class FKIKSwitch:
 			var.type = 'SINGLE_PROP'
 			var.targets[0].id = obj
 			var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{prop_name}"]'
-
-			fk_bone.color.palette = prefs.fk_bone_color
-
-			widget_type = (
-				self.fk_end_widget_type
-				if i == len(self.fk_bone_names) - 1 and self.fk_end_widget_type != "SAME"
-				else self.fk_widget_type
-			)
-
-			if widget_type != "NONE":
-				wgt = apply_widget(context, fk_bone, widget_type)
-				fk_bone.custom_shape_scale_xyz = widget_scale_xyz(widget_type, scales[i])
-				self.object_names.append(wgt.name)
 
 		return self

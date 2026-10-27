@@ -2,6 +2,7 @@ import math
 import bpy
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
@@ -35,10 +36,12 @@ class StandardIK:
 		pole_distance: float = 1.0,
 		enable_snapping: bool = True,
 		ik_stretch_property_name: str,
+		side: str = ""
 	):
 		self.ik_stretch_property_name = ik_stretch_property_name
 		self.pole_distance = pole_distance
 		self.enable_snapping = enable_snapping
+		self.side = side
 
 		self.mch_bone_names = None
 		self.fk_bone_names = None
@@ -272,12 +275,13 @@ class StandardIK:
 			vis_constraint.head_tail = 1.0
 
 		# Bone Colors
+		ik_color = get_bone_color(prefs, 'ik', self.side)
 		if pole_vis_bone:
-			pole_vis_bone.color.palette = prefs.ik_bone_color
+			pole_vis_bone.color.palette = ik_color
 		pole_bone = pose_bones[self.pole_name]
-		pole_bone.color.palette = prefs.ik_bone_color
+		pole_bone.color.palette = ik_color
 		ik_control_bone = pose_bones[self.ik_control_name]
-		ik_control_bone.color.palette = prefs.ik_bone_color
+		ik_control_bone.color.palette = ik_color
 		ik_control_bone.custom_shape_wire_width = 2.0
 
 		# Widgets

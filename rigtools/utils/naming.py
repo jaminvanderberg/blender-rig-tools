@@ -53,7 +53,7 @@ COLLECTION = {
 	"tweak": "{Name}.Tweak{side}",
 }
 
-LIMB_COLLECTION_ROLES = ("fk", "ik", "tweak", "master", "control")
+LIMB_COLLECTION_ROLES = ("fk", "ik", "tweak", "control")
 
 PROPERTY = {
 	"rotation_isolation": "{name}.FK.rot.follow{side}",

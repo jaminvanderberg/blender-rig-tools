@@ -5,6 +5,7 @@ from mathutils import Vector
 
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
 
 RAISE_FRACTION = 0.15
@@ -13,7 +14,11 @@ DIP_DEGREES = 10.0
 VIS_LENGTH_SCALE = 1.4
 
 class Shoulder:
-	def __init__(self):
+	def __init__(self,
+	    side: str = "",
+	):
+		self.side = side
+		
 		self.fk_bone_name = None
 		self.control_bone_name = None
 		self.vis_bone_name = None
@@ -72,7 +77,7 @@ class Shoulder:
 		shoulder.custom_shape_transform = vis
 		
 		# Bone Colors
-		shoulder.color.palette = prefs.control_bone_color
+		shoulder.color.palette = get_bone_color(prefs, 'fk_master', self.side)
 		shoulder.custom_shape_wire_width = 1.2
 
 		return self

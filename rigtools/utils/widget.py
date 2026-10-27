@@ -17,6 +17,9 @@ fk_widget_types = [
 	('NONE', 'None', 'No widget'),
 ]
 
+LIMB_FK_WIRE_WIDTH = 1.5
+CONTROL_WIRE_WIDTH = 2.0
+
 master_widget_types = [item for item in fk_widget_types if item[0] != 'NONE']
 
 # Widgets that should keep their proportions when scaled (everything else scales X/Z only, keeping bone length)

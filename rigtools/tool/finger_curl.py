@@ -3,15 +3,18 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.bone_chain import find_curl_axis
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template, name_bone
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import CONTROL_WIRE_WIDTH, apply_widget
 
 
 class FingerCurl:
 	def __init__(self, *,
 		curl_axis: str = "AUTO", # AUTO, X, -X ,Z, -Z
+		side: str = "",
 	):
 		self.curl_axis = curl_axis
+		self.side = side
 
 		self.fk_bone_names = None
 		self.mch_bone_names = []
@@ -40,7 +43,9 @@ class FingerCurl:
 		control_name = name_bone('control', self.fk_bone_names[0], strip_numbers=True)
 		control_bone = duplicate_bone(armature_data, edit_bones[self.fk_bone_names[0]], control_name, 3.0)
 		self.control_bone_name = control_bone.name
-		self.mechanism_bones.add(self.control_bone_name, 'control')
+		
+		style = self.mechanism_bones.add(self.control_bone_name, 'control')
+		style.set(widget='PADDLE', wire_width = CONTROL_WIRE_WIDTH)
 
 		fk_bones = [edit_bones[name] for name in self.fk_bone_names]
 		self.axis, self.sign = find_curl_axis(fk_bones, self.curl_axis)
@@ -90,13 +95,5 @@ class FingerCurl:
 			t.transform_space = 'LOCAL_SPACE'
 
 			driver.expression = expr
-
-		# Widgets
-		control_wgt = apply_widget(context, control, 'PADDLE')
-		self.object_names.append(control_wgt.name)
-
-		# Bone Colors
-		control.color.palette = prefs.control_bone_color
-		control.custom_shape_wire_width = 1.5			
 
 		return self

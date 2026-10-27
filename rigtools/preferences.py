@@ -112,20 +112,56 @@ class RigToolsPreferences(AddonPreferences):
 
 	# Theme Colors
 	fk_bone_color: EnumProperty(
-		name="FK Color",
-		description="Default theme color set for FK controls",
+		name="FK Color Center",
+		description="Default theme color set for FK controls without a side",
 		items=BONE_COLOR_ITEMS,
-		default='THEME04'
+		default='THEME11'
 	)
+	fk_bone_color_left: EnumProperty(
+		name="FK Color Left",
+		description="Default theme color set for FK controls on the left side",
+		items=BONE_COLOR_ITEMS,
+		default='THEME07'
+	)
+	fk_bone_color_right: EnumProperty(
+		name="FK Color Right",
+		description="Default theme color set for FK controls on the right side",
+		items=BONE_COLOR_ITEMS,
+		default='THEME05'
+	)	
 	ik_bone_color: EnumProperty(
 		name="IK Color",
-		description="Default theme color set for IK controls",
+		description="Default theme color set for IK controls without a side",
+		items=BONE_COLOR_ITEMS,
+		default='THEME06'
+	)
+	ik_bone_color_left: EnumProperty(
+		name="IK Color Left",
+		description="Default theme color set for IK controls on the left side",
+		items=BONE_COLOR_ITEMS,
+		default='THEME04'
+	)	
+	ik_bone_color_right: EnumProperty(
+		name="IK Color Right",
+		description="Default theme color set for IK controls on the right side",
 		items=BONE_COLOR_ITEMS,
 		default='THEME01'
+	)	
+	torso_bone_color: EnumProperty(
+		name="Torso Control Color",
+		description="Default theme color set for torso control bones",
+		items=BONE_COLOR_ITEMS,
+		default='THEME09'
 	)
-	control_bone_color: EnumProperty(
-		name="Master Control Color",
-		description="Default theme color set for master control bones",
+	root_bone_color: EnumProperty(
+		name="Root/Properties Bone Color",
+		description="Default theme color set for the root and properties bones",
+		items=BONE_COLOR_ITEMS,
+		default='THEME1'
+	)
+	fk_master_bone_color: EnumProperty(
+		name="FK Master Control Color",
+		description="Default theme color set for FK master control bones",
 		items=BONE_COLOR_ITEMS,
 		default='THEME02'
 	)
@@ -188,7 +224,35 @@ class RigToolsPreferences(AddonPreferences):
 		# Control Colors
 		box = layout.box()
 		box.label(text="Control Colors", icon='COLOR')
-		box.prop(self, "fk_bone_color")
-		box.prop(self, "ik_bone_color")
-		box.prop(self, "control_bone_color")
-		box.prop(self, "tweak_bone_color")
+
+		col = box.column(align=True)
+		self._color_row(col, "", None, None, None, header=True)
+		self._color_row(col, "FK", "fk_bone_color_left", "fk_bone_color", "fk_bone_color_right")
+		self._color_row(col, "IK", "ik_bone_color_left", "ik_bone_color", "ik_bone_color_right")
+		col.separator()
+		self._color_row(col, "FK Master", None, "fk_master_bone_color", None)
+		self._color_row(col, "Tweak", None, "tweak_bone_color", None)
+		self._color_row(col, "Torso", None, "torso_bone_color", None)
+		self._color_row(col, "Root", None, "root_bone_color", None)
+
+
+	def _color_row(self, layout, label, left, center, right, header=False):
+		split = layout.split(factor=0.4)
+		label_col = split.row()
+		label_col.alignment = 'RIGHT'
+		label_col.label(text=label)
+
+		row = split.row()
+		row.alignment = 'LEFT'
+		grid = row.grid_flow(row_major=True, columns=3, even_columns=True, align=False)
+		grid.ui_units_x = 12
+
+		for prop, title in ((left, "Left"), (center, "Center"), (right, "Right")):
+			cell = grid.row()
+			cell.alignment = 'CENTER'
+			if header:
+				cell.label(text=title)
+			elif prop:
+				cell.prop(self, prop, text="", icon_only=True)
+			else:
+				cell.label(text="")

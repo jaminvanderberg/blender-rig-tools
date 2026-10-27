@@ -1,10 +1,8 @@
 import bpy
-from rigtools.armature_settings import get_armature_settings
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, name_bone
-from rigtools.preferences import get_preferences
-from rigtools.utils.widget import apply_widget
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
+from rigtools.utils.widget import CONTROL_WIRE_WIDTH
 
 class MasterControllers:
 	def __init__(self, *,
@@ -67,7 +65,12 @@ class MasterControllers:
 				master_bone = duplicate_bone(obj.data, fk_bone, master_bone_name, 1.5)
 				master_bone.parent = fk_bone.parent
 
-				self.mechanism_bones.add(master_bone.name, 'master')
+				self.mechanism_bones.add(master_bone.name, 'control')
+			
+				self.mechanism_bones.style(master_bone.name, widget=self.master_controller_widget, wire_width = CONTROL_WIRE_WIDTH)
+			else:
+				# Re-style the existing FK bone
+				self.mechanism_bones.style(fk_name, color='control', wire_width=CONTROL_WIRE_WIDTH)
 
 			# Create the driven mch bones
 			mch_names = generate_mch_bones(obj.data, driven_names, bone_template("fk_follow"))
@@ -87,7 +90,6 @@ class MasterControllers:
 			bpy.ops.object.mode_set(mode='POSE')
 					
 		pose_bones = obj.pose.bones
-		prefs = get_preferences()
 
 		for segment in self.segments:
 			master_name = segment["master"]
@@ -109,7 +111,6 @@ class MasterControllers:
 				rot.target_space = 'LOCAL'
 				rot.owner_space = 'LOCAL'
 
-			master_bone = pose_bones[master_name]
 			if self.master_controller_type == "MASTER":
 				# Scale only on the first driven bone so it does not stack per segment bone
 				scale = pose_bones[mch_names[0]].constraints.new("COPY_SCALE")
@@ -117,14 +118,5 @@ class MasterControllers:
 				scale.subtarget = master_name
 				scale.target_space = 'LOCAL'
 				scale.owner_space = 'LOCAL'
-
-				# Widgets
-				wgt = apply_widget(context, master_bone, self.master_controller_widget)
-				self.object_names.append(wgt.name)
-
-			# Bone Colors
-			master_bone.color.palette = prefs.control_bone_color
-			# Make the controller bone thicker
-			master_bone.custom_shape_wire_width = 1.5
 
 		return self

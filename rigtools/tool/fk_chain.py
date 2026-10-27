@@ -1,6 +1,7 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import generate_bone_name
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
@@ -12,12 +13,14 @@ class FKChain:
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
+		side: str = "",
 	):
 		self.fk_bone_template = fk_bone_template
 		self.fk_widget = fk_widget
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
+		self.side = side
 
 		self.org_bone_names = None
 		self.fk_bone_names = []
@@ -49,8 +52,13 @@ class FKChain:
 
 			self.fk_bone_names.append(fk_bone.name)
 			self.mechanism_bones.add(fk_bone.name, self.fk_role)
-			
 			last_parent = fk_bone
+
+		scales = chain_widget_scales([edit_bones[name].length for name in self.fk_bone_names],
+			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
+		for fk_name, scale in zip(self.fk_bone_names, scales):
+			self.mechanism_bones.style(fk_name, widget=self.fk_widget,
+			    scale=widget_scale_xyz(self.fk_widget, scale))
 
 		return self
 
@@ -67,22 +75,5 @@ class FKChain:
 			c = o.constraints.new(type="COPY_TRANSFORMS")
 			c.target = obj
 			c.subtarget = fk_name
-
-		# Bone Colors
-		for fk_name in self.fk_bone_names:
-			fk_bone = pose_bones[fk_name]
-			fk_bone.color.palette = prefs.fk_bone_color
-			
-		# Widgets
-		scales = chain_widget_scales([pose_bones[name].length for name in self.fk_bone_names],
-			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
-		for fk_name, scale in zip(self.fk_bone_names, scales):
-			fk_bone = pose_bones[fk_name]
-			wgt = apply_widget(context, fk_bone, self.fk_widget)
-			if wgt is None: continue
-
-			fk_bone.custom_shape_scale_xyz = widget_scale_xyz(self.fk_widget, scale)
-
-			self.object_names.append(wgt.name)
 
 		return self

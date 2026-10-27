@@ -2,6 +2,7 @@ import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_reparent_rule
 from rigtools.utils.bone import duplicate_bone
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
 from rigtools.armature_settings import get_armature_settings
@@ -19,6 +20,7 @@ class FKTweakChain:
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
 		inherit_xz_scale_from_previous: bool = False, # ik scaling fix
+		side: str = ''
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
@@ -30,6 +32,7 @@ class FKTweakChain:
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
 		self.inherit_xz_scale_from_previous = inherit_xz_scale_from_previous
+		self.side = side
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -186,11 +189,11 @@ class FKTweakChain:
 		# Bone Colors
 		for fk_name in self.fk_bone_names:
 			fk_bone = pose_bones[fk_name]
-			fk_bone.color.palette = prefs.fk_bone_color
+			fk_bone.color.palette = get_bone_color(prefs, 'fk', self.side)
 			
 		for tweak_name in tweakers:
 			tweak_bone = pose_bones[tweak_name]
-			tweak_bone.color.palette = prefs.tweak_bone_color
+			tweak_bone.color.palette = get_bone_color(prefs, 'tweak', self.side)
 			
 
 		# Widgets

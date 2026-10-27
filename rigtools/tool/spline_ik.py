@@ -1,7 +1,8 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.naming import generate_bone_name, name_bone
+from rigtools.utils.bone_colors import get_bone_color
+from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import apply_widget
@@ -18,11 +19,13 @@ class SplineIK:
 	def __init__(self, *,
 		control_count: int = 3,
 		skip_first: bool = False,
-		twist_type: str = 'START_END'
+		twist_type: str = 'START_END',
+		side: str = ""
 	):
 		self.control_count = control_count
 		self.skip_first = skip_first
 		self.twist_type = twist_type
+		self.side = side
 
 		self.mch_bone_names = None
 		self.control_names = None
@@ -272,13 +275,14 @@ class SplineIK:
 				driver.expression = expr
 
 		# Bone Colors
+		color = get_bone_color(prefs, 'ik', self.side)
 		for control_name in self.control_names:
 			control_bone = pose_bones[control_name]
-			control_bone.color.palette = prefs.ik_bone_color
+			control_bone.color.palette = color
 
 		for twist_name in self.twist_names or []:
 			twist_bone = pose_bones[twist_name]
-			twist_bone.color.palette = prefs.ik_bone_color
+			twist_bone.color.palette = color
 
 		# Lock Transforms
 		for control_name in self.control_names:

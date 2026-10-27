@@ -21,3 +21,28 @@ BONE_COLOR_ITEMS = [
     ('THEME19', "19 - Theme Color Set", "19 - Theme Color Set", 'COLORSET_19_VEC', 19),
     ('THEME20', "20 - Theme Color Set", "20 - Theme Color Set", 'COLORSET_20_VEC', 20),
 ]
+
+_COLOR_ROLE_MAP = {
+    'fk': "fk_bone_color",
+    'ik': "ik_bone_color",
+    'tweak': "tweak_bone_color",
+    'control': "fk_master_bone_color",
+    'torso': "torso_bone_color",
+    'root': "root_bone_color",
+}
+_SIDED_COLOR_ROLES = {'fk', 'ik'}
+
+def side_letter(side):
+    s = side.upper()
+    if "R" in s:
+        return "R"
+    elif "L" in s:
+        return "L"
+    return "C"
+
+def get_bone_color(prefs, role, side=""):
+    """role: 'fk', 'ik', 'tweak', 'control', 'torso', 'root'.  Only fk/ik are sided."""
+    if role in _SIDED_COLOR_ROLES:
+        suffix = {"L": "_left", "R": "_right"}.get(side_letter(side), "")
+        return getattr(prefs, f"{_COLOR_ROLE_MAP[role]}{suffix}")
+    return getattr(prefs, _COLOR_ROLE_MAP[role])

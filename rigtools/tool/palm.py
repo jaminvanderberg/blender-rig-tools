@@ -4,6 +4,7 @@ from rigtools.preferences import get_preferences
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.utils.bone import generate_mch_bones
+from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template
 
 
@@ -12,10 +13,12 @@ class Palm:
 		fk_widget: str = "PILL",
 		pinky_falloff_type: str = "LINEAR",
 		index_falloff_type: str = "SHARP",
+		side: str = ""
 	):
 		self.fk_widget = fk_widget
 		self.pinky_falloff_type = pinky_falloff_type
 		self.index_falloff_type = index_falloff_type
+		self.side = side
 
 		self.fk_chain = None
 		self.org_bone_names = []
@@ -37,7 +40,8 @@ class Palm:
 
 		self.fk_chain = FKChain(
 			fk_bone_template=bone_template('fk'),
-			fk_widget=self.fk_widget
+			fk_widget=self.fk_widget,
+			side = self.side
 		)
 
 		self.fk_chain.edit_mode(context, self.org_bone_names)
@@ -96,12 +100,12 @@ class Palm:
 		# Bone Colors
 		if self.index_falloff_type != "NONE":
 			pb = pose_bones[index]
-			pb.color.palette = prefs.control_bone_color
+			pb.color.palette = get_bone_color(prefs, 'fk_master', self.side)
 			pb.custom_shape_wire_width = 1.5
 
 		if self.pinky_falloff_type != "NONE":
 			pb = pose_bones[pinky]
-			pb.color.palette = prefs.control_bone_color		
+			pb.color.palette = get_bone_color(prefs, 'fk_master', self.side)
 			pb.custom_shape_wire_width = 1.5
 
 		return self

@@ -15,13 +15,6 @@ def find_bones_by_limb_role(armature_data, limb, side, role):
 			names.extend(assembly.get_bones_by_role(role))
 	return names
 
-def _collection_in_use(armature_data, collection_name):
-	for row in armature_data.rigtools_limb_collections:
-		for role in LIMB_COLLECTION_ROLES:
-			if getattr(row, role) == collection_name:
-				return True
-	return False
-
 class LimbCollectionMap(PropertyGroup):
 	limb: StringProperty()
 	side: StringProperty()
@@ -29,7 +22,6 @@ class LimbCollectionMap(PropertyGroup):
 	fk: StringProperty()
 	ik: StringProperty()
 	tweak: StringProperty()
-	master: StringProperty()
 	control: StringProperty()
 
 	split: BoolProperty(
@@ -110,8 +102,6 @@ def ensure_limb_collections(armature_data, limb, side, promote = False):
 		row.ik = name_collection("ik", limb, side)
 	if not row.tweak:
 		row.tweak = name_collection("tweak", limb, side)
-	if not row.master:
-		row.master = name_collection("fk_master", limb, side)
 	if not row.control:
 		row.control = name_collection("control", limb, side)
 
