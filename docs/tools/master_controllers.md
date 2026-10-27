@@ -14,6 +14,8 @@ Master controllers come in two types:
 
 Each FK control still works normally.  The master controllers add on top of the animator's FK pose.
 
+Masters use the FK Master *[color](../armature_settings.md#control-colors)*.  FK follow masters stay in the limb's FK collection.  Dedicated masters get their own collection, and the FK controls move to a separate FK collection.  See *[bone collections](../rigui/collections.md#assembly-bone-collections)*.
+
 The chain can be split into groups with an interval, so a long tail can have a master every few bones instead of one for the whole chain.
 
 !!! screenshot "Image placeholder"

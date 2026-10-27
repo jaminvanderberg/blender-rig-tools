@@ -79,12 +79,16 @@ The addon preferences set the defaults for new rigs.  Changing the preferences d
 
 ### Control Colors
 
-The bone color sets used for each type of control.
+The bone color sets used for each type of control.  FK and IK have a separate color for left, center, and right controls.  The side comes from the limb.
 
-- FK Color: default Theme 4.
-- IK Color: default Theme 1.
-- Master Control Color: used for the root, torso controls, master controllers, and other special controls.  Default Theme 2.
-- Tweak Color: default Theme 9.
+- FK: default Theme 4 for left and center, Theme 1 for right.
+- IK: default Theme 4 for left, Theme 1 for center and right.
+- FK Master: used for master controllers, finger curl, and the index and pinky palm controls.  Default: Theme 2.
+- Tweak: default Theme 9.
+- Torso: used for the torso, hips, chest, neck, and head controls.  Default: Theme 9.
+- Root: used for the root and properties bones.  Default: Theme 1.
+
+Changing a color only affects controls created afterwards.  Click **Reapply Bone Colors** to recolor every rig in the file with the current colors.
 
 ## Related
 

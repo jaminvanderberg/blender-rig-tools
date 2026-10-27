@@ -1,10 +1,8 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import generate_bone_name
-from rigtools.preferences import get_preferences
-from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
+from rigtools.utils.widget import chain_widget_scales, widget_scale_xyz
 
 class FKChain:
 	def __init__(self, *,
@@ -13,14 +11,14 @@ class FKChain:
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
-		side: str = "",
+		fk_color: str | None = None,
 	):
 		self.fk_bone_template = fk_bone_template
 		self.fk_widget = fk_widget
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
-		self.side = side
+		self.fk_color = fk_color
 
 		self.org_bone_names = None
 		self.fk_bone_names = []
@@ -57,14 +55,16 @@ class FKChain:
 		scales = chain_widget_scales([edit_bones[name].length for name in self.fk_bone_names],
 			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
 		for fk_name, scale in zip(self.fk_bone_names, scales):
-			self.mechanism_bones.style(fk_name, widget=self.fk_widget,
-			    scale=widget_scale_xyz(self.fk_widget, scale))
+			self.mechanism_bones.style(fk_name, 
+			    widget=self.fk_widget,
+			    color=self.fk_color,
+			    scale=widget_scale_xyz(self.fk_widget, scale)
+			)
 
 		return self
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		pose_bones = obj.pose.bones
 
 		if obj.mode != 'POSE':

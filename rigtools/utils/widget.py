@@ -21,6 +21,7 @@ LIMB_FK_WIRE_WIDTH = 1.5
 CONTROL_WIRE_WIDTH = 2.0
 IK_WIRE_WIDTH = 2.0
 TORSO_FK_WIRE_WIDTH = 1.5
+ROOT_WIRE_WIDTH = 1.5
 
 master_widget_types = [item for item in fk_widget_types if item[0] != 'NONE']
 

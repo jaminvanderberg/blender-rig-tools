@@ -22,6 +22,8 @@ The button layout is stored on the armature, so it's saved with the rig and shar
 
 Assemblies put their controls into bone collections named after the limb and side.  For example, an arm on the left side creates collections for its FK controls, IK controls, and tweaks, such as `Arm.FK.L`, `Arm.IK.L`, and `Arm.Tweak.L`.  Mechanism bones go into MCH collections, grouped under a parent **MCH** collection.
 
+A limb with only FK controls keeps them in a single collection, such as `Hair.L`.  When the limb also gets IK, torso controls, or dedicated master controllers, the FK controls move to their own collection, such as `Tail.FK.L`, and the torso controls or dedicated masters go in `Tail.L`.  Once a limb's FK controls have moved, they stay in their own collection.
+
 Assemblies that share a limb name and side share the same collections.  For example, the left shoulder goes in with the left arm, and the left palm and fingers share the left hand collections.
 
 The collections for a limb can be renamed from the *[Assembly Panel](../assemblies.md#assembly-panel)*.  Click the collection icon next to the assembly name, and enter the new names.  The Rig UI layout is updated to match.

@@ -19,7 +19,7 @@ SELECT_SIMILAR_MODES = [
 	('LIMB', "Same Limb", "Select assemblies with the same limb name"),
 	('CONFIG', "Same Configuration", "Select assemblies with the same limb name and options"),
 ]
-SELECT_SIMILAR_ROLES = ("fk", "ik", "control", "master")
+SELECT_SIMILAR_ROLES = ("fk", "ik", "control")
 
 def find_assemblies_from_selection(context):
 	bones = get_selected_bones(context)
@@ -59,7 +59,6 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 	fk: bpy.props.StringProperty(name="FK")
 	ik: bpy.props.StringProperty(name="IK")
 	tweak: bpy.props.StringProperty(name="Tweak")
-	master: bpy.props.StringProperty(name="Master")
 	control: bpy.props.StringProperty(name="Control")
 	
 	def _roles_in_use(self, armature_data):
@@ -79,7 +78,6 @@ class RIG_OT_rename_limb_collections(bpy.types.Operator):
 			"fk": "FK",
 			"ik": "IK",
 			"tweak": "Tweak",
-			"master": "Master",
 			"control": "Control",
 		}
 		split_size = 0.25
@@ -218,6 +216,23 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 		# Match the greyed-out state to what a click would do, including a remembered Include Mirror
 		include_mirror = context.window_manager.operator_properties_last(RIG_OT_select_similar_assemblies.bl_idname).include_mirror
 
+		if len(assemblies) > 1:
+			layout.separator()
+			row = layout.row(align=True)
+			types = {a.assembly_type for a in assemblies}
+			templates = {a.template_id for a in assemblies}
+			source = get_active_assembly(context, assemblies)
+			if len(types) > 1 or len(templates) > 1 or source is None:
+				row.operator("rig.reconfigure_selected_assemblies", text="Reconfigure All Selected", icon='TOOL_SETTINGS')
+			else:
+				op = row.operator(
+					ASSEMBLY_TYPE_OPERATORS[source.assembly_type],
+					text="Reconfigure All Selected",
+					icon='TOOL_SETTINGS',
+				)
+				op.assembly_uid = source.uid
+				op.assembly_uids = ",".join(a.uid for a in assemblies)		
+
 		for assembly in assemblies:
 			box = layout.box()
 			col = box.column(align=True)
@@ -255,23 +270,6 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 				col.separator(factor=0.5)
 				for config in configs:
 					config.draw(col, assembly, context)
-					
-		if len(assemblies) > 1:
-			layout.separator()
-			row = layout.row(align=True)
-			types = {a.assembly_type for a in assemblies}
-			templates = {a.template_id for a in assemblies}
-			source = get_active_assembly(context, assemblies)
-			if len(types) > 1 or len(templates) > 1 or source is None:
-				row.operator("rig.reconfigure_selected_assemblies", text="Reconfigure All Selected", icon='TOOL_SETTINGS')
-			else:
-				op = row.operator(
-					ASSEMBLY_TYPE_OPERATORS[source.assembly_type],
-					text="Reconfigure All Selected",
-					icon='TOOL_SETTINGS',
-				)
-				op.assembly_uid = source.uid
-				op.assembly_uids = ",".join(a.uid for a in assemblies)
 
 		if not assemblies:
 			layout.label(text="No assemblies selected", icon=icon('STATUS_INFO'))

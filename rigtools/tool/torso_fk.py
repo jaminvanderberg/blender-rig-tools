@@ -10,7 +10,7 @@ from rigtools.twist_bones import create_twist_chain, get_twist_chain
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones, match_orientation
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_chain import get_length_weighted_midpoint
-from rigtools.utils.widget import CONTROL_WIRE_WIDTH, TORSO_FK_WIRE_WIDTH, apply_widget
+from rigtools.utils.widget import CONTROL_WIRE_WIDTH, TORSO_FK_WIRE_WIDTH
     
 class TorsoFK:
 	def __init__(self, *,
@@ -173,7 +173,7 @@ class TorsoFK:
 			if not (is_head_bone or is_neck_bone):
 				self.mechanism_bones.add(fk_bone.name, 'fk')
 			if is_neck_bone or is_head_bone:
-				self.mechanism_bones.add(fk_bone.name, 'control')
+				self.mechanism_bones.add(fk_bone.name, 'control').set(color='torso')
 
 		# Parent the FK bones in two sections: lower torso and upper torso
 		for fk_bone in fk_bones:
@@ -311,6 +311,7 @@ class TorsoFK:
 		# Widget Styles
 		avg_size = sum(edit_bones[name].length for name in self.fk_bone_names) / len(self.fk_bone_names)
 		for i, fk_name in enumerate(self.fk_bone_names):
+			fk_bone = edit_bones[fk_name]
 			# make all torso widgets the same size
 			scale = avg_size / fk_bone.length * 1.5 # but scaled up a little
 			if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
@@ -328,7 +329,7 @@ class TorsoFK:
 
 			self.mechanism_bones.style(fk_name,
 			    widget=self.fk_widget, 
-				scale=(1.0, scale, 1.0),
+				scale=(scale, 1.0, scale),
 				translate=(0.0, translate_y, 0.0), 
 				wire_width=TORSO_FK_WIRE_WIDTH
 			)
@@ -337,17 +338,20 @@ class TorsoFK:
 		    widget='CHEST',
 			rotate=(0.0, math.pi, 0.0),
 			translate=(0.0, 0.0, -hip_bone.length * 0.25),
-			wire_width=CONTROL_WIRE_WIDTH
+			wire_width=CONTROL_WIRE_WIDTH,
+			color='torso'
 		)
 		self.mechanism_bones.style(self.chest_bone_name,
 		    widget='CHEST',
 			translate=(0.0, 0.0, chest_bone.length),
-			wire_width=CONTROL_WIRE_WIDTH
+			wire_width=CONTROL_WIRE_WIDTH,
+			color='torso'
 		)
 		self.mechanism_bones.style(self.torso_bone_name,
 		    widget='BOX',
 			translate=(0.0, -torso_bone.length * 0.5, 0.0),
-			wire_width=CONTROL_WIRE_WIDTH
+			wire_width=CONTROL_WIRE_WIDTH,
+			color='torso'
 		)
 
 		return self

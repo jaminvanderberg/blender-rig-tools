@@ -7,6 +7,7 @@ from mathutils import Matrix, Vector
 from rigtools.armature_settings import get_armature_settings
 from rigtools.heel_pivots import set_heel_pivot
 from rigtools.preferences import get_preferences
+from rigtools.root_widget import apply_root_widgets
 from rigtools.utils.bone import select_bones
 from rigtools.utils.bone_collection import add_bone_collection
 from rigtools.utils.widget import apply_widget
@@ -202,20 +203,7 @@ class RIG_OT_create_human_skeleton(bpy.types.Operator):
 
 		if self.apply_root_widgets:
 			bpy.ops.object.mode_set(mode='POSE')
-			pose_bones = obj.pose.bones
-
-			root = pose_bones[prefs.root_bone_name]
-			apply_widget(context, root, 'ROOT', replace=True)
-			root.color.palette = prefs.control_bone_color
-			root.custom_shape_wire_width = 1.5
-
-			properties = pose_bones[prefs.property_bone_name]
-			apply_widget(context, properties, 'GEAR', replace=True)
-			properties.custom_shape_wire_width = 1.5
-			properties.lock_location = (True, True, True)
-			properties.lock_rotation = (True, True, True)
-			properties.lock_scale = (True, True, True)
-
+			apply_root_widgets(context, obj)
 			bpy.ops.object.mode_set(mode='OBJECT')
 
 		self.report({'INFO'}, "Created RigTools Human skeleton")

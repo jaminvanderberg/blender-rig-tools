@@ -1,7 +1,31 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
 from rigtools.preferences import get_preferences
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import ROOT_WIRE_WIDTH, apply_widget
+
+def apply_root_widgets(context, obj):
+	"""Styles the root and properties bones. Returns the names of any that weren't found."""
+	settings = get_armature_settings(obj.data, context)
+	pose_bones = obj.pose.bones
+	missing = []
+
+	root = pose_bones.get(settings.root_bone_name)
+	if root:
+		BoneStyle(widget='ROOT', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, root, side="", replace_widget=True)
+	else:
+		missing.append(settings.root_bone_name)
+
+	properties = pose_bones.get(settings.property_bone_name)
+	if properties:
+		BoneStyle(widget='GEAR', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, properties, side="", replace_widget=True)
+		properties.lock_location = (True, True, True)
+		properties.lock_rotation = (True, True, True)
+		properties.lock_scale = (True, True, True)
+	else:
+		missing.append(settings.property_bone_name)
+
+	return missing		
 
 class RIG_OT_apply_root_widgets(bpy.types.Operator):
 	bl_idname = "rig.apply_root_widgets"
@@ -9,39 +33,11 @@ class RIG_OT_apply_root_widgets(bpy.types.Operator):
 	bl_options = {'REGISTER', 'UNDO'}
 
 	def execute(self, context):
-		obj = context.object
-		armature_data = obj.data
-		settings = get_armature_settings(armature_data, context)
-
-		root = obj.pose.bones.get(settings.root_bone_name)
-		if root is None:
-			self.report({'ERROR'}, f"Root bone not found: {settings.root_bone_name}")
-			return {'CANCELLED'}
-
-		apply_widget(context, root, 'ROOT', replace=True)
-
-		root.color.palette = get_preferences(context).control_bone_color
-		root.custom_shape_wire_width = 1.5
-
-		message = f"Root widget applied to {settings.root_bone_name}. "
-
-		# Properties bone
-		properties = obj.pose.bones.get(settings.property_bone_name)
-		if properties is None:
-			message += f"Properties bone not found: {settings.property_bone_name}"
-			self.report({'WARNING'}, message)
-			return {'FINISHED'}
-
-		apply_widget(context, properties, 'GEAR', replace=True)
-
-		properties.custom_shape_wire_width = 1.5
-		properties.lock_location = (True, True, True)
-		properties.lock_rotation = (True, True, True)
-		properties.lock_scale = (True, True, True)
-
-		message += f"Properties widget applied to {settings.property_bone_name}"
-
-		self.report({'INFO'}, message)
+		missing = apply_root_widgets(context, context.object)
+		if missing:
+			self.report({'WARNING'}, f"Bones not found: {', '.join(missing)}")
+		else:
+			self.report({'INFO'}, "Root and properties widgets applied")
 		return {'FINISHED'}
 
 classes = (

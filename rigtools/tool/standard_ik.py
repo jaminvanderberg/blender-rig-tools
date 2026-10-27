@@ -2,12 +2,10 @@ import math
 import bpy
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
-from rigtools.utils.widget import IK_WIRE_WIDTH, apply_widget
-from rigtools.preferences import get_preferences
+from rigtools.utils.widget import IK_WIRE_WIDTH
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
@@ -36,12 +34,10 @@ class StandardIK:
 		pole_distance: float = 1.0,
 		enable_snapping: bool = True,
 		ik_stretch_property_name: str,
-		side: str = ""
 	):
 		self.ik_stretch_property_name = ik_stretch_property_name
 		self.pole_distance = pole_distance
 		self.enable_snapping = enable_snapping
-		self.side = side
 
 		self.mch_bone_names = None
 		self.fk_bone_names = None
@@ -60,7 +56,6 @@ class StandardIK:
 	def edit_mode(self, context, mch_bone_names, fk_bone_names, tweak_bone_names=None, name_source=None):
 		obj = context.object
 		edit_bones = obj.data.edit_bones
-		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
@@ -168,7 +163,6 @@ class StandardIK:
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':

@@ -1,86 +1,93 @@
 # Bone styles: side colors, roles, and central styling
 
 ## Next steps (start here)
-Work in progress, not committed. The addon **won't run** until the apply pass exists: the tools converted so far record styles but no longer set them.
+Work in progress and not committed. The central styling works: a fresh build of Sarah has correct widgets, colors and wire widths, styles are saved on each assembly, and **Reapply Bone Colors** recolors every rig in the file.
 
 **Resume here:**
-1. Write the **apply pass** in `AssemblyData.apply_tool` (see Core design). Nothing visible works until this exists.
-2. Finish converting the tools (see Tool status).
-3. Finish Stage 1 leftovers: `assembly_panel.py` still lists `"master"` (lines 22 and 82). There's no promotion in `fk_assembly.py` yet.
-4. Convert the code outside assemblies: `root_widget.py`, `human_skeleton.py`.
-5. Fresh build of Sarah: check colors, widgets, wire widths and collections, especially the hands (the shared `Hand` limb).
-6. Migration (last).
+1. Finish Stage 1 leftovers:
+   - `assembly_panel.py` still lists `"master"` (lines 22, 62 and 82).
+   - `fk_assembly.py:66`: promote only for MASTER-type masters (`create_master_controllers and master_controllers_type == 'MASTER'`).
+   - `finger_curl.py`: role `fk` with `color='control'`, instead of role `control`.
+2. Convert the code outside assemblies: `root_widget.py:23` and `human_skeleton.py:209` still read `prefs.control_bone_color`, which no longer exists. Switch them to `get_bone_color(prefs, 'root')`. Then the reapply operator can also recolor the root bone (`settings.root_bone_name`).
+3. Fresh build of Sarah: check the collections, especially a MASTER-type tail (`Tail.L` masters, `Tail.FK.L` FK bones).
+4. Migration (last).
+5. Later: preserve hand edits across reconfigure, using the saved styles.
 
 How we'll work: the user builds this. Claude explains, reviews and helps on request.
 
 ## Context
 This started as the TODO item "L/R colors" and grew into a broader goal: tools *describe* how their bones should look, and one pass in `apply_tool` applies it. Side comes from the limb, so tools don't need to know their side.
 
-Theme color sets are dark when unselected, so side colors are subtle. We judged them still worth having. Custom colors (`palette = 'CUSTOM'`) could be added later inside `get_bone_color()`.
+Theme color sets are dark when unselected, so side colors are subtle. Custom colors (`palette = 'CUSTOM'`) could be added later inside `get_bone_color()`.
 
 ## Decisions
-- **Roles:** `fk`, `ik`, `tweak`, `control`, `mch`. `master` is gone. FK masters, finger curl and torso controls are all `control`, which is the limb's base collection `{Name}{side}`.
+- **Roles:** `fk`, `ik`, `tweak`, `control`, `mch`. `master` is gone.
+- **The role sets the collection; the color sets how prominent a bone looks.**
+  - `control` is only for *separate* bones that drive a chain: MASTER-type masters (the tail case) and torso controls. It goes in the limb's base collection `{Name}{side}`.
+  - Bones that are part of a chain keep `fk`, even when they act like masters. They're marked with `color='control'` instead. This covers FK-type masters, palm index/pinky and finger curl. You see all of a skirt's or hand's bones together.
 - **Torso is special only in color.** Its bones use the `control` role with a `color='torso'` style override.
 - **Color keys** (`get_bone_color`) are the roles, plus the color-only keys `torso` and `root`. `control` → FK Master color.
-- **Collections:** the base `{Name}{side}` holds the limb's main controls. FK is promoted to `{Name}.FK{side}` when something else claims the base. Torso already works this way. For fingers: `Hand.L` holds the masters, and `Hand.FK.L` holds the FK bones. Promotion is one-way, like the IK split.
-- **Wire widths** (`utils/widget.py`): `LIMB_FK_WIRE_WIDTH = 1.5` for FK chains with an FK/IK switch, and `CONTROL_WIRE_WIDTH = 2.0` for masters, torso controls and IK controls. Plain FK chains stay at Blender's default of 1.0.
-- **`widget='NONE'` is recorded explicitly**, not skipped. `None` means "no change"; `'NONE'` means "no widget". It matters once styles are saved or reapplied.
-- **Empty styles are fine.** `add()` returns the bone's style, so `mch` bones get empty ones. They only exist during one build; skip empty styles when saving.
-- **Pinned:** renaming the `control_bone_color` preference to match. The preference itself is now `torso_bone_color`, but some callers still use the old name (see Known breakage).
-
-## Preferences (done)
-- Theme color set enums. FK and IK have left, center and right. FK Master, Tweak, Torso and Root are center only.
-- `fk_bone_color` and `ik_bone_color` are the center colors, so old exported settings still import.
-- `draw()`: a label column, then a fixed-width 3-column `grid_flow` with centered cells.
+- **Color resolution:** an explicit `style.color` always wins. Otherwise a bone with exactly one role other than `mch` gets that role's color. A bone with several roles must be given a color explicitly; if not, it stays uncolored, which shows up in testing. There's no priority list.
+- **Multi-role chains:** `FKChain` and `FKTweakChain` take `fk_color` (default `None`). The two `['fk', 'ik']` call sites pass `fk_color='fk'`.
+- **No cross-assembly styling.** A tool may style a bone that an earlier tool in the *same assembly* registered (shoulder, foot roll). Styling a bone from another assembly raises `ValueError` in `apply_tool`.
+- **Collections:** FK is promoted to `{Name}.FK{side}` when `control` bones claim the base collection. That happens with IK, torso, and FK assemblies with MASTER-type masters. Hands never promote. Promotion is one-way, like the IK split.
+- **Promoting an existing limb:** `rename()` renames the old collection, which keeps its RigUI slot, and the base collection is recreated at the bottom of the RigUI. This is intended. `rename()` only deletes a collection once no bones are assigned to it; that's also intentional, so leave it alone.
+- **Wire widths** (`utils/widget.py`):
+  - `LIMB_FK_WIRE_WIDTH = 1.5`: FK chains with an FK/IK switch, and the shoulder.
+  - `TORSO_FK_WIRE_WIDTH = 1.5`: the torso's FK chain.
+  - `CONTROL_WIRE_WIDTH = 2.0`: masters, finger curl, torso controls, and palm index/pinky.
+  - `IK_WIRE_WIDTH = 2.0`: IK controls, poles and the pole line, spline controls and twist, and foot roll.
+  - Plain FK chains stay at Blender's default of 1.0.
+- **`widget='NONE'` is recorded explicitly**, not skipped. `None` means "no change"; `'NONE'` means "no widget".
+- **Default colors:** blue for left, red for right, the same for FK and IK. Center FK is blue and center IK is red. FK Master is orange, and tweak and torso are yellow. The user is trying these out.
+- **Pinned:** renaming the old `control_bone_color` name everywhere (see step 2).
 
 ## Core design
 **`utils/bone_colors.py`**
-- `get_bone_color(prefs, role, side)` looks the role up in a role → preference table, and appends `_left`/`_right` for sided roles (`fk`, `ik`). An unknown key raises `KeyError`.
+- `get_bone_color(prefs, color_key, side)` looks the key up in a key → preference table, and appends `_left`/`_right` for sided keys (`fk`, `ik`).
 - `side_letter(side)` lives here because `naming` → `preferences` → `bone_colors` would be a circular import.
 
 **`assemblies/tool_data/mechanism_bones.py`**
-- `BoneStyle`: `widget`, `color`, `wire_width`, `scale`, `translation`, `rotation`, `transform_bone`. Every field defaults to `None` ("no change"). `set(**settings)` rejects unknown names.
-- `MechanismBones.styles` is a dict keyed by bone name. `style(name, **settings)` creates or updates the style and returns it. `add(name, role)` registers the bone and returns its style.
-- **Overrides:** a tool can style a bone that another tool registered, by name. FK-type master controllers do this (`color='control'`). Later settings win, field by field.
-- `append()` merges a child tool's styles into the parent.
-- Tools record styles in `edit_mode`, next to where they create the bones. Bone lengths are available there, so scale calculations move to edit mode.
+- `BoneStyle`: `widget`, `color`, `wire_width`, `scale`, `translate`, `rotate`, `transform_bone`. Every field defaults to `None` ("no change").
+  - `set(**settings)` rejects unknown names.
+  - `append(style)` merges in the fields of another style that aren't `None`.
+  - `apply(context, pose_bone, side)` sets every field that isn't `None` and returns the widget object, if one was created. `transform_bone` is looked up through `pose_bone.id_data`.
+  - `to_json()` and `from_json()` store only the fields that are set.
+- `MechanismBones.styles` is a dict keyed by bone name. `style(name, **settings)` creates or updates a style and returns it. `add(name, role)` registers the bone and returns its style. `append()` merges a child tool's bones and styles.
+- Tools record styles in `edit_mode`, next to where they create the bones.
 
-**The apply pass (`AssemblyData.apply_tool`), to do**
-- Take `context` instead of `armature_data`. Widget creation needs it. Update the 4 callers in `fk_assembly`, `ik_assembly`, `palm_assembly` and `torso_assembly`.
-- For each bone, if the style has:
-  - **widget:** `apply_widget`, and add the widget's name to the assembly's `objects`. `'NONE'` → `custom_shape = None`.
-  - **scale, translation, rotation, transform_bone, wire_width:** set the matching `custom_shape_*` property.
-  - **color:** use `style.color` if set, otherwise the bone's first role that isn't `mch` (FK beats IK for shared `['fk', 'ik']` bones), with `limb_collections.side`.
-  - **`mch` only, no style:** leave the color at default.
-- Set pose bone properties (`obj.pose.bones[...]`). This runs in pose mode, right after `tool.pose_mode()`.
-- Delete each tool's own color, widget and wire-width code, and `self.side`, as it's converted.
+**`AssemblyData.apply_tool(context, tool, limb_collections)`**
+1. **Loop over the tool's bones:** add rows and roles, assign collections, and resolve the color from the role when `style.color` is `None`.
+2. **Loop over the tool's styles:**
+   - find the row in this assembly (error if missing);
+   - `style.apply(...)`, and add the widget to `objects`;
+   - `row.add_style(style)` merges the style into the stored one.
+   - Styles are applied in a separate loop because styled-only bones (shoulder, foot roll) aren't in the tool's bones.
+
+**Storage:** `BoneRef.style_json` holds the merged style, with the color stored already resolved. Helpers: `get_style()`, `set_style()`, `add_style()`.
+
+**Reapply:** `operators/bone_colors.py` defines `RIG_OT_reapply_bone_colors`. It goes through every armature in the file and calls `BoneStyle(color=...).apply()` for each stored color, using `assembly.side`. The button is in Preferences, under the color grid. Rigs built before style storage have empty `style_json` and are skipped until they're rebuilt.
 
 ## Tool status
-**Converted (style recorded in edit mode):**
-- `fk_chain.py`: still has an unused `side` parameter and `get_bone_color` import.
-- `fk_ik_switch.py`
-- `master_controllers.py`: role `control`, FK-type override.
-- `finger_curl.py`: role `control`. Still has `self.side` and old imports.
+All tools inside assemblies have been converted:
+- `fk_chain`, `fk_tweak_chain`, `fk_ik_switch`
+- `master_controllers`, `finger_curl`, `palm`, `shoulder`
+- `torso_fk`
+- `standard_ik`, `spline_ik`, `foot_roll`
 
-**Not converted (still color directly, most with `self.side`):**
-- `fk_tweak_chain.py`: FK chain styling plus tweak spheres.
-- `torso_fk.py`: custom sizing and offsets per bone; `color='torso'` on torso, hips, chest, neck and head. The sketch is in the conversation history; all values can be computed in edit mode.
-- `palm.py`: index and pinky are FK bones from its internal `FKChain`; give them an override with `color='control'`. Stop passing `side` to the inner `FKChain`.
-- `shoulder.py`: still uses `'fk_master'` as a color key (no longer valid); it should be sided FK.
-- `standard_ik.py`, `spline_ik.py`, `foot_roll.py`: IK styling. `spline_ik.py:295` still reads `prefs.ik_bone_color`.
+`self.side` and the leftover color and widget code have been removed.
 
-**Outside assemblies:** `root_widget.py` and `human_skeleton.py` set `color.palette` directly. Switch them to `get_bone_color(prefs, 'root')`.
-
-## Known breakage
-- `prefs.control_bone_color` no longer exists (it's `torso_bone_color`), but it's still read in `torso_fk.py` (lines 436-450), `root_widget.py:23` and `human_skeleton.py:209`.
-- `'fk_master'` isn't a valid color key, but `palm.py` and `shoulder.py` still pass it.
-- `MechanismBones.add()` still has unused `widget`, `weight` and `scale` keyword arguments from an earlier version.
+**Outside assemblies:** `root_widget.py` and `human_skeleton.py` still need converting (step 2).
 
 ## Stages
 1. **Roles and collections:** mostly done. The panel still has `master`, and promotion isn't done yet.
-2. **Central styling** (above): in progress. This replaced "color only in `apply_tool`".
-3. **Migration:** existing rigs have `master` roles in `BoneRef.roles`, bones in `{Name}.Master{side}` collections, and the `master` value on `LimbCollectionMap`. The property is removed, but `row.get("master")` still reads the stored value. Move those bones to the base collection, promote FK, and fix the RigUI layout. Write it against a before/after of Sarah's rig.
-4. **Later:** save styles on the assembly to preserve hand edits across reconfigure (TODO item). Only save styles that have at least one field set.
+2. **Central styling:** done, including storage and reapplying colors.
+3. **Migration:**
+   - Existing rigs have `master` roles in `BoneRef.roles`, bones in `{Name}.Master{side}` collections, and the `master` value on `LimbCollectionMap`. The property is removed, but `row.get("master")` still reads the stored value.
+   - Move those bones to the base collection, promote FK, and fix the RigUI layout.
+   - Write it against a before/after of Sarah's rig.
+   - Styles don't need migrating; a rebuild fills them in.
+4. **Preserve hand edits:** when rebuilding, compare the live pose bones against the stored styles and keep anything that differs. Reapplying widgets in full needs `apply_widget(..., replace=True)` and has to keep `objects` in sync.
 
 ## Risk to watch
-**Shared limbs:** five finger chains plus the palm use `Hand`/`.L`. When promotion happens after some chains are built, `rename()` only moves the RigUI layout slot if the old collection ends up empty (`limb_collections.py`, `rename`). Either `Hand.FK.L` gets no layout slot, or `Hand.L` loses its position. Check this in step 5 of Resume here.
+**Shared limbs:** resolved. Hands no longer promote, so the five finger chains and the palm all stay in `Hand.L`. Promoting a limb that's already built behaves as intended (see Decisions).

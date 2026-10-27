@@ -48,6 +48,6 @@ def create_palm_assembly(context, chains: list[list[str]], template_id, template
 		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 		for tool in assembly_chain.tools:
 			tool.pose_mode(context)
-			assembly.apply_tool(context.object.data, tool, assembly_chain.limb_collections)
+			assembly.apply_tool(context, tool, assembly_chain.limb_collections)
 
 	return [palm.fk_chain.fk_bone_names[0]]

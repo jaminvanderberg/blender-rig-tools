@@ -126,6 +126,7 @@ FK_TEMPLATES = {
 			"taper_fk_widgets": True,
 		},
 		redo_fields=(
+			"limb_property_base_name",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",

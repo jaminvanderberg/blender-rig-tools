@@ -4,8 +4,6 @@ from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_re
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import generate_bone_name, name_bone
 from rigtools.utils.widget import chain_widget_scales, widget_scale_xyz
-from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
 
 class FKTweakChain:
 	def __init__(self, *,
@@ -18,6 +16,7 @@ class FKTweakChain:
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
+		fk_color: str | None = None,
 		inherit_xz_scale_from_previous: bool = False, # ik scaling fix
 	):
 		self.fk_bone_template = fk_bone_template
@@ -30,6 +29,7 @@ class FKTweakChain:
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
 		self.inherit_xz_scale_from_previous = inherit_xz_scale_from_previous
+		self.fk_color = fk_color
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -137,6 +137,7 @@ class FKTweakChain:
 		for fk_name, scale in zip(self.fk_bone_names, scales):
 			self.mechanism_bones.style(fk_name,
 			    widget=self.fk_widget,
+			    color=self.fk_color,
 				scale=widget_scale_xyz(self.fk_widget, scale)
 			)
 
@@ -148,9 +149,7 @@ class FKTweakChain:
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		pose_bones = obj.pose.bones
-		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
@@ -194,4 +193,3 @@ class FKTweakChain:
 			pb = pose_bones[tweak_name]
 			pb.lock_rotation = (True, True, True)
 			pb.lock_rotation_w = True
-

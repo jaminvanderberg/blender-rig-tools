@@ -1,11 +1,10 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
-from rigtools.preferences import get_preferences
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.utils.bone import generate_mch_bones
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template
+from rigtools.utils.widget import CONTROL_WIRE_WIDTH
 
 
 class Palm:
@@ -13,12 +12,10 @@ class Palm:
 		fk_widget: str = "PILL",
 		pinky_falloff_type: str = "LINEAR",
 		index_falloff_type: str = "SHARP",
-		side: str = ""
 	):
 		self.fk_widget = fk_widget
 		self.pinky_falloff_type = pinky_falloff_type
 		self.index_falloff_type = index_falloff_type
-		self.side = side
 
 		self.fk_chain = None
 		self.org_bone_names = []
@@ -40,8 +37,7 @@ class Palm:
 
 		self.fk_chain = FKChain(
 			fk_bone_template=bone_template('fk'),
-			fk_widget=self.fk_widget,
-			side = self.side
+			fk_widget=self.fk_widget
 		)
 
 		self.fk_chain.edit_mode(context, self.org_bone_names)
@@ -52,7 +48,6 @@ class Palm:
 			fk_bone.use_connect = False
 			fk_bone.parent = org_bone.parent
 
-
 		middle_bones = self.fk_chain.fk_bone_names[1:-1]
 		self.mch_bone_names = generate_mch_bones(armature_data, middle_bones, bone_template('mch'))
 		self.mechanism_bones.extend(self.mch_bone_names, 'mch')
@@ -62,15 +57,14 @@ class Palm:
 	
 		# Bone Colors
 		if self.index_falloff_type != "NONE":
-			self.mechanism_bones.style(self.fk_chain.fk_bone_names[0], color='control')
+			self.mechanism_bones.style(self.fk_chain.fk_bone_names[0], color='control', wire_width=CONTROL_WIRE_WIDTH)
 		if self.pinky_falloff_type != "NONE":
-			self.mechanism_bones.style(self.fk_chain.fk_bone_names[-1], color='control')
+			self.mechanism_bones.style(self.fk_chain.fk_bone_names[-1], color='control', wire_width=CONTROL_WIRE_WIDTH)
 
 		return self
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')

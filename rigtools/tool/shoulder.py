@@ -4,9 +4,8 @@ import bpy
 from mathutils import Vector
 
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
-from rigtools.preferences import get_preferences
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
+from rigtools.utils.widget import LIMB_FK_WIRE_WIDTH
 
 RAISE_FRACTION = 0.15
 BACK_FRACTION = 0.0
@@ -14,11 +13,7 @@ DIP_DEGREES = 10.0
 VIS_LENGTH_SCALE = 1.4
 
 class Shoulder:
-	def __init__(self,
-	    side: str = "",
-	):
-		self.side = side
-		
+	def __init__(self):
 		self.fk_bone_name = None
 		self.control_bone_name = None
 		self.vis_bone_name = None
@@ -61,21 +56,14 @@ class Shoulder:
 		self.vis_bone_name = vis_bone.name
 		self.mechanism_bones.add(self.vis_bone_name, 'mch')
 
-		self.mechanism_bones.style(self.fk_bone_name, color='control')
+		self.mechanism_bones.style(self.fk_bone_name, wire_width=LIMB_FK_WIRE_WIDTH, transform_bone=vis_bone.name)
 
 		return self
 
 	def pose_mode(self, context):
 		obj = context.object
-		pose_bones = obj.pose.bones
-		prefs = get_preferences(context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
-
-		shoulder = pose_bones[self.fk_bone_name]
-		vis = pose_bones[self.vis_bone_name]
-
-		shoulder.custom_shape_transform = vis
-
+		
 		return self

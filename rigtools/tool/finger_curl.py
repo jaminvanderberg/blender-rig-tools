@@ -1,20 +1,16 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
-from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.bone_chain import find_curl_axis
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template, name_bone
-from rigtools.utils.widget import CONTROL_WIRE_WIDTH, apply_widget
+from rigtools.utils.widget import CONTROL_WIRE_WIDTH
 
 
 class FingerCurl:
 	def __init__(self, *,
 		curl_axis: str = "AUTO", # AUTO, X, -X ,Z, -Z
-		side: str = "",
 	):
 		self.curl_axis = curl_axis
-		self.side = side
 
 		self.fk_bone_names = None
 		self.mch_bone_names = []
@@ -44,8 +40,8 @@ class FingerCurl:
 		control_bone = duplicate_bone(armature_data, edit_bones[self.fk_bone_names[0]], control_name, 3.0)
 		self.control_bone_name = control_bone.name
 		
-		style = self.mechanism_bones.add(self.control_bone_name, 'control')
-		style.set(widget='PADDLE', wire_width = CONTROL_WIRE_WIDTH)
+		style = self.mechanism_bones.add(self.control_bone_name, 'fk')
+		style.set(widget='PADDLE', color='control', wire_width = CONTROL_WIRE_WIDTH)
 
 		fk_bones = [edit_bones[name] for name in self.fk_bone_names]
 		self.axis, self.sign = find_curl_axis(fk_bones, self.curl_axis)
@@ -55,7 +51,6 @@ class FingerCurl:
 	def pose_mode(self, context):
 		obj = context.object
 		pose_bones = obj.pose.bones
-		prefs = get_preferences(context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')

@@ -4,8 +4,6 @@ from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, name_bone
 from rigtools.utils.widget import IK_WIRE_WIDTH
-from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class FootRoll:
@@ -113,6 +111,7 @@ class FootRoll:
 		vis_bone.parent = edit_bones[self.ik_foot_name]
 		self.vis_name = vis_bone.name
 		self.mechanism_bones.add(vis_bone.name, 'mch')
+		self.mechanism_bones.style(self.ik_foot_name, transform_bone=self.vis_name)
 
 		# MCH Toe bone
 		mch_toe_bone = align_roll_bone(edit_bones[generate_mch_bones(armature_data, 
@@ -126,9 +125,7 @@ class FootRoll:
 
 	def pose_mode(self, context):
 		obj = context.object
-		prefs = get_preferences()
 		pose_bones = obj.pose.bones
-		settings = get_armature_settings(obj.data, context)
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')

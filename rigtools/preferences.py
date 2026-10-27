@@ -115,25 +115,25 @@ class RigToolsPreferences(AddonPreferences):
 		name="FK Color Center",
 		description="Default theme color set for FK controls without a side",
 		items=BONE_COLOR_ITEMS,
-		default='THEME11'
+		default='THEME04'
 	)
 	fk_bone_color_left: EnumProperty(
 		name="FK Color Left",
 		description="Default theme color set for FK controls on the left side",
 		items=BONE_COLOR_ITEMS,
-		default='THEME07'
+		default='THEME04'
 	)
 	fk_bone_color_right: EnumProperty(
 		name="FK Color Right",
 		description="Default theme color set for FK controls on the right side",
 		items=BONE_COLOR_ITEMS,
-		default='THEME05'
+		default='THEME01'
 	)	
 	ik_bone_color: EnumProperty(
 		name="IK Color",
 		description="Default theme color set for IK controls without a side",
 		items=BONE_COLOR_ITEMS,
-		default='THEME06'
+		default='THEME01'
 	)
 	ik_bone_color_left: EnumProperty(
 		name="IK Color Left",
@@ -157,7 +157,7 @@ class RigToolsPreferences(AddonPreferences):
 		name="Root/Properties Bone Color",
 		description="Default theme color set for the root and properties bones",
 		items=BONE_COLOR_ITEMS,
-		default='THEME1'
+		default='THEME01'
 	)
 	fk_master_bone_color: EnumProperty(
 		name="FK Master Control Color",
@@ -234,6 +234,8 @@ class RigToolsPreferences(AddonPreferences):
 		self._color_row(col, "Tweak", None, "tweak_bone_color", None)
 		self._color_row(col, "Torso", None, "torso_bone_color", None)
 		self._color_row(col, "Root", None, "root_bone_color", None)
+		col.separator()
+		col.operator("rig.reapply_bone_colors", icon='FILE_REFRESH')
 
 
 	def _color_row(self, layout, label, left, center, right, header=False):

@@ -1,11 +1,11 @@
 from dataclasses import asdict, dataclass, is_dataclass
 import json
-from typing import NamedTuple
 import uuid
 import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
+from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
 from rigtools.utils.naming import limb_group_label
 
 def find_assemblies(armature_data, bone_names):
@@ -52,6 +52,18 @@ class RoleRef(PropertyGroup):
 class BoneRef(PropertyGroup):
 	name: StringProperty()
 	roles: CollectionProperty(type=RoleRef)
+	style_json: StringProperty()
+
+	def get_style(self) -> BoneStyle:
+		return BoneStyle.from_json(self.style_json)
+
+	def set_style(self, style: BoneStyle):
+		self.style_json = style.to_json()
+
+	def add_style(self, style: BoneStyle):
+		stored = self.get_style()
+		stored.append(style)
+		self.set_style(stored)
 
 class OrgState(PropertyGroup):
 	name: StringProperty() # ORG bone name
@@ -103,18 +115,47 @@ class AssemblyData(PropertyGroup):
 	options_json: StringProperty()
 	config_defaults_json: StringProperty()
 
-	def apply_tool(self, armature_data, tool, limb_collections):
+	def apply_tool(self, context, tool, limb_collections):
+		obj = context.object
+		armature_data = obj.data
+		if obj.mode != 'POSE':
+			bpy.ops.object.mode_set(mode='POSE')
+
+		pose_bones = obj.pose.bones
+
+		# Mechanism bones and collections
 		for bone_ref in tool.mechanism_bones:
-			row = self.mechanism_bones.add()
-			row.name = bone_ref.name
+			mech_bone = self.mechanism_bones.add()
+			mech_bone.name = bone_ref.name
 			roles = []
 			for role in bone_ref.roles:
-				role_row = row.roles.add()
-				role_row.name = role
+				mech_role = mech_bone.roles.add()
+				mech_role.name = role
 				roles.append(role)
 
 			limb_collections.add_bone(armature_data, bone_ref.name, roles)
 
+			# Bone Color
+			style = tool.mechanism_bones.styles[bone_ref.name]
+			if style.color is None:
+				color_roles = [role for role in bone_ref.roles if role != 'mch']
+				if len(color_roles) == 1:
+					style.color = color_roles[0]
+
+		# Bone Styles
+		mech_bones_by_name = {row.name: row for row in self.mechanism_bones}
+		for bone_name, style in tool.mechanism_bones.styles.items():
+			mech_bone = mech_bones_by_name.get(bone_name)
+			if mech_bone is None:
+				raise ValueError(f"{type(tool).__name__} styled '{bone_name}', which isn't in assembly '{self.name}'")
+
+			wgt = style.apply(context, pose_bones[bone_name], limb_collections.side)
+			if wgt:
+				self.objects.add().name = wgt.name
+
+			mech_bone.add_style(style)
+
+		# Properties
 		for prop in tool.property_names:
 			if not prop:
 				continue

@@ -66,7 +66,6 @@ class FKIKSwitch:
 	def pose_mode(self, context):
 		obj = context.object
 		settings = get_armature_settings(obj.data, context)
-		prefs = get_preferences()
 
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
@@ -89,7 +88,6 @@ class FKIKSwitch:
 			prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
 
 		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
-			fk_bone = pose_bones[fk_bone_name]
 			switch_bone = pose_bones[switch_bone_name]
 
 			fk_constraint = switch_bone.constraints.new('COPY_TRANSFORMS')

@@ -7,7 +7,6 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 
 from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import name_bone
 

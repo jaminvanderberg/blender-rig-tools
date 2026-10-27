@@ -63,7 +63,8 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			limb = options.limb_property_base_name
 			side = find_side(chain)
 
-			limb_collections = ensure_limb_collections(armature_data, limb, side)
+			promote = options.create_master_controllers and options.master_controllers_type == 'MASTER'
+			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=promote)
 
 			name_base = options.assembly_name_base or limb
 			assembly_name = guess_assembly_name(context.object.data, chain, name_base, side)
@@ -93,6 +94,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					taper_fk_widgets=options.taper_fk_widgets,
 					fk_role=['fk', 'ik'] if options.share_fk_ik_role else 'fk',
+					fk_color='fk',
 				)
 				fk.edit_mode(context, chain)
 				assembly_chain.tools.append(fk)
@@ -159,7 +161,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
-				assembly.apply_tool(armature_data, tool, assembly_chain.limb_collections)
+				assembly.apply_tool(context, tool, assembly_chain.limb_collections)
 
 				save_config = getattr(tool, 'save_config', None)
 				if callable(save_config):
