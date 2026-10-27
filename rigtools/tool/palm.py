@@ -59,6 +59,12 @@ class Palm:
 
 		self.mechanism_bones.append(self.fk_chain.mechanism_bones)
 		self.property_names.extend(self.fk_chain.property_names)
+	
+		# Bone Colors
+		if self.index_falloff_type != "NONE":
+			self.mechanism_bones.style(self.fk_chain.fk_bone_names[0], color='control')
+		if self.pinky_falloff_type != "NONE":
+			self.mechanism_bones.style(self.fk_chain.fk_bone_names[-1], color='control')
 
 		return self
 
@@ -96,16 +102,5 @@ class Palm:
 				c.subtarget = index
 				c.target_space = c.owner_space = 'LOCAL'
 				c.influence = twist_influence(self.index_falloff_type, i, n - 1, reverse=False)
-
-		# Bone Colors
-		if self.index_falloff_type != "NONE":
-			pb = pose_bones[index]
-			pb.color.palette = get_bone_color(prefs, 'fk_master', self.side)
-			pb.custom_shape_wire_width = 1.5
-
-		if self.pinky_falloff_type != "NONE":
-			pb = pose_bones[pinky]
-			pb.color.palette = get_bone_color(prefs, 'fk_master', self.side)
-			pb.custom_shape_wire_width = 1.5
 
 		return self

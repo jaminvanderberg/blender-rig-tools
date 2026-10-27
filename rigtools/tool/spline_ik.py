@@ -5,7 +5,7 @@ from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import IK_WIRE_WIDTH, apply_widget
 
 spline_twist_type = [
 	('NONE', "None", "No twist controllers"),
@@ -104,9 +104,13 @@ class SplineIK:
 				twist_name = name_bone("ik_spline_twist", source, i=pos_name)
 				twist_bone = duplicate_bone(obj.data, spline_bone, twist_name, 1.2)
 				self.twist_names.append(twist_bone.name)
+				style = self.mechanism_bones.add(twist_bone.name, 'ik')
+				style.set(widget='TWIST', wire_width=IK_WIRE_WIDTH)
 				twist_bone.parent = spline_bone
 
 			self.control_names.append(spline_bone.name)
+			style = self.mechanism_bones.add(spline_bone.name, 'ik')
+			style.set(widget='SPHERE', wire_width=IK_WIRE_WIDTH)
 
 		if self.twist_names and self.twist_type in ['START', 'START_END', 'ALL']:
 			first = edit_bones[self.twist_names[0]]
@@ -274,16 +278,6 @@ class SplineIK:
 
 				driver.expression = expr
 
-		# Bone Colors
-		color = get_bone_color(prefs, 'ik', self.side)
-		for control_name in self.control_names:
-			control_bone = pose_bones[control_name]
-			control_bone.color.palette = color
-
-		for twist_name in self.twist_names or []:
-			twist_bone = pose_bones[twist_name]
-			twist_bone.color.palette = color
-
 		# Lock Transforms
 		for control_name in self.control_names:
 			pb = pose_bones[control_name]
@@ -297,14 +291,5 @@ class SplineIK:
 			pb.lock_rotation = (True, False, True)
 			pb.lock_scale = (True, True, True)
 			pb.rotation_mode = 'XYZ'
-
-		# Widgets
-		for control_name in self.control_names:
-			wgt = apply_widget(context, pose_bones[control_name], 'SPHERE')
-			self.object_names.append(wgt.name)
-
-		for twist_name in self.twist_names or []:
-			wgt = apply_widget(context, pose_bones[twist_name], 'TWIST')
-			self.object_names.append(wgt.name)
 
 		return self

@@ -2,19 +2,14 @@ import math
 import bpy
 from mathutils import Vector
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import bone_template, name_bone
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import IK_WIRE_WIDTH
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 
 class FootRoll:
-	def __init__(self,
-	    side: str = ""
-	):
-		self.side = side
-		
+	def __init__(self):		
 		self.mch_ik_foot_name = None
 		self.ik_foot_name = None
 		self.org_toe_name = None
@@ -98,7 +93,8 @@ class FootRoll:
 		foot_roll_control_name = name_bone("foot_roll", ik_foot_name)
 		foot_roll_control_bone = duplicate_bone(context.object.data, heel_roll_bone, foot_roll_control_name, 1.5)
 		self.foot_roll_control_name = foot_roll_control_bone.name
-		self.mechanism_bones.add(foot_roll_control_bone.name, 'ik')
+		style = self.mechanism_bones.add(foot_roll_control_bone.name, 'ik')
+		style.set(widget='ROLL', wire_width=IK_WIRE_WIDTH)
 
 		# Parenting
 		mch_ik_foot_bone.parent = toe_roll_bone
@@ -124,7 +120,7 @@ class FootRoll:
 			bone_template("mch")
 		)[0]])
 		self.mch_toe_name = mch_toe_bone.name
-		self.mechanism_bones.add(mch_toe_bone.name, 'mch')		
+		self.mechanism_bones.add(mch_toe_bone.name, 'mch')
 
 		return self
 
@@ -207,17 +203,6 @@ class FootRoll:
 		lim_c.owner_space = 'LOCAL'
 		lim_c.use_limit_x = True
 		lim_c.min_x = 0
-		lim_c.max_x = math.pi
-		
-		# Widgets
-		foot_roll_control_wgt = apply_widget(context, ctrl, 'ROLL')
-		self.object_names.append(foot_roll_control_wgt.name)
-
-		ik = pose_bones[self.ik_foot_name]
-		ik.custom_shape_transform = pose_bones[self.vis_name]
-
-		# Bone Colors
-		ctrl.color.palette = get_bone_color(prefs, 'ik', self.side)
-		ctrl.custom_shape_wire_width = 1.5			
+		lim_c.max_x = math.pi	
 
 		return self

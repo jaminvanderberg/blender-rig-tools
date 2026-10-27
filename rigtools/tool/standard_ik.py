@@ -6,7 +6,7 @@ from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 from mathutils import Vector
-from rigtools.utils.widget import apply_widget
+from rigtools.utils.widget import IK_WIRE_WIDTH, apply_widget
 from rigtools.preferences import get_preferences
 from rigtools.rig_ui.snapping_data import register_snap_chain as register_snap_chain_ui
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
@@ -138,10 +138,13 @@ class StandardIK:
 		pole_vis_bone.align_roll(Vector((1, 0, 0)))
 		self.pole_vis_name = pole_vis_bone.name
 
-		self.mechanism_bones.add(self.ik_control_name, 'ik')
-		self.mechanism_bones.add(self.pole_name, 'ik')
+		style = self.mechanism_bones.add(self.ik_control_name, 'ik')
+		style.set(widget='IK', wire_width=IK_WIRE_WIDTH)
+		style = self.mechanism_bones.add(self.pole_name, 'ik')
+		style.set(widget='SPHERE', wire_width=IK_WIRE_WIDTH)
 		if pole_vis_bone:
-			self.mechanism_bones.add(self.pole_vis_name, 'ik')
+			style = self.mechanism_bones.add(self.pole_vis_name, 'ik')
+			style.set(widget='LINE', wire_width=IK_WIRE_WIDTH)
 		if self.snap_control_name:
 			self.mechanism_bones.add(self.snap_control_name, 'mch')
 		if self.snap_pole_name:
@@ -273,26 +276,5 @@ class StandardIK:
 			vis_constraint.subtarget = self.mch_bone_names[0]
 			vis_constraint.rest_length = 0.0
 			vis_constraint.head_tail = 1.0
-
-		# Bone Colors
-		ik_color = get_bone_color(prefs, 'ik', self.side)
-		if pole_vis_bone:
-			pole_vis_bone.color.palette = ik_color
-		pole_bone = pose_bones[self.pole_name]
-		pole_bone.color.palette = ik_color
-		ik_control_bone = pose_bones[self.ik_control_name]
-		ik_control_bone.color.palette = ik_color
-		ik_control_bone.custom_shape_wire_width = 2.0
-
-		# Widgets
-		wgt = apply_widget(context, ik_control_bone, 'IK')
-		self.object_names.append(wgt.name)
-
-		wgt = apply_widget(context, pole_bone, 'SPHERE')
-		self.object_names.append(wgt.name)
-
-		if pole_vis_bone:
-			wgt = apply_widget(context, pole_vis_bone, 'LINE')
-			self.object_names.append(wgt.name)
 
 		return self

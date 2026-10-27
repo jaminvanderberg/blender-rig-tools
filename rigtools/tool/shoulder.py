@@ -61,6 +61,8 @@ class Shoulder:
 		self.vis_bone_name = vis_bone.name
 		self.mechanism_bones.add(self.vis_bone_name, 'mch')
 
+		self.mechanism_bones.style(self.fk_bone_name, color='control')
+
 		return self
 
 	def pose_mode(self, context):
@@ -75,9 +77,5 @@ class Shoulder:
 		vis = pose_bones[self.vis_bone_name]
 
 		shoulder.custom_shape_transform = vis
-		
-		# Bone Colors
-		shoulder.color.palette = get_bone_color(prefs, 'fk_master', self.side)
-		shoulder.custom_shape_wire_width = 1.2
 
 		return self

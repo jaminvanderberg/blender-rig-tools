@@ -14,7 +14,6 @@ class FKIKSwitch:
 		fk_end_widget_type: str = "SAME",
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
-		side: str = "",
 	):
 		self.switch_property_name = switch_property_name
 		self.fk_widget_type = fk_widget_type

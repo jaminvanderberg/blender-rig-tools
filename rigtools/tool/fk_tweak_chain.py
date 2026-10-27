@@ -2,9 +2,8 @@ import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.assemblies.tool_data.reparent_rules import ReparentRules, apply_reparent_rule
 from rigtools.utils.bone import duplicate_bone
-from rigtools.utils.bone_colors import get_bone_color
 from rigtools.utils.naming import generate_bone_name, name_bone
-from rigtools.utils.widget import apply_widget, chain_widget_scales, widget_scale_xyz
+from rigtools.utils.widget import chain_widget_scales, widget_scale_xyz
 from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 
@@ -20,7 +19,6 @@ class FKTweakChain:
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
 		inherit_xz_scale_from_previous: bool = False, # ik scaling fix
-		side: str = ''
 	):
 		self.fk_bone_template = fk_bone_template
 		self.skip_first_tweak = skip_first_tweak
@@ -32,7 +30,6 @@ class FKTweakChain:
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
 		self.inherit_xz_scale_from_previous = inherit_xz_scale_from_previous
-		self.side = side
 
 		self.org_bone_names = None
 		self.fk_bone_names = None
@@ -135,6 +132,18 @@ class FKTweakChain:
 		self.mechanism_bones.extend(self.tweak_bone_names, 'tweak')
 		self.mechanism_bones.add(self.terminal_tweak_name, 'tweak')
 
+		scales = chain_widget_scales([edit_bones[name].length for name in self.fk_bone_names],
+			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
+		for fk_name, scale in zip(self.fk_bone_names, scales):
+			self.mechanism_bones.style(fk_name,
+			    widget=self.fk_widget,
+				scale=widget_scale_xyz(self.fk_widget, scale)
+			)
+
+		tweakers = [t for t in self.tweak_bone_names if t] + [self.terminal_tweak_name]
+		for tweak_name in tweakers:
+			self.mechanism_bones.style(tweak_name, widget='SPHERE')
+
 		return self
 
 	def pose_mode(self, context):
@@ -186,30 +195,3 @@ class FKTweakChain:
 			pb.lock_rotation = (True, True, True)
 			pb.lock_rotation_w = True
 
-		# Bone Colors
-		for fk_name in self.fk_bone_names:
-			fk_bone = pose_bones[fk_name]
-			fk_bone.color.palette = get_bone_color(prefs, 'fk', self.side)
-			
-		for tweak_name in tweakers:
-			tweak_bone = pose_bones[tweak_name]
-			tweak_bone.color.palette = get_bone_color(prefs, 'tweak', self.side)
-			
-
-		# Widgets
-		scales = chain_widget_scales([pose_bones[name].length for name in self.fk_bone_names],
-			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
-
-		for fk_name, scale in zip(self.fk_bone_names, scales):
-			fk_bone = pose_bones[fk_name]
-			wgt = apply_widget(context, fk_bone, self.fk_widget)
-			if wgt is None: continue
-
-			fk_bone.custom_shape_scale_xyz = widget_scale_xyz(self.fk_widget, scale)
-
-			self.object_names.append(wgt.name)
-
-		for tweak_name in tweakers:
-			tweak_bone = pose_bones[tweak_name]
-			wgt = apply_widget(context, tweak_bone, 'SPHERE')
-			self.object_names.append(wgt.name)
