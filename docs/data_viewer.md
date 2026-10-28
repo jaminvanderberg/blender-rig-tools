@@ -21,6 +21,18 @@ Below the list are details for the selected assembly:
 
 Selecting bones, Reconfigure and Delete need Pose or Edit mode.
 
+## Limbs
+
+Each limb and side, such as Left Arm, has its own set of bone collections for its FK, IK, tweak and control bones. Every assembly with that limb name and side shares them, so a shoulder, arm and fingers all end up in the same Left Arm collections.
+
+Each limb shows:
+
+- The assemblies that use it. A limb that no assembly uses is shown in red.
+- **FK/IK split** if the limb has both FK and IK bones, which gives FK its own collection name.
+- Each collection name and how many bones use it. A name shown greyed out with "not created" is reserved: the collection is created when a bone first needs it. A collection that bones need but that no longer exists is shown in red.
+- The select button selects the controls of every assembly that uses the limb, ready for **Reconfigure All Selected** in the Assembly panel. It needs Pose or Edit mode.
+- The pencil button renames the limb's collections, the same as in the *[Assembly panel](assemblies.md)*.
+
 ## Data Check
 
 RigTools remembers bones, collections, objects and properties by name. If you rename or delete one by hand, or an operation is interrupted, RigTools can end up remembering something that isn't there anymore.

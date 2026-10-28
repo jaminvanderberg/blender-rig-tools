@@ -7,11 +7,11 @@ from rigtools.assemblies.fk_templates import get_fk_template
 from rigtools.assemblies.ik_templates import get_ik_template
 from rigtools.assemblies.palm_templates import get_palm_template
 from rigtools.assemblies.torso_templates import get_torso_template
-from rigtools.data_viewer.checks import apply_fix, bone_names, get_property_bone, run_checks
-from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS
+from rigtools.data_viewer.checks import apply_fix, assemblies_by_limb, bone_names, collection_names, get_property_bone, limb_label, run_checks
+from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS, SELECT_SIMILAR_ROLES
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
-from rigtools.utils.naming import side_display_name
+from rigtools.utils.naming import LIMB_COLLECTION_ROLES, side_display_name
 
 TEMPLATE_GETTERS = {
 	'IK': get_ik_template,
@@ -393,6 +393,71 @@ class RIG_PT_data_viewer_assemblies(bpy.types.Panel):
 			right.alignment = 'LEFT'
 			right.label(text=text)
 
+class RIG_PT_data_viewer_limbs(bpy.types.Panel):
+	bl_label = "Limbs"
+	bl_idname = "RIG_PT_data_viewer_limbs"
+	bl_space_type = 'PROPERTIES'
+	bl_region_type = 'WINDOW'
+	bl_context = 'data'
+	bl_parent_id = "RIG_PT_data_viewer"
+	bl_options = {'DEFAULT_CLOSED'}
+
+	def draw(self, context):
+		layout = self.layout
+		armature_data = context.object.data
+		rows = armature_data.rigtools_limb_collections
+		if not rows:
+			layout.label(text="No limbs")
+			return
+
+		limbs = assemblies_by_limb(armature_data)
+		collections = collection_names(armature_data)
+
+		for row in rows:
+			assemblies = limbs.get((row.limb, row.side), [])
+			box = layout.box()
+			col = box.column(align=True)
+
+			header = col.row(align=True)
+			header.alert = not assemblies
+			header.label(text=limb_label(row), icon='OUTLINER_COLLECTION')
+			if row.split:
+				sub = header.row()
+				sub.active = False
+				sub.label(text="FK/IK split")
+			sub = header.row(align=True)
+			sub.enabled = bool(assemblies) and can_select(context)
+			op = sub.operator(RIG_OT_data_select.bl_idname, text="", icon='RESTRICT_SELECT_OFF')
+			# Same bones as Select Similar, so Reconfigure All Selected picks these assemblies up
+			op.bone_names_json = json.dumps([name for a in assemblies for role in SELECT_SIMILAR_ROLES for name in a.get_bones_by_role(role)])
+			op = header.operator("rig.rename_limb_collections", text="", icon='GREASEPENCIL')
+			op.limb = row.limb
+			op.side = row.side
+
+			used_by = ", ".join(a.name for a in assemblies) or "no assemblies"
+			sub = col.row()
+			sub.active = False
+			sub.label(text=f"Used by: {used_by}")
+
+			col.separator(factor=0.5)
+			for role in LIMB_COLLECTION_ROLES:
+				name = getattr(row, role)
+				if not name:
+					continue
+				bone_count = sum(len(a.get_bones_by_role(role)) for a in assemblies)
+				split = col.split(factor=0.25)
+				split.label(text=role.upper())
+				right = split.row()
+				if name in collections:
+					right.label(text=f"{name}  ({bone_count} bones)")
+				elif bone_count:
+					right.alert = True
+					right.label(text=f"{name}  (missing, {bone_count} bones)")
+				else:
+					# Reserved name; the collection is created when a bone first uses it
+					right.active = False
+					right.label(text=f"{name}  (not created)")
+
 class RIG_PT_data_viewer_check(bpy.types.Panel):
 	bl_label = "Data Check"
 	bl_idname = "RIG_PT_data_viewer_check"
@@ -441,6 +506,7 @@ classes = (
 	RIG_UL_data_viewer_assemblies,
 	RIG_PT_data_viewer,
 	RIG_PT_data_viewer_assemblies,
+	RIG_PT_data_viewer_limbs,
 	RIG_PT_data_viewer_check,
 )
 

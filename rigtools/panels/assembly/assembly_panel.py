@@ -217,7 +217,6 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 		include_mirror = context.window_manager.operator_properties_last(RIG_OT_select_similar_assemblies.bl_idname).include_mirror
 
 		if len(assemblies) > 1:
-			layout.separator()
 			row = layout.row(align=True)
 			types = {a.assembly_type for a in assemblies}
 			templates = {a.template_id for a in assemblies}
@@ -232,6 +231,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 				)
 				op.assembly_uid = source.uid
 				op.assembly_uids = ",".join(a.uid for a in assemblies)		
+			layout.separator()
 
 		for assembly in assemblies:
 			box = layout.box()

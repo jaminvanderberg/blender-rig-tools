@@ -113,7 +113,8 @@ def _check_assemblies(obj, bones):
 
 	return issues
 
-def _check_limb_collections(armature_data):
+def assemblies_by_limb(armature_data):
+	"""{(limb, side): [assembly, ...]}, matching how limb collection rows are looked up. Skips unreadable options."""
 	limbs = {}
 	for assembly in armature_data.rigtools_assemblies:
 		try:
@@ -121,11 +122,17 @@ def _check_limb_collections(armature_data):
 		except ValueError:
 			continue
 		limbs.setdefault((limb, assembly.side), []).append(assembly)
+	return limbs
 
+def limb_label(row):
+	return limb_group_label(row.limb, row.side) or "(unnamed)"
+
+def _check_limb_collections(armature_data):
+	limbs = assemblies_by_limb(armature_data)
 	collections = collection_names(armature_data)
 	issues = []
 	for row in armature_data.rigtools_limb_collections:
-		label = limb_group_label(row.limb, row.side) or "(unnamed)"
+		label = limb_label(row)
 		assemblies = limbs.get((row.limb, row.side))
 		if not assemblies:
 			issues.append(Issue('WARNING', f"Limb collections for {label} aren't used by any assembly",
