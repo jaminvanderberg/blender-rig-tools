@@ -196,7 +196,7 @@ FK_TEMPLATES = {
 	"shoulder": FKTemplate(
 		label="Shoulder",
 		description="Humanoid shoulder. Single FK control..",
-		icon="CON_GEOMETRYATTRIBUTE",
+		icon="IPO_EASE_OUT",
 		options={
 			"limb_property_base_name": "arm",
 			"assembly_name_base": "shoulder",

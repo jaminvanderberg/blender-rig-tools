@@ -1,6 +1,8 @@
 import bpy
 
 from rigtools.assemblies.fk_templates import FK_TEMPLATES
+from rigtools.assemblies.palm_templates import PALM_TEMPLATES
+from rigtools.assemblies.torso_templates import TORSO_TEMPLATES
 from rigtools.panels.fk import fk_setup, palm_setup, torso_setup
 from rigtools.utils.icons import icon
 
@@ -19,7 +21,7 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 	def draw(self, context):
 		layout = self.layout
 
-		op = layout.operator("rig.advanced_torso_setup", text="Torso", icon='MOD_CLOTH')
+		op = layout.operator("rig.advanced_torso_setup", text="Torso", icon=icon(TORSO_TEMPLATES["torso"].icon))
 		op.template_id = "torso"
 		op.assembly_uid = ""
 
@@ -39,11 +41,11 @@ class RIG_PT_fk_panel(bpy.types.Panel):
 		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, align=True)
 		grid.operator_context = 'INVOKE_DEFAULT'
 
-		op = grid.operator("rig.advanced_fk_setup", text="Shoulder", icon='IPO_EASE_OUT')
+		op = grid.operator("rig.advanced_fk_setup", text="Shoulder", icon=icon(FK_TEMPLATES["shoulder"].icon))
 		op.template_id = "shoulder"
 		op.assembly_uid = ""
 
-		op = grid.operator("rig.advanced_palm_setup", text="Palm", icon='MESH_CAPSULE')
+		op = grid.operator("rig.advanced_palm_setup", text="Palm", icon=icon(PALM_TEMPLATES["palm"].icon))
 		op.template_id = "palm"
 		op.assembly_uid = ""
 

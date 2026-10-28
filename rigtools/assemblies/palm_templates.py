@@ -19,7 +19,7 @@ PALM_TEMPLATES = {
 	"palm": PalmTemplate(
 		label="Palm",
 		description="Palm template - defaults designed for humanoids",
-		icon="HUMANOID",
+		icon="MESH_CAPSULE",
 		options={
 			"limb_property_base_name": "hand",
 			"fk_widget": "PILL",

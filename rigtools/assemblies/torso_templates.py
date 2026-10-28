@@ -19,7 +19,7 @@ TORSO_TEMPLATES = {
 	"torso": TorsoTemplate(
 		label="Torso",
 		description="Torso template - defaults designed for humanoids",
-		icon="HUMANOID",
+		icon="MOD_CLOTH",
 		options={
 			"limb_property_base_name": "torso",
 			"lower_torso_bone_count": 2,

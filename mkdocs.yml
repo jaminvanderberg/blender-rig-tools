@@ -59,6 +59,7 @@ nav:
     - IK Assemblies: ik_assemblies.md
     - FK Assemblies: fk_assemblies.md
     - Twist Bones: twist_bones.md
+    - Data Viewer: data_viewer.md
   - Reference:
     - Rig UI:
       - Overview: rig_ui.md
