@@ -1,3 +1,5 @@
+import hashlib
+
 import bpy
 import math
 
@@ -105,6 +107,15 @@ def apply_widget(context, pose_bone, widget_type, *, replace=False, **kwargs):
 	wgt = create_widget(context, widget_type, pose_bone.name, **kwargs)
 	pose_bone.custom_shape = wgt
 	return wgt
+
+def widget_fingerprint(wgt):
+	"""Widget hash for comparing old vs potentially modified widgets"""
+	if wgt is None or wgt.type != 'MESH':
+		return ""
+	mesh = wgt.data
+	coords = [round(c, 4) for v in mesh.vertices for c in v.co]
+	edges = [i for e in mesh.edges for i in e.vertices]
+	return hashlib.sha1(repr((coords, edges)).encode()).hexdigest()
 
 def _get_widget_collection(context, collection_name):
 	coll = bpy.data.collections.get(collection_name)

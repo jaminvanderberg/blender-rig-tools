@@ -3,6 +3,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.reparent_rules import apply_reparent_rule
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
+from rigtools.utils.naming import generate_widget_name
 from rigtools.utils.object import remove_objects
 
 def delete_assembly(context, assembly_uid):
@@ -56,7 +57,17 @@ def delete_assemblies(context, assembly_uids):
 				del prop_bone[property_name]
 		delete_snap_chain(obj.data, property_name)
 
-	remove_objects(bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects)
+	# Don't remove objects which are referenced by other bones (via Copy to Selected, etc).
+	# The keeping bone's own widget is usually left unused; remove it so the kept widget
+	# takes its name, and with it that widget's row in the keeping assembly's objects
+	owned_objects = {bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects}
+	used_objects = {pb.custom_shape for pb in obj.pose.bones if pb.name not in owned_names}
+	kept = {pb.custom_shape: pb.name for pb in obj.pose.bones if pb.custom_shape in owned_objects and pb.name not in owned_names}
+	stale = {bpy.data.objects.get(generate_widget_name(name)) for name in kept.values()} - used_objects
+	remove_objects((owned_objects - set(kept)) | stale)
+	for wgt, bone_name in kept.items():
+		wgt.name = generate_widget_name(bone_name)
+
 
 	###################
 	# POSE MODE

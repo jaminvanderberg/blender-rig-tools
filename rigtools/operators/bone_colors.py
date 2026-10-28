@@ -20,6 +20,7 @@ class RIG_OT_reapply_bone_colors(bpy.types.Operator):
 					if color is None or pose_bone is None:
 						continue
 					BoneStyle(color=color).apply(context, pose_bone, assembly.side)
+					mech_bone.palette = pose_bone.color.palette
 					count += 1
 
 			settings = obj.data.rigtools

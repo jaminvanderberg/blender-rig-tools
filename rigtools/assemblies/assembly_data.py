@@ -7,6 +7,7 @@ from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
 from rigtools.utils.naming import limb_group_label
+from rigtools.utils.widget import widget_fingerprint
 
 def find_assemblies(armature_data, bone_names):
 	wanted = set(bone_names)
@@ -53,6 +54,8 @@ class BoneRef(PropertyGroup):
 	name: StringProperty()
 	roles: CollectionProperty(type=RoleRef)
 	style_json: StringProperty()
+	widget_fingerprint: StringProperty() # hash
+	palette: StringProperty() # resolved widget color
 
 	def get_style(self) -> BoneStyle:
 		return BoneStyle.from_json(self.style_json)
@@ -149,9 +152,14 @@ class AssemblyData(PropertyGroup):
 			if mech_bone is None:
 				raise ValueError(f"{type(tool).__name__} styled '{bone_name}', which isn't in assembly '{self.name}'")
 
+			pose_bone = pose_bones[bone_name]
 			wgt = style.apply(context, pose_bones[bone_name], limb_collections.side)
 			if wgt:
 				self.objects.add().name = wgt.name
+			if style.widget is not None:
+				mech_bone.widget_fingerprint = widget_fingerprint(wgt)
+			if style.color is not None:
+				mech_bone.palette = pose_bone.color.palette
 
 			mech_bone.add_style(style)
 

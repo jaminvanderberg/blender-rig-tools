@@ -354,6 +354,8 @@ class RIG_PT_data_viewer_assemblies(bpy.types.Panel):
 			for ref in refs:
 				self._bone_row(col, ref.name, bones, selectable)
 				fields = [f"{label}: {value}" for label, value in style_fields(ref.style_json)]
+				if ref.palette:
+					fields.append(f"Palette: {ref.palette}")
 				for line in balanced_lines(fields, STYLE_FIELDS_PER_LINE):
 					row = col.row()
 					row.active = False
