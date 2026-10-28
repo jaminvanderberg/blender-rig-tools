@@ -157,7 +157,7 @@ class RigToolsPreferences(AddonPreferences):
 		name="Root/Properties Bone Color",
 		description="Default theme color set for the root and properties bones",
 		items=BONE_COLOR_ITEMS,
-		default='THEME01'
+		default='THEME03'
 	)
 	fk_master_bone_color: EnumProperty(
 		name="FK Master Control Color",
