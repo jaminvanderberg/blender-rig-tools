@@ -9,7 +9,7 @@ Not committed yet. The refactor works from start to finish on fresh and reconfig
 **Resume here:**
 1. Commit.
 2. Reconfigure every assembly in Sarah, then confirm each assembly shows `N/N` bones styled (console check below).
-3. Migration: decision deferred (see Stages).
+3. Migration: build `migrate_7_to_8` (see Stages), then run Upgrade Rig on Sarah from Object Mode.
 4. Later: preserve hand edits across reconfigure, using the saved styles.
 
 How we'll work: the user builds this. Claude explains, reviews and helps on request.
@@ -96,7 +96,7 @@ for i, a in enumerate(C.object.data.rigtools_assemblies):
    - **Cleanup in `ensure_limb_collections`:** rejected. It puts legacy code in the normal build path.
    - **A real `migrate_7_to_8` in `migrate_rig.py`:** converts in place using each assembly's options. Finger curl `master` bones → `fk` in the FK collection. `master_controllers_type == 'MASTER'` bones → `control`, promoting the limb's FK and moving the bones to the base collection. Then delete the empty `.Master` collection and its layout entry, and remove the stored `master` value. Styles can't be rebuilt, so they fill in on the next reconfigure. This needs the rig data version bumped to 8 in `armature_settings.py` and `rig_ui.py`, so the embedded RigUI has to be re-embedded.
 
-   This hasn't been decided yet.
+   **Decided: `migrate_7_to_8`, kept small.** Only `MasterControllers` type `MASTER` ever used the `master` role (finger curl was `control`, which is still valid, so it moves to FK on reconfigure). Bones that still have the role become `control`: the limb is promoted, the bone moves to the control collection, and `color='control'` is saved for Reapply. Every row's stored `master` is deleted, along with its collection and RigUI layout entry if the collection is empty. Version is 8 in `armature_settings.py` and `rig_ui/rig_ui.py`; `build.bat` regenerates `rigtools_ui.py`. Written (by Claude, on request) in `rigtools/operators/migrate_rig.py`, which moved there from `rigtools/`. Refuses to run in Edit Mode. Not yet tested.
 4. **Preserve hand edits:** when rebuilding, compare the live pose bones against the stored styles and keep anything that differs. Reapplying widgets in full needs `replace_widget=True` and has to keep `objects` in sync.
 
 ## Side notes

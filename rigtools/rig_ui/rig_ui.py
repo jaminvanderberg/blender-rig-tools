@@ -8,7 +8,7 @@ bl_info = {
 	"category": "Rigging"
 }
 
-RIG_DATA_VERSION = 7 # highest rig version this script understands
+RIG_DATA_VERSION = 8 # highest rig version this script understands
 
 import bpy
 import re

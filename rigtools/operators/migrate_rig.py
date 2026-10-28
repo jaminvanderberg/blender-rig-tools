@@ -2,6 +2,8 @@ import bpy
 import json
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
+from rigtools.assemblies.limb_collections import ensure_limb_collections
+from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
 from rigtools.utils.naming import limb_group_label, name_bone
 
 # Note to AI: ALWAYS provide thorough debug output when migrating data.
@@ -154,11 +156,78 @@ def migrate_6_to_7(armature_data, context):
 	)
 
 
+def migrate_7_to_8(armature_data, context):
+	"""Convert the removed 'master' role to 'control' and remove the .Master collections."""
+	if armature_data.is_editmode:
+		raise ValueError("Upgrade from Object or Pose Mode (collections read as empty in Edit Mode)")
+	print(f"migrate_7_to_8: {len(armature_data.rigtools_assemblies)} assemblies")
+	converted = 0
+	skipped = 0
+
+	for assembly in armature_data.rigtools_assemblies:
+		master_refs = [
+			ref for ref in assembly.mechanism_bones
+			if any(role.name == "master" for role in ref.roles)
+		]
+		if not master_refs:
+			print(f"  {assembly.name} ({assembly.assembly_type}): no master bones")
+			continue
+		limb = (assembly.get_options().get("limb_property_base_name") or "").strip()
+		if not limb:
+			skipped += len(master_refs)
+			print(f"  {assembly.name}: {len(master_refs)} master bones but no limb name, skipping")
+			continue
+
+		row = ensure_limb_collections(armature_data, limb, assembly.side, promote=True)
+		print(f"  {assembly.name}: limb={limb!r} side={assembly.side!r} fk={row.fk!r} control={row.control!r}")
+		for ref in master_refs:
+			for role in ref.roles:
+				if role.name == "master":
+					role.name = "control"
+			ref.add_style(BoneStyle(color="control"))
+			if ref.name not in armature_data.bones:
+				print(f"    {ref.name}: role converted, bone missing from armature")
+				continue
+			row.add_bone(armature_data, ref.name, [role.name for role in ref.roles])
+			converted += 1
+			print(f"    {ref.name}: master -> control ({row.control!r})")
+
+	removed = 0
+	kept = 0
+	all_collections = getattr(armature_data, "collections_all", armature_data.collections)
+	layout = armature_data.rig_ui_layout
+	for row in armature_data.rigtools_limb_collections:
+		master_name = row.get("master")
+		if master_name is None:
+			continue
+		del row["master"]
+		coll = all_collections.get(master_name)
+		if coll is None:
+			print(f"  {row.limb!r} {row.side!r}: cleared master={master_name!r}, collection already gone")
+			continue
+		if coll.bones:
+			kept += 1
+			print(f"  {row.limb!r} {row.side!r}: kept {master_name!r}, still has {len(coll.bones)} bones")
+			continue
+		armature_data.collections.remove(coll)
+		for i in range(len(layout) - 1, -1, -1):
+			if not layout[i].is_gap and layout[i].collection_name == master_name:
+				layout.remove(i)
+		removed += 1
+		print(f"  {row.limb!r} {row.side!r}: removed empty {master_name!r} and its layout entry")
+
+	print(
+		f"migrate_7_to_8 done: converted={converted} skipped={skipped} "
+		f"removed_collections={removed} kept_collections={kept}"
+	)
+
+
 MIGRATIONS = {
 	3: migrate_3_to_4,
 	4: migrate_4_to_5,
 	5: migrate_5_to_6,
 	6: migrate_6_to_7,
+	7: migrate_7_to_8,
 }
 
 def upgrade_rig(armature_data, context):

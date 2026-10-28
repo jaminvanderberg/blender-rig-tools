@@ -16,7 +16,7 @@ from rigtools import selection_panel
 from rigtools import preferences
 from rigtools import preferences_io
 from rigtools import armature_settings
-from rigtools import migrate_rig
+from rigtools.operators import migrate_rig
 from rigtools import twist_bones
 from rigtools import rename_chain
 from rigtools import parent_along_chain
