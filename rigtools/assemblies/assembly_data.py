@@ -8,7 +8,7 @@ from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label
 from rigtools.utils.object import remove_object
-from rigtools.utils.widget import widget_fingerprint
+from rigtools.utils.widget import find_widget, widget_fingerprint
 
 def find_assemblies(armature_data, bone_names):
 	wanted = set(bone_names)
@@ -156,12 +156,13 @@ class AssemblyData(PropertyGroup):
 
 			pose_bone = pose_bones[bone_name]
 			wgt = style.apply(context, pose_bones[bone_name], limb_collections.side)
-			if wgt:
-				self.objects.add().name = wgt.name
 			if style.widget is not None:
 				mech_bone.widget_fingerprint = widget_fingerprint(wgt)
 			if style.color is not None:
 				mech_bone.palette = pose_bone.color.palette
+
+			old = find_widget(context, bone_name, owned_widgets) if wgt else None
+			
 
 			prior_style = prior_styles.get(bone_name)
 			if prior_style:

@@ -108,6 +108,12 @@ def apply_widget(context, pose_bone, widget_type, *, replace=False, **kwargs):
 	pose_bone.custom_shape = wgt
 	return wgt
 
+def find_widget(context, bone_name, owned_names):
+	"""Find widgets left over from deleted assemblies"""
+	collection = bpy.data.collections.get(get_preferences(context).widget_collection)
+	wgt = collection.objects .get(generate_widget_name(bone_name)) if collection else None
+	return wgt if wgt and wgt.name not in owned_names else None
+
 def widget_fingerprint(wgt):
 	"""Widget hash for comparing old vs potentially modified widgets"""
 	if wgt is None or wgt.type != 'MESH':

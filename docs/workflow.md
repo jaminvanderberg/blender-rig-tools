@@ -53,6 +53,31 @@
     Add shoulder, palm, and finger assemblies if desired.  Add assemblies for hair, cloth, tails, etc.
     Use "FK only" for short detail chains, or "Simple FK" if you want tweak controls.
 
+8. Set up the Rig UI<br>
+
+    **n-Panel > Item > Rig UI**
+    { .where }
+
+    Arrange the collection buttons, and hide the collections animators don't need, like MCH and ORG.
+    See *[Rig UI](rig_ui.md)*.<br>
+
+9. [Optional] Check the rig's data<br>
+
+    **Properties > Armature > RigTools > Check Data**
+    { .where }
+
+    Run Check Data to find anything RigTools remembers that's no longer on the rig, such as renamed bones or deleted collections.
+    See *[Data Viewer](data_viewer.md)*.<br>
+
+10. Hand the rig off to animators<br>
+
+    **n-Panel > RigTools > Tools > Embed Animator UI**
+    { .where }
+
+    Embed the Rig UI script in the file so animators see the Rig UI panels without installing RigTools.
+    Or have animators install the **RigTools UI** add-on instead.
+    See *[Sharing with Animators](rigui/animators.md)*.<br>
+
 ## Related
 
 - [Inverse Kinematics Assemblies](ik_assemblies.md)
@@ -60,4 +85,6 @@
 - [Twist Bones](twist_bones.md)
 - [ORG & DEF](org_def.md)
 - [Rig UI](rig_ui.md)
+- [Data Viewer](data_viewer.md)
+- [Sharing with Animators](rigui/animators.md)
 

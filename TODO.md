@@ -21,3 +21,5 @@ improve template draw?
 remove name string and separators from preferences
 
 Only selects one assembly on reconfigure
+
+XZ Scale Fix not deleting.

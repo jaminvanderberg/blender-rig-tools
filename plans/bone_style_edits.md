@@ -1,18 +1,66 @@
 # Bone style edits: keep hand edits across reconfigure
 
 ## Next steps (start here)
-Steps 1 and 2 are committed (`35638f7`). 3a is built and tested. Its fixes, and the spline IK duplicate fix, aren't committed yet.
+Steps 1–3c are built and committed as WIP (`e88fa9f`). Tested: every Custom Shape setting and edited widgets survive a reconfigure. Deleting every assembly left only `WGT-root` and `WGT-properties` in the widget collection, so edited widgets are deleted with their assembly. That was expected, and it's what 3e changes.
+
+### Where I left off: 3e, partway through (not committed)
+**Don't test yet. `apply_tool` is broken in its current state:** `owned_widgets` isn't defined (NameError), and with `self.objects.add()` removed, no widget is registered as owned.
+
+- **Done:**
+  - `delete_assemblies`: keeps edited widgets (`edited`), alongside `kept` (shared) and `stale`.
+  - `prepare_rebuild`: back to snapshot and delete, without `keep_objects`.
+  - `find_widget()` in `utils/widget.py`.
+- **Left in `apply_tool`** (the "Bone Styles" loop): after `old = find_widget(...)`, finish the pattern from the conversation:
+  ```python
+  if old:
+      pose_bone.custom_shape = old
+  prior_style = prior_styles.get(bone_name)
+  if prior_style:
+      prior_style.apply(pose_bone)
+
+  # Hand edits replaced the fresh widget: only a kept widget becomes ours, never a user's own object
+  if wgt and pose_bone.custom_shape != wgt:
+      remove_object(wgt)
+      wgt = old if pose_bone.custom_shape == old else None
+  if wgt:
+      self.objects.add().name = wgt.name
+  ```
+  And before the loop:
+  ```python
+  # Widgets any rig in the file owns. Anything else in the widget collection was left behind by a delete
+  owned_widgets = {o.name for arm in bpy.data.armatures for a in arm.rigtools_assemblies for o in a.objects}
+  ```
+  Remove the old swap block (the `objects.remove(i)` code under `if prior_style:`).
+- **Cleanup:**
+  - `delete_assemblies` still takes `keep_objects`, but nothing uses it.
+  - `reconfigure_assembly.py` still imports `bpy` and `BoneStyleConfig`, but nothing uses them.
+  - `find_widget` has a stray space: `collection.objects .get`.
+
+**Your questions, answered for when you pick it up:**
+- **Why create the fresh widget and then look for the old one, instead of checking first?** Two reasons:
+  - The fresh widget gives `widget_fingerprint`, the default that Reset and `style_diff` compare against. Without it, a bone that picks up an old widget would have nothing to compare against, and the old widget would look unedited.
+  - `BoneStyle.apply` sets the widget along with everything else. Skipping only the widget would mean changing `apply`.
+
+  Creating it and then deleting it is the simplest way to get both.
+- **What's `owned_widgets` for?** It isn't about the fresh widget, which isn't owned yet; you're right about that. It stops `find_widget` from picking up a widget that an assembly that still exists is using. That mostly happens with **two rigs in one file**, which share the widget collection and can have the same bone names. Without the check, rebuilding rig 1's `thigh_fk.L` would take rig 2's `WGT-thigh_fk.L`, and both assemblies would own it. Within one rig it can't happen: the bones of the assembly being rebuilt were deleted first, and no two assemblies share a bone.
+- **`find_widget` can return the fresh widget itself.** On a first build with nothing left over, Blender gives the fresh widget the clean name, and it isn't in `owned_widgets` yet. That's harmless: `custom_shape` stays `wgt`, nothing is removed, and the row is added. An explicit `if old is wgt: old = None` would make that obvious, if you'd rather spell it out.
+- **A possible simpler check, not verified yet:** a leftover widget is one that no bone uses, so `wgt.users == 1` (linked only by the widget collection) might replace `owned_widgets`. That only works if a pose bone's `custom_shape` counts as a user in Blender. Test it in the console before relying on it.
 
 **Resume here:**
 1. ~~Fix the shared-widget delete bug.~~ Done, see below.
 2. ~~Store the widget fingerprint and the resolved palette.~~ Done.
 3. Build `BoneStyleConfig`:
    - ~~3a. The diff: `style_diff()`.~~ Done and tested. See "Learned while testing 3a".
-   - 3b. The snapshot: `BoneStyleConfig.snapshot()`, plus the list of widgets for `delete_assemblies` to keep.
-   - 3c. The overlay: `finish_rebuild()`.
+   - ~~3b. The snapshot: `BoneStyleConfig.snapshot()`, plus `keep_objects` for `delete_assemblies`.~~ Done and tested.
+   - ~~3c. The overlay, in `apply_tool`.~~ Done and tested.
+   - 3e. Edited widgets survive a delete and are found again by bone name. See "Edited widgets outlive their assembly". This replaces `keep_objects` and the widget swap in `apply_tool`.
+   - 3f. Optional, do last: Clear Unused Widgets in the data viewer. 3e works without it. Leftover widgets cost almost nothing, so wait and see whether anyone wants to clear them.
    - 3d. Data viewer: mark edited settings on each bone.
 4. UI: the signal row, Reset All, and the right-click Reset to Assembly Default.
-5. Docs. In `docs/data_viewer.md`, the line saying hand edits "aren't shown" changes with 3d.
+5. Docs:
+   - In `docs/data_viewer.md`, the line saying hand edits "aren't shown" changes with 3d.
+   - Clear Unused Widgets, plus one line in step 9 of `docs/workflow.md` (Check the rig's data).
+   - Explain that edited widgets come back when an assembly is recreated.
 
 How we'll work: the user builds this. Claude explains, reviews and helps on request.
 
@@ -28,7 +76,8 @@ Style is the one kind of assembly data users are expected to edit. They already 
 - **Everything in Blender's Custom Shape panel is kept, plus the pose bone color.** That includes settings no style sets, such as Wireframe and Scale to Bone Length. Reconfigure recreates the bones, so anything not kept goes back to Blender's default, and the signal row says edits on that panel are kept.
 - **A hand edit always wins over the rebuild.** If a user edited a widget and then changes the widget type in Reconfigure, they keep their edited widget. Resetting is how they get out of that.
 - **Bones that no longer exist are dropped silently.** That covers bones removed by an option change, such as fewer twist bones or a different master type. Reconfigure can be undone.
-- **Renaming is out of scope.** Renaming bones already means deleting the assembly, renaming, and recreating it. Configs aren't carried across a delete.
+- **Edited widgets outlive their assembly.** Deleting an assembly keeps any widget whose mesh was edited, under its bone's widget name. Building a bone with that name later picks it up again, whether that's from a reconfigure or from recreating the assembly. Unedited widgets are still deleted. Clear Unused Widgets is how users remove leftover widgets.
+- **Renaming is out of scope.** Renaming bones already means deleting the assembly, renaming, and recreating it. Style settings aren't carried across a delete. Only edited widgets are, by name, so a rename leaves them for Clear Unused Widgets.
 - **Reset works one field at a time, or on everything.** See UI.
 
 ## Core design
@@ -50,23 +99,57 @@ The snapshot, the signal row, Reset and the data viewer all use this same functi
 
 These record what the style produced, which is why they aren't in `style_json`. `apply_tool` sets each one only when the style sets that field, so a later tool styling the same bone (shoulder, foot roll) only updates what it changed. Reapply Bone Colors updates `palette`. The palette is stored because comparing against the current preferences would make every bone look hand-colored after a preference change that hasn't been reapplied. The data viewer shows the palette with each bone's style.
 
-**Snapshot (3b).** `BoneStyleConfig.snapshot()` runs `style_diff` on every bone in the assembly and returns `{bone name: diff}` for the bones that have one. It also records which edited widgets the assembly owns, so `delete_assemblies` can skip them.
+**Snapshot (3b, built).** `BoneStyleConfig.snapshot()` runs `style_diff` on every bone in the assembly and returns `{bone name: BoneStyleDiff}` for the bones that have one. Before the delete, `prepare_rebuild` collects every `custom_shape` named in those diffs and passes it to `delete_assemblies(keep_objects=...)`, which leaves those objects alone. 3e replaces this.
 
-**Overlay (3c).** A new `finish_rebuild(context, prior_configs)` next to `prepare_rebuild` in `reconfigure_assembly.py`. Each reconfigure operator calls it inside its `build()` (for example `fk_setup.py`, around `prepare_rebuild`), so it runs inside the assembly transaction. The rebuild reuses each assembly's uid, so the overlay finds each assembly by uid. Tools don't need to know about it.
-- Each setting is applied by name. A missing bone, or a missing Override Transform target, is dropped.
-- `show_wire` is set on `pose_bone.bone`. Use the `BONE_PROPS` check from `_get_prop`.
-- A kept `custom_shape` can be `None`, if the user cleared a styled bone's shape.
-- Kept widgets:
-  - a kept widget is reassigned to its bone, replacing the freshly built widget. The fresh one is deleted, and the `objects` row is pointed at the kept widget;
-  - a shape the user made from their own object was never ours. It's never deleted, just reassigned, and the fresh widget is deleted;
-  - if the bone is gone, the kept widget is deleted, the same as a dropped style. This leaves no orphans.
+**Overlay (3c, built).** The overlay lives in `apply_tool`, not in a separate `finish_rebuild`. Each `create_*_assembly` passes its chain's `prior_configs` to `apply_tool`. The rebuild reuses each assembly's uid, so the configs line up. After each bone's style is applied:
+- the bone's `BoneStyleDiff` is applied on top of it. Settings are applied by name, and `show_wire` goes on `pose_bone.bone`;
+- if the result is a different shape, the fresh widget is deleted and its `objects` row removed, and the kept shape gets a row if it doesn't have one.
+
+A bone that's gone simply never comes up, so its diff is dropped. 3e replaces the shape swap.
+
+## Edited widgets outlive their assembly (3e)
+Today a widget kept for a reconfigure is passed through `keep_objects`, and one whose bone is gone is deleted along with the assembly. Instead, a delete keeps edited widgets under their bone's widget name, and the build finds them again by that name. A reconfigure is a delete followed by a build, so it uses the same path and needs no special handling.
+
+**On delete (`delete_assemblies`):**
+- **Rule: RigTools keeps one widget per bone.** Kept widgets are found by the bone's widget name, so there's only one per bone. When two widgets compete for the name, the one the bone uses wins. That's what `stale` handles. Put this rule in the user docs.
+- **So a widget is kept if it's edited and still in use.** An edited widget that the user has replaced themselves, for example with Copy to Selected, counts as abandoned and is deleted. That includes the `stale` case in the shared-widget fix. Undo brings it back.
+- An owned widget is kept when its fingerprint differs from its bone's `widget_fingerprint`. That's the same test `style_diff` uses for the shape. A copy of a standard widget has the same fingerprint, so it's still deleted.
+- The kept widget is renamed to `generate_widget_name(bone)` for the bone that uses it, in case it came from another bone. Its `objects` row goes away with the assembly, so nothing owns it.
+- `keep_objects` and the `prepare_rebuild` code that builds it are no longer needed.
+- A shape the user made from their own object was never ours. It's never deleted, as before.
+
+**On build (`apply_tool`):**
+- Right after the style creates a bone's widget, look in the widget collection for an unowned object named `generate_widget_name(bone)`. Blender will have named the fresh widget `.001` because that name is taken.
+- If one exists: the bone uses it, the fresh widget is deleted, and the `objects` row is pointed at the kept widget.
+- `widget_fingerprint` is still recorded from the fresh widget before it's deleted, so Reset knows what the default looks like.
+- "Unowned" means no assembly's `objects` lists it. Only the widget collection is searched.
+
+**Consequence:** a hand-edited widget now beats a changed widget type even across a delete. If someone deletes an assembly and recreates it with a different widget type, their edited widget comes back. Reset, or Clear Unused Widgets before recreating, gets the new type.
+
+## Clear Unused Widgets (3f)
+A button in the data viewer. It removes objects in the widget collection (the `widget_collection` preference) that no bone in any armature in the file uses as `custom_shape`.
+- It never touches anything outside the widget collection.
+- Root and properties widgets are in use, so they're safe.
+- **Confirmation:** a dialog lists every widget it will delete, followed by Delete. It can be undone. The list also covers a widget the user put in the collection and hasn't assigned yet.
+- **It's a separate button, not a Check Data fix.** The data viewer docs promise that fixes "never delete bones, objects or properties".
+- Optional: Check Data reports "N unused widgets" as an Info item, pointing at the button.
 
 **Reset.** `BoneStyle` already treats `None` as "no change", so resetting one field means applying a style that holds only that field from `style_json`:
 ```python
 stored = bone_ref.get_style()
 BoneStyle(wire_width=stored.wire_width).apply(context, pose_bone, side)
 ```
-Settings the style doesn't set reset to Blender's default. Resetting the shape replaces the widget, so it needs its own "remove only if we own it" check. `apply_widget(replace=True)` removes whatever is assigned. That's fine for the root widgets (its only caller today), but here it would delete a user's own object.
+Settings the style doesn't set reset to Blender's default.
+
+**Resetting the shape** uses the stored widget type (`style_json`'s `widget`, for example `'CIRCLE'`). That's enough to rebuild the default, because every widget is created by `BoneStyle.apply` → `apply_widget` from the type alone. No caller passes extra arguments, and scale, translation and rotation are separate fields.
+```python
+BoneStyle(widget=bone_ref.get_style().widget).apply(context, pose_bone, side)
+```
+Then the old shape is handled:
+- **An owned widget, including a kept edited one:** if nothing else uses it, delete it and point its `objects` row at the new widget. Throwing the edited widget away is the point of resetting it, and Undo covers it.
+- **An object the user made themselves:** leave it, and add a row for the new widget.
+
+Don't use `apply_widget(replace=True)` here. It removes whatever is assigned, which is fine for the root widgets (its only caller today), but here it would delete a user's own object.
 
 ## UI
 An add-on can't put buttons next to Blender's own fields. It can add rows to a panel, or add items to the right-click menu.
