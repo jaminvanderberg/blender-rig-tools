@@ -1,13 +1,13 @@
 # Bone style edits: keep hand edits across reconfigure
 
 ## Next steps (start here)
-Steps 1, 2 and 3a are built, but not committed yet.
+Steps 1 and 2 are committed (`35638f7`). 3a is built and tested. Its fixes, and the spline IK duplicate fix, aren't committed yet.
 
 **Resume here:**
 1. ~~Fix the shared-widget delete bug.~~ Done, see below.
 2. ~~Store the widget fingerprint and the resolved palette.~~ Done.
 3. Build `BoneStyleConfig`:
-   - ~~3a. The diff: `style_diff()`.~~ Done, but not tested yet (see Testing).
+   - ~~3a. The diff: `style_diff()`.~~ Done and tested. See "Learned while testing 3a".
    - 3b. The snapshot: `BoneStyleConfig.snapshot()`, plus the list of widgets for `delete_assemblies` to keep.
    - 3c. The overlay: `finish_rebuild()`.
    - 3d. Data viewer: mark edited settings on each bone.
@@ -34,7 +34,7 @@ Style is the one kind of assembly data users are expected to edit. They already 
 ## Core design
 
 **The diff: `style_diff(pose_bone, bone_ref)`** in `assemblies/configs/bone_styles.py`. It returns `{property: live value}` for every setting that differs from the default:
-- **Custom Shape settings** (`CUSTOM_SHAPE_PROPS`): scale, translation, rotation, wire width, Scale to Bone Length, Wireframe. The default is the `BoneStyle` field when the style sets it (`STYLE_FIELDS`), and Blender's own default otherwise, read from `PoseBone.bl_rna`. Floats are compared with a tolerance.
+- **Custom Shape settings** (`CUSTOM_SHAPE_PROPS`): scale, translation, rotation, wire width, Scale to Bone Length, Wireframe. The default is the `BoneStyle` field when the style sets it (`STYLE_FIELDS`), and Blender's own default otherwise, hardcoded in `CUSTOM_SHAPE_PROPS`. Floats are compared with a tolerance. Wireframe (`show_wire`) is on `Bone`, not `PoseBone` (`BONE_PROPS`, `_get_prop`).
 - **Override Transform** (`custom_shape_transform`): compared and stored by bone name. An unset style field is `None`, which is also Blender's default.
 - **Shape** (`custom_shape`): decided only by the fingerprint. A hand-made object or an edited mesh has a different fingerprint. A copy of an identical generated widget has the same fingerprint, so it doesn't count as an edit, and the rebuild giving that bone a fresh copy looks the same. With `widget` `None` or `'NONE'`, any shape counts as an edit. The value is the object name.
 - **Color:** the pose bone palette is compared with the stored palette. For `CUSTOM`, the normal, select and active colors are stored too.
@@ -54,6 +54,8 @@ These record what the style produced, which is why they aren't in `style_json`. 
 
 **Overlay (3c).** A new `finish_rebuild(context, prior_configs)` next to `prepare_rebuild` in `reconfigure_assembly.py`. Each reconfigure operator calls it inside its `build()` (for example `fk_setup.py`, around `prepare_rebuild`), so it runs inside the assembly transaction. The rebuild reuses each assembly's uid, so the overlay finds each assembly by uid. Tools don't need to know about it.
 - Each setting is applied by name. A missing bone, or a missing Override Transform target, is dropped.
+- `show_wire` is set on `pose_bone.bone`. Use the `BONE_PROPS` check from `_get_prop`.
+- A kept `custom_shape` can be `None`, if the user cleared a styled bone's shape.
 - Kept widgets:
   - a kept widget is reassigned to its bone, replacing the freshly built widget. The fresh one is deleted, and the `objects` row is pointed at the kept widget;
   - a shape the user made from their own object was never ours. It's never deleted, just reassigned, and the fresh widget is deleted;
@@ -113,15 +115,24 @@ An add-on can't put buttons next to Blender's own fields. It can add rows to a p
 - `objects` rows track widgets by name, so taking the name also moves ownership to the keeping bone's assembly. No extra bookkeeping is needed.
 - Bones outside any assembly (root, properties) can still end up with a `.001`. That's rare.
 
+## Learned while testing 3a
+- **RNA defaults aren't reliable.** `PoseBone.bl_rna.properties[...].default` doesn't match the value a new bone gets. The values a new bone starts with come from Blender's DNA defaults, which RNA doesn't always mirror. Wire width read as wrong on every bone, so the defaults are now hardcoded.
+- **`show_wire` lives on `Bone`.** The Custom Shape panel draws it from `pose_bone.bone`.
+- **`SplineIK` registered its controls and twist bones twice** (`add()`, then `extend()`). `apply_tool` makes one `BoneRef` row per entry and stores the style only on the last one, so the first row had an empty style and looked fully hand-edited. The `extend()` calls are removed. Spline assemblies need a reconfigure to drop the duplicate rows. `MechanismBones.add` still doesn't check for duplicates.
+- **Install the new build before testing.** `rigtools.zip` from `35638f7` predates `bone_styles.py`.
+
 ## Testing
-**`style_diff`:** reconfigure an assembly, so it has a fingerprint and palette, then:
+**`style_diff`:** reconfigure the assemblies, so they have a fingerprint and palette, then:
 ```python
 from rigtools.assemblies.configs.bone_styles import style_diff
-a = C.object.data.rigtools_assemblies[0]
-for ref in a.mechanism_bones:
-    print(ref.name, style_diff(C.object.pose.bones[ref.name], ref))
+for a in C.object.data.rigtools_assemblies:
+    for ref in a.mechanism_bones:
+        pb = C.object.pose.bones.get(ref.name)
+        d = style_diff(pb, ref) if pb else None
+        if d:
+            print(a.name, ref.name, d)
 ```
-1. Right after the reconfigure, every bone should print `{}`. Anything else means a default is wrong.
+1. Right after the reconfigure, nothing should print. Anything printed means a default is wrong, or a bone has a duplicate row.
 2. Change a bone's wire width, color and scale, and edit its widget's mesh. Each change should show up for that bone and no other.
 
 ## To check

@@ -3,3 +3,4 @@ site/
 .claude/
 claude.md
 .venv/
+__pycache__/

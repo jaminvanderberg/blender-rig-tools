@@ -1,6 +1,6 @@
 import bpy
 from rigtools.armature_settings import get_armature_settings
-from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
+from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import ROOT_WIRE_WIDTH, apply_widget
 

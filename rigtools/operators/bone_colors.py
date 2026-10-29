@@ -1,5 +1,5 @@
 import bpy
-from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
+from rigtools.assemblies.tool_data.bone_style import BoneStyle
 
 class RIG_OT_reapply_bone_colors(bpy.types.Operator):
 	bl_idname = "rig.reapply_bone_colors"

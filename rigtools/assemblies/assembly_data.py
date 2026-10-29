@@ -5,8 +5,9 @@ import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
-from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
+from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label
+from rigtools.utils.object import remove_object
 from rigtools.utils.widget import widget_fingerprint
 
 def find_assemblies(armature_data, bone_names):
@@ -118,13 +119,14 @@ class AssemblyData(PropertyGroup):
 	options_json: StringProperty()
 	config_defaults_json: StringProperty()
 
-	def apply_tool(self, context, tool, limb_collections):
+	def apply_tool(self, context, tool, limb_collections, prior_configs={}):
 		obj = context.object
 		armature_data = obj.data
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
 
 		pose_bones = obj.pose.bones
+		prior_styles = prior_configs.get("bone_styles", {})
 
 		# Mechanism bones and collections
 		for bone_ref in tool.mechanism_bones:
@@ -160,6 +162,17 @@ class AssemblyData(PropertyGroup):
 				mech_bone.widget_fingerprint = widget_fingerprint(wgt)
 			if style.color is not None:
 				mech_bone.palette = pose_bone.color.palette
+
+			prior_style = prior_styles.get(bone_name)
+			if prior_style:
+				prior_style.apply(pose_bone)
+				shape = pose_bone.custom_shape
+				if wgt and shape != wgt:
+					i = next(i for i, obj in enumerate(self.objects) if obj.name == wgt.name)
+					self.objects.remove(i)
+					remove_object(wgt)
+					if shape and shape.name not in (obj.name for obj in self.objects):
+						self.objects.add().name = shape.name
 
 			mech_bone.add_style(style)
 

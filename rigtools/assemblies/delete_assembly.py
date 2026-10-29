@@ -10,7 +10,7 @@ def delete_assembly(context, assembly_uid):
 	return delete_assemblies(context, [assembly_uid])[0]
 
 # Optimized to minimize mode switches
-def delete_assemblies(context, assembly_uids):
+def delete_assemblies(context, assembly_uids, keep_objects=frozenset()):
 	obj = context.object
 	armature_data = obj.data
 
@@ -62,9 +62,14 @@ def delete_assemblies(context, assembly_uids):
 	# takes its name, and with it that widget's row in the keeping assembly's objects
 	owned_objects = {bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects}
 	used_objects = {pb.custom_shape for pb in obj.pose.bones if pb.name not in owned_names}
-	kept = {pb.custom_shape: pb.name for pb in obj.pose.bones if pb.custom_shape in owned_objects and pb.name not in owned_names}
+	kept = {
+		pb.custom_shape: pb.name for pb in obj.pose.bones
+		if pb.custom_shape in owned_objects
+		and pb.name not in owned_names
+		and pb.custom_shape not in keep_objects
+	}
 	stale = {bpy.data.objects.get(generate_widget_name(name)) for name in kept.values()} - used_objects
-	remove_objects((owned_objects - set(kept)) | stale)
+	remove_objects(((owned_objects - set(kept)) | stale) - keep_objects)
 	for wgt, bone_name in kept.items():
 		wgt.name = generate_widget_name(bone_name)
 

@@ -3,7 +3,7 @@ import json
 
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
 from rigtools.assemblies.limb_collections import ensure_limb_collections
-from rigtools.assemblies.tool_data.mechanism_bones import BoneStyle
+from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label, name_bone
 
 # Note to AI: ALWAYS provide thorough debug output when migrating data.

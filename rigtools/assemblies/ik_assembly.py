@@ -277,7 +277,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
-				assembly.apply_tool(context, tool, assembly_chain.limb_collections)
+				assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)
 
 				save_config = getattr(tool, 'save_config', None)
 				if callable(save_config):

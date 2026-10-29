@@ -113,9 +113,6 @@ class SplineIK:
 			mch = edit_bones[bones[0]]
 			mch.parent = first
 
-		self.mechanism_bones.extend(self.control_names, 'ik')
-		self.mechanism_bones.extend(self.twist_names, 'ik')
-
 		return self
 
 	def object_mode(self, context):

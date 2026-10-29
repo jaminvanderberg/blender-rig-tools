@@ -36,6 +36,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 	##############
 	for i, chain in enumerate(chains):
 		uid = replacement_uids[i] if replacement_uids else None
+		chain_prior_configs = prior_configs[uid] if uid else {}
 
 		limb = options.limb_property_base_name
 		side = find_side(chain)
@@ -101,6 +102,6 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
 		for tool in assembly_chain.tools:
 			tool.pose_mode(context)
-			assembly.apply_tool(context, tool, assembly_chain.limb_collections)
+			assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)
 
 	return [torso_fk_chain.torso_bone_name]

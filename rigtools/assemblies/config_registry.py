@@ -2,6 +2,7 @@ import bpy
 from bpy.props import StringProperty
 
 from rigtools.assemblies.assembly_data import find_assembly
+from rigtools.assemblies.configs.bone_styles import BoneStyleConfig
 from rigtools.assemblies.configs.ik_parent import (
 	IkParentConfig,
 	classes as ik_parent_classes,
@@ -15,6 +16,7 @@ CONFIGS = {
 	IkParentConfig.id: IkParentConfig,
 	SkirtRideConfig.id: SkirtRideConfig,
 	SkirtCollisionConfig.id: SkirtCollisionConfig,
+	BoneStyleConfig.id: BoneStyleConfig,
 }
 
 
