@@ -58,10 +58,6 @@ class BoneStyleDiff:
 					color.custom.normal = value.get("normal", color.custom.normal)
 					color.custom.select = value.get("select", color.custom.select)
 					color.custom.active = value.get("active", color.custom.active)
-			elif prop == "custom_shape":
-				shape_name = value
-				shape = bpy.data.objects[shape_name] if shape_name else None
-				pose_bone.custom_shape = shape
 			elif prop == "custom_shape_transform":
 				transform_name = value
 				transform_bone = pose_bone.id_data.pose.bones.get(transform_name) if transform_name else None

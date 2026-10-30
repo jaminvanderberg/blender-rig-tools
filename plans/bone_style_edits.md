@@ -4,47 +4,57 @@
 Steps 1–3c are built and committed as WIP (`e88fa9f`). Tested: every Custom Shape setting and edited widgets survive a reconfigure. Deleting every assembly left only `WGT-root` and `WGT-properties` in the widget collection, so edited widgets are deleted with their assembly. That was expected, and it's what 3e changes.
 
 ### Where I left off: 3e, partway through (not committed)
-**Don't test yet. `apply_tool` is broken in its current state:** `owned_widgets` isn't defined (NameError), and with `self.objects.add()` removed, no widget is registered as owned.
+**Don't test yet.** `apply_tool` is half-done: `owned_widgets` isn't defined, and `self.objects.add()` has been removed.
 
-- **Done:**
-  - `delete_assemblies`: keeps edited widgets (`edited`), alongside `kept` (shared) and `stale`.
-  - `prepare_rebuild`: back to snapshot and delete, without `keep_objects`.
-  - `find_widget()` in `utils/widget.py`.
-- **Left in `apply_tool`** (the "Bone Styles" loop): after `old = find_widget(...)`, finish the pattern from the conversation:
-  ```python
-  if old:
-      pose_bone.custom_shape = old
-  prior_style = prior_styles.get(bone_name)
-  if prior_style:
-      prior_style.apply(pose_bone)
+**Settled since last time:**
+- **Look for the old widget *before* `style.apply`.** The fresh widget doesn't exist yet, so the lookup can't return it. The fresh widget is still created for its fingerprint, then deleted if an old one is found.
+- **"Unused" replaces `owned_widgets`.** A leftover is a widget nothing uses: `wgt.users == 1`, held only by the widget collection. A bone's custom shape counts as a user, so a widget in use has 2. That stops a rebuild from taking a widget another rig uses, without scanning every armature. Check it in the console once: `D.objects['WGT-...'].users`.
+- **Widget names include a per-rig prefix,** so two rigs in one file don't share widget names: `WIDGET_TEMPLATE = "WGT-{prefix}-{name}"`.
+  - `widget_prefix` is a hidden setting (`options={'HIDDEN'}`) in `armature_settings.py`. Initialize sets it once to the rig object's name, and only if it's empty, so Reinitialize never changes it and renaming the rig doesn't break lookups.
+  - `generate_widget_name(name, context)` reads it with `get_armature_settings(context.object.data, context)`. Every caller already has `context`.
+  - Sarah: click **Reinitialize from Preferences** once to get a prefix. The next reconfigure moves her widgets to the new names: edited ones are renamed as their assembly is deleted, and the rebuild finds them.
+- **Bug: `stale` could delete another rig's widget.** It removed any unused-by-*this*-rig object with the bone's widget name. Use the same "unused" test: keep only `stale` widgets with `users == 1`. The prefix makes this rare, but the check is the actual guarantee.
 
-  # Hand edits replaced the fresh widget: only a kept widget becomes ours, never a user's own object
-  if wgt and pose_bone.custom_shape != wgt:
-      remove_object(wgt)
-      wgt = old if pose_bone.custom_shape == old else None
-  if wgt:
-      self.objects.add().name = wgt.name
-  ```
-  And before the loop:
-  ```python
-  # Widgets any rig in the file owns. Anything else in the widget collection was left behind by a delete
-  owned_widgets = {o.name for arm in bpy.data.armatures for a in arm.rigtools_assemblies for o in a.objects}
-  ```
-  Remove the old swap block (the `objects.remove(i)` code under `if prior_style:`).
-- **Cleanup:**
-  - `delete_assemblies` still takes `keep_objects`, but nothing uses it.
-  - `reconfigure_assembly.py` still imports `bpy` and `BoneStyleConfig`, but nothing uses them.
-  - `find_widget` has a stray space: `collection.objects .get`.
+**To do:**
+1. `apply_tool`, in the "Bone Styles" loop:
+   ```python
+   pose_bone = pose_bones[bone_name]
+   # Widget a delete left behind for this bone (see delete_assemblies)
+   old = find_widget(context, bone_name) if style.widget not in (None, 'NONE') else None
+   wgt = style.apply(context, pose_bone, limb_collections.side)
+   if style.widget is not None:
+       mech_bone.widget_fingerprint = widget_fingerprint(wgt)
+   if style.color is not None:
+       mech_bone.palette = pose_bone.color.palette
 
-**Your questions, answered for when you pick it up:**
-- **Why create the fresh widget and then look for the old one, instead of checking first?** Two reasons:
-  - The fresh widget gives `widget_fingerprint`, the default that Reset and `style_diff` compare against. Without it, a bone that picks up an old widget would have nothing to compare against, and the old widget would look unedited.
-  - `BoneStyle.apply` sets the widget along with everything else. Skipping only the widget would mean changing `apply`.
+   if old:
+       remove_object(wgt) # only needed for its fingerprint
+       pose_bone.custom_shape = wgt = old
 
-  Creating it and then deleting it is the simplest way to get both.
-- **What's `owned_widgets` for?** It isn't about the fresh widget, which isn't owned yet; you're right about that. It stops `find_widget` from picking up a widget that an assembly that still exists is using. That mostly happens with **two rigs in one file**, which share the widget collection and can have the same bone names. Without the check, rebuilding rig 1's `thigh_fk.L` would take rig 2's `WGT-thigh_fk.L`, and both assemblies would own it. Within one rig it can't happen: the bones of the assembly being rebuilt were deleted first, and no two assemblies share a bone.
-- **`find_widget` can return the fresh widget itself.** On a first build with nothing left over, Blender gives the fresh widget the clean name, and it isn't in `owned_widgets` yet. That's harmless: `custom_shape` stays `wgt`, nothing is removed, and the row is added. An explicit `if old is wgt: old = None` would make that obvious, if you'd rather spell it out.
-- **A possible simpler check, not verified yet:** a leftover widget is one that no bone uses, so `wgt.users == 1` (linked only by the widget collection) might replace `owned_widgets`. That only works if a pose bone's `custom_shape` counts as a user in Blender. Test it in the console before relying on it.
+   prior_style = prior_styles.get(bone_name)
+   if prior_style:
+       prior_style.apply(pose_bone)
+   if wgt and pose_bone.custom_shape != wgt: # user's own object: never ours
+       remove_object(wgt)
+       wgt = None
+   if wgt:
+       self.objects.add().name = wgt.name
+   ```
+   Remove the old swap block (`objects.remove(i)`).
+2. `find_widget(context, bone_name)`: look up `generate_widget_name(bone_name, context)` in the widget collection, and return it only if `wgt.users == 1`. Drop the `owned_names` parameter.
+3. `delete_assemblies`:
+   - `stale` uses `users == 1` (see above);
+   - pass `context` to both `generate_widget_name` calls;
+   - remove the unused `keep_objects` parameter.
+4. Widget prefix:
+   - `widget_prefix` setting, hidden;
+   - in `initialize_armature_settings`: `if not settings.widget_prefix: settings.widget_prefix = context.object.name`;
+   - `generate_widget_name(name, context)` and `WIDGET_TEMPLATE`;
+   - `create_widget` passes `context`.
+5. Put `get_armature_settings(armature_data, context)` back to requiring `context`. It was changed to an optional `context` that silently skips initialization.
+6. Cleanup:
+   - `reconfigure_assembly.py`'s unused `bpy` and `BoneStyleConfig` imports;
+   - the stray space in `collection.objects .get`;
 
 **Resume here:**
 1. ~~Fix the shared-widget delete bug.~~ Done, see below.
@@ -224,4 +234,5 @@ for a in C.object.data.rigtools_assemblies:
 - Blender has two bone colors: the Bone color and the Pose Bone color. We set the Pose Bone color. If a user changes the Bone color instead, nothing changes in Pose Mode. The signal row on the Pose Bone Color panel helps, but the docs should say so too.
 
 ## Open questions
+- **How `generate_widget_name` gets the rig's prefix.** It uses `generate_widget_name(name, context)` for now, because it works and every caller has `context`. It still doesn't feel right: a name function shouldn't need rig state. Rejected so far: passing the prefix, passing the settings, passing the armature data (which needs `get_armature_settings` without `context`), an optional `context` on `get_armature_settings`, and splitting initialize from get. The pointer list (no prefix at all) was rejected as more data. There may be an assumption we haven't questioned yet, as with widgets being found by name. Revisit when it comes to mind. One clue: Reapply Bone Colors (`operators/bone_colors.py`) goes through every armature in the file, so there `context.object` isn't the rig being worked on. It reads `obj.data.rigtools` directly and skips uninitialized rigs. That's deliberate: calling `get_armature_settings(obj.data, context)` would initialize those rigs with the active rig's name as their prefix. So initialize uses `context` as a stand-in for "this rig's object", which only works while the two are the same.
 - Silent or a summary? The leaning is silent. One option is a single INFO line from the reconfigure operator, such as "Kept hand edits on 12 bones; 2 no longer exist." It shows briefly in the status bar and stays in the Info log. No per-bone messages either way.

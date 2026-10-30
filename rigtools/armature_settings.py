@@ -46,6 +46,12 @@ class RigToolsArmatureSettings(bpy.types.PropertyGroup):
 		description="Property bone name",
 		default=""
 	)
+	widget_prefix: bpy.props.StringProperty(
+		name="Widget Prefix",
+		description="Prefix for widget names, so rigs don't share widget names",
+		default="",
+		options={'HIDDEN'}
+	)
 
 	ui_script: bpy.props.PointerProperty(type=bpy.types.Text)
 
@@ -67,8 +73,9 @@ def initialize_armature_settings(armature_data, context):
 	settings.property_bone_name = prefs.property_bone_name
 	if not was_initialized and not armature_data.rigtools_assemblies:
 		settings.rig_data_version = CURRENT_RIG_DATA_VERSION
+	if not settings.widget_prefix:
+		settings.widget_prefix = context.object.name
 	settings.is_initialized = True
-
 
 def needs_rig_upgrade(armature_data):
 	version = armature_data.rigtools.rig_data_version

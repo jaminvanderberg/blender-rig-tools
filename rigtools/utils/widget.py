@@ -92,7 +92,7 @@ def create_widget(context, widget_type, bone_name, **kwargs):
 			raise ValueError(f"Invalid widget type: {widget_type}")
 
 	collection = _get_widget_collection(context, get_preferences(context).widget_collection)
-	widget_name = generate_widget_name(bone_name)
+	widget_name = generate_widget_name(bone_name, context)
 	wgt = creator(widget_name, **kwargs)
 	collection.objects.link(wgt)
 	return wgt
@@ -108,11 +108,11 @@ def apply_widget(context, pose_bone, widget_type, *, replace=False, **kwargs):
 	pose_bone.custom_shape = wgt
 	return wgt
 
-def find_widget(context, bone_name, owned_names):
+def find_widget(context, bone_name):
 	"""Find widgets left over from deleted assemblies"""
 	collection = bpy.data.collections.get(get_preferences(context).widget_collection)
-	wgt = collection.objects .get(generate_widget_name(bone_name)) if collection else None
-	return wgt if wgt and wgt.name not in owned_names else None
+	wgt = collection.objects.get(generate_widget_name(bone_name, context)) if collection else None
+	return wgt if wgt and wgt.users == 1 else None
 
 def widget_fingerprint(wgt):
 	"""Widget hash for comparing old vs potentially modified widgets"""

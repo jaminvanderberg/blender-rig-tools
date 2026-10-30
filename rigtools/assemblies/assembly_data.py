@@ -155,14 +155,18 @@ class AssemblyData(PropertyGroup):
 				raise ValueError(f"{type(tool).__name__} styled '{bone_name}', which isn't in assembly '{self.name}'")
 
 			pose_bone = pose_bones[bone_name]
+
+			old_wgt = find_widget(context, bone_name) if style.widget not in (None, 'NONE') else None
+
 			wgt = style.apply(context, pose_bones[bone_name], limb_collections.side)
 			if style.widget is not None:
 				mech_bone.widget_fingerprint = widget_fingerprint(wgt)
 			if style.color is not None:
 				mech_bone.palette = pose_bone.color.palette
 
-			old = find_widget(context, bone_name, owned_widgets) if wgt else None
-			
+			if old_wgt:
+				remove_object(wgt)
+				pose_bone.custom_shape = wgt = old_wgt			
 
 			prior_style = prior_styles.get(bone_name)
 			if prior_style:

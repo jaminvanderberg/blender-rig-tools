@@ -62,12 +62,11 @@ def delete_assemblies(context, assembly_uids):
 	# The keeping bone's own widget is usually left unused; remove it so the kept widget
 	# takes its name, and with it that widget's row in the keeping assembly's objects
 	owned_objects = {bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects}
-	used_objects = {pb.custom_shape for pb in obj.pose.bones if pb.name not in owned_names}
 	# Kept = widgets referenced by bones in other assemblies
 	kept = {pb.custom_shape: pb.name for pb in obj.pose.bones if pb.custom_shape in owned_objects and pb.name not in owned_names}
 	# Stale = widgets from other assemblies that don't reference their own bones
 	# (this could possibly delete edited bones, but they are no longer in use; RigTools only preserves one widget per bone)
-	stale = {bpy.data.objects.get(generate_widget_name(name)) for name in kept.values()} - used_objects
+	stale = {wgt for name in kept.values() if (wgt := bpy.data.objects.get(generate_widget_name(name, context))) and wgt.users == 1}
 
 	# Hand-edited widgets
 	edited = {}
@@ -80,7 +79,7 @@ def delete_assemblies(context, assembly_uids):
 	remove_objects((owned_objects - set(kept) - set(edited)) | stale)
 	# The kept and edited bones are named after their own bones
 	for wgt, bone_name in {**edited, **kept}.items():
-		wgt.name = generate_widget_name(bone_name)
+		wgt.name = generate_widget_name(bone_name, context)
 
 
 	###################

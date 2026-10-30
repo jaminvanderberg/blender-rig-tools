@@ -1,6 +1,7 @@
 import math
 import re
 import string
+from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
 from rigtools.rig_ui.rig_ui import get_base_name, flip_side_name
 
@@ -42,7 +43,7 @@ BONE = {
 	"fk_follow": "MCH-FOLLOW-{name}",
 }
 
-WIDGET_TEMPLATE = "WGT-{name}"
+WIDGET_TEMPLATE = "WGT-{prefix}-{name}"
 
 COLLECTION = {
 	"ik": "{Name}.IK{side}",
@@ -67,7 +68,6 @@ PROPERTY = {
 def bone_template(role):
 	return BONE[role]
 
-
 def name_bone(role, source_name, *, strip_name=True, strip_numbers=False, index=None, **tokens):
 	"""Name a bone from a fixed tool role in BONE.
 	Looks up bone_template(role), substitutes any **tokens into the template (e.g. type=, i=),
@@ -85,13 +85,11 @@ def name_bone(role, source_name, *, strip_name=True, strip_numbers=False, index=
 		index=index,
 	)
 
-
 def name_collection(role, base_name, side):
 	return generate_bone_collection_name(COLLECTION[role], base_name, side)
 
 def name_property(role, base_name, side):
 	return generate_property_name(PROPERTY[role], base_name, side)
-
 
 def get_side_letter(bone_name):
 	_base, side = get_base_name(bone_name)
@@ -110,13 +108,11 @@ def same_side_names(name_a, name_b):
 		return True
 	return ('L' in side_a.upper()) == ('L' in side_b.upper())
 
-
 def bone_name_matches(bone_name, prefix, suffix):
 	base_name, extension = get_base_name(bone_name)
 	if len(base_name) <= len(prefix) + len(suffix):
 		return False
 	return base_name.startswith(prefix) and base_name.endswith(suffix)
-
 
 def strip_bone_numbers(base_name):
 	separators = get_separators()
@@ -138,7 +134,6 @@ def strip_bone_numbers(base_name):
 		kept.pop()
 
 	return "".join(kept)
-
 
 def strip_bone_tags(base_name, context=None):
 	tags = get_strip_tags(context)
@@ -199,8 +194,9 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False,
 
 	return f"{formatted_base}{extension}"
 
-def generate_widget_name(name):
-	return generate_bone_name(name, WIDGET_TEMPLATE)
+def generate_widget_name(name, context):
+	prefix = get_armature_settings(context.object.data, context).widget_prefix
+	return generate_bone_name(name, WIDGET_TEMPLATE.replace("{prefix}", prefix))
 
 def find_side(bone_names):
 	ret = None

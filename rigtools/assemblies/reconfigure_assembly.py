@@ -1,5 +1,3 @@
-import bpy
-from rigtools.assemblies.configs.bone_styles import BoneStyleConfig
 from rigtools.assemblies.delete_assembly import delete_assemblies
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.config_registry import snapshot_configs
