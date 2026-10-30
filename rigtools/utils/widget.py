@@ -110,21 +110,8 @@ def _create_widget(context, widget_type, widget_name):
 	collection.objects.link(wgt)
 	return wgt
 
-def apply_widget(context, pose_bone, widget_type, *, replace=False):
+def apply_widget(context, pose_bone, widget_type):
 	wgt = get_standard_widget(context, widget_type)
-	pose_bone.custom_shape = wgt
-	return wgt
-
-def make_widget_unique(context, pose_bone):
-	"""Give the bone its own copy of its standard widget, so editing it changes only this bone"""
-	shape = pose_bone.custom_shape
-	if not is_standard_widget(shape):
-		return shape
-	wgt = shape.copy()
-	wgt.data = shape.data.copy()
-	del wgt[STANDARD_WIDGET_KEY]
-	wgt.name = wgt.data.name = generate_widget_name(pose_bone.name, context)
-	_get_widget_collection(context, get_preferences(context).widget_collection).objects.link(wgt)
 	pose_bone.custom_shape = wgt
 	return wgt
 

@@ -1,38 +1,31 @@
 import bpy
-from rigtools.utils.widget import STANDARD_WIDGET_KEY, is_standard_widget, make_widget_unique
+from rigtools.utils.widget import STANDARD_WIDGET_KEY, is_standard_widget
 
-class RIG_OT_make_widget_unique(bpy.types.Operator):
-	bl_idname = "rig.make_widget_unique"
-	bl_label = "Make Widget Unique"
-	bl_description = "Give each selected bone its own copy of its widget, so editing it changes only that bone"
-	bl_options = {'REGISTER', 'UNDO'}
+# Up to this many bones are named in the Custom Shape panel; more are just counted
+NAMED_BONES_MAX = 3
 
-	@classmethod
-	def poll(cls, context):
-		return context.mode == 'POSE' and context.selected_pose_bones
-
-	def execute(self, context):
-		count = 0
-		for pose_bone in context.selected_pose_bones:
-			if is_standard_widget(pose_bone.custom_shape):
-				make_widget_unique(context, pose_bone)
-				count += 1
-		self.report({'INFO'}, f"Made {count} widget{'s' if count != 1 else ''} unique")
-		return {'FINISHED'}
-
-def _shared_by(wgt):
-	return wgt.users - 1 # minus the widget collection
+def _bones_using(wgt):
+	return [pb.name for obj in bpy.data.objects if obj.type == 'ARMATURE' for pb in obj.pose.bones if pb.custom_shape == wgt]
 
 def draw_custom_shape(self, context):
-	"""Appended to Blender's Custom Shape panel"""
+	"""Appended to Blender's Custom Shape panel: shows which bones share this widget"""
 	obj = context.object
 	bone = context.bone
 	pose_bone = obj.pose.bones.get(bone.name) if obj and obj.pose and bone else None
 	if not pose_bone or not is_standard_widget(pose_bone.custom_shape):
 		return
+	wgt = pose_bone.custom_shape
+	bones = _bones_using(wgt)
+	used_by = ", ".join(bones) if len(bones) <= NAMED_BONES_MAX else f"{len(bones)} bones"
+
+	# Two columns, lined up with the panel's own fields
 	layout = self.layout
-	layout.label(text=f"Shared widget, used by {_shared_by(pose_bone.custom_shape)} bones", icon='LINKED')
-	layout.operator(RIG_OT_make_widget_unique.bl_idname, icon='DUPLICATE')
+	layout.separator()
+	split = layout.split(factor=0.4)
+	left = split.row()
+	left.alignment = 'RIGHT'
+	left.label(text=f"Shared {wgt[STANDARD_WIDGET_KEY].title()}")
+	split.label(text=used_by, icon='LINKED')
 
 def draw_edit_warning(self, context):
 	"""Appended to the 3D View header: editing a shared widget changes every bone that uses it"""
@@ -41,18 +34,12 @@ def draw_edit_warning(self, context):
 		return
 	row = self.layout.row()
 	row.alert = True
-	row.label(text=f"Editing shared {wgt[STANDARD_WIDGET_KEY].title()} widget: changes {_shared_by(wgt)} bones", icon='ERROR')
-
-classes = (
-	RIG_OT_make_widget_unique,
-)
+	row.label(text=f"Editing shared {wgt[STANDARD_WIDGET_KEY].title()} widget: changes {len(_bones_using(wgt))} bones", icon='ERROR')
 
 def _custom_shape_panel():
 	return getattr(bpy.types, "BONE_PT_display_custom_shape", None)
 
 def register():
-	for cls in classes:
-		bpy.utils.register_class(cls)
 	panel = _custom_shape_panel()
 	if panel:
 		panel.append(draw_custom_shape)
@@ -63,5 +50,3 @@ def unregister():
 	panel = _custom_shape_panel()
 	if panel:
 		panel.remove(draw_custom_shape)
-	for cls in reversed(classes):
-		bpy.utils.unregister_class(cls)

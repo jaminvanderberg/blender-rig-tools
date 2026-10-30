@@ -1,78 +1,42 @@
 # Bone style edits: keep hand edits across reconfigure
 
 ## Next steps (start here)
-Steps 1–3c are built and committed as WIP (`e88fa9f`). Tested: every Custom Shape setting and edited widgets survive a reconfigure. Deleting every assembly left only `WGT-root` and `WGT-properties` in the widget collection, so edited widgets are deleted with their assembly. That was expected, and it's what 3e changes.
+**Direction change: shared widgets.** Instead of one widget object per bone, each rig has one shared widget per widget type (and, soon, per widget role). Most of the 3e machinery is gone: fingerprints, finding widgets by name, `kept`/`stale`/renaming, and ownership of widgets. The sections below marked *Superseded* are history.
 
-### Where I left off: 3e, partway through (not committed)
-**Don't test yet.** `apply_tool` is half-done: `owned_widgets` isn't defined, and `self.objects.add()` has been removed.
+Sarah has no assemblies right now (all deleted, unsaved), so there's no migration from per-bone widgets. Old saves have no stored styles anyway.
 
-**Settled since last time:**
-- **Look for the old widget *before* `style.apply`.** The fresh widget doesn't exist yet, so the lookup can't return it. The fresh widget is still created for its fingerprint, then deleted if an old one is found.
-- **"Unused" replaces `owned_widgets`.** A leftover is a widget nothing uses: `wgt.users == 1`, held only by the widget collection. A bone's custom shape counts as a user, so a widget in use has 2. That stops a rebuild from taking a widget another rig uses, without scanning every armature. Check it in the console once: `D.objects['WGT-...'].users`.
-- **Widget names include a per-rig prefix,** so two rigs in one file don't share widget names: `WIDGET_TEMPLATE = "WGT-{prefix}-{name}"`.
-  - `widget_prefix` is a hidden setting (`options={'HIDDEN'}`) in `armature_settings.py`. Initialize sets it once to the rig object's name, and only if it's empty, so Reinitialize never changes it and renaming the rig doesn't break lookups.
-  - `generate_widget_name(name, context)` reads it with `get_armature_settings(context.object.data, context)`. Every caller already has `context`.
-  - Sarah: click **Reinitialize from Preferences** once to get a prefix. The next reconfigure moves her widgets to the new names: edited ones are renamed as their assembly is deleted, and the rebuild finds them.
-- **Bug: `stale` could delete another rig's widget.** It removed any unused-by-*this*-rig object with the bone's widget name. Use the same "unused" test: keep only `stale` widgets with `users == 1`. The prefix makes this rare, but the check is the actual guarantee.
+### Where I left off (2026-10-29)
+Committed as `a97b5ab` (WIP shared widgets). Steps 2 and 3 below, and the panel styling, are **not committed yet**. The user tested the shared-widget prototype plus steps 1–3.
 
-**To do:**
-1. `apply_tool`, in the "Bone Styles" loop:
-   ```python
-   pose_bone = pose_bones[bone_name]
-   # Widget a delete left behind for this bone (see delete_assemblies)
-   old = find_widget(context, bone_name) if style.widget not in (None, 'NONE') else None
-   wgt = style.apply(context, pose_bone, limb_collections.side)
-   if style.widget is not None:
-       mech_bone.widget_fingerprint = widget_fingerprint(wgt)
-   if style.color is not None:
-       mech_bone.palette = pose_bone.color.palette
+**Done:**
+1. **Shared widgets** (`utils/widget.py`): `get_standard_widget(context, widget_type)` returns the one widget for a type, creating it on first use. It's tagged with the custom property `rigtools_widget = '<TYPE>'` (`STANDARD_WIDGET_KEY`) and found by name first, then by scanning objects for the tag. `apply_widget` just assigns it. Shared widgets aren't added to the assembly's `objects`.
+2. **No fingerprint.** `BoneRef.widget_fingerprint` and `widget_fingerprint()` are removed. The shape rule in `style_diff`: anything other than the shared widget for the bone's style is a hand edit, carried across a reconfigure by name through the snapshot (`BoneStyleDiff.apply` skips a name that no longer exists).
+3. **Never delete widgets.** `delete_assemblies` removes only the non-widget objects an assembly owns (spline IK curves). The `replace` / `replace_widget` option is removed from `apply_widget`, `BoneStyle.apply` and `root_widget.py`. Old shapes are left for Clear Unused Widgets.
+4. **Make Unique dropped.** Roles cover the shapes people edit (feet, hands, toes, torso), already shared by just L and R, so they stay symmetric. Making one unique would split the pair. A custom shape means assigning your own object (e.g. with Bone Widget), and that carries over a reconfigure.
+5. **UI** (`operators/widgets.py`):
+   - **Custom Shape panel:** a separator, then two columns: "Shared Box" │ 🔗 bone names, or "N bones" if more than `NAMED_BONES_MAX` (3). Check `split(factor=0.4)` lines up with the panel's fields.
+   - **3D View header:** a red warning while a shared widget is in Edit Mode (covers Bone Widget's Edit Widget).
+   - **Bone count:** both scan every armature's pose bones, not `users`.
 
-   if old:
-       remove_object(wgt) # only needed for its fingerprint
-       pose_bone.custom_shape = wgt = old
+**Next: step 4, per-rig names with widget roles.**
+- **Name:** `WGT-{prefix}-{role}`, with the role spelled exactly as it should appear.
+- **Role:** each widget type gets a default role (a display-name map: `CIRCLE` → `Circle`, `FK` → `FK`, `IK` → `IK`, and so on), replacing `.title()` (which gives "Fk").
+- **`BoneStyle`** gets an optional `widget_role`. Call it that, not `role`: bones already have roles (fk/ik/tweak/control/mch) for collections and colors.
+- **Tag:** the tag includes the prefix, so a lookup for Sarah's `Circle` never returns another rig's.
+- **`style_diff`:** compares against the expected key for this rig.
+- **A role has exactly one shape:** the first build to create it decides which. A guard (storing the shape too) can wait.
+- **Who sets roles:** the torso tool sets its own (Torso, Chest, Hips). Templates pass them for feet, toes and hands. Most bones have none and get the default role. The screenshot showed the torso sharing `WGT-Box` with the FK arms, which is the case roles fix.
+- **Check first:** `generate_widget_name` goes through `generate_bone_name`, which strips bone tags. If `FK`/`IK` are tags, a role like `FK-Hand` could lose its `FK`. Either check the tags or build the name without `generate_bone_name`.
+- The prefix stays (`widget_prefix`, set at initialize from the rig object's name), and so does `generate_widget_name(name, context)`. Per-rig widgets are what make roles work.
 
-   prior_style = prior_styles.get(bone_name)
-   if prior_style:
-       prior_style.apply(pose_bone)
-   if wgt and pose_bone.custom_shape != wgt: # user's own object: never ours
-       remove_object(wgt)
-       wgt = None
-   if wgt:
-       self.objects.add().name = wgt.name
-   ```
-   Remove the old swap block (`objects.remove(i)`).
-2. `find_widget(context, bone_name)`: look up `generate_widget_name(bone_name, context)` in the widget collection, and return it only if `wgt.users == 1`. Drop the `owned_names` parameter.
-3. `delete_assemblies`:
-   - `stale` uses `users == 1` (see above);
-   - pass `context` to both `generate_widget_name` calls;
-   - remove the unused `keep_objects` parameter.
-4. Widget prefix:
-   - `widget_prefix` setting, hidden;
-   - in `initialize_armature_settings`: `if not settings.widget_prefix: settings.widget_prefix = context.object.name`;
-   - `generate_widget_name(name, context)` and `WIDGET_TEMPLATE`;
-   - `create_widget` passes `context`.
-5. Put `get_armature_settings(armature_data, context)` back to requiring `context`. It was changed to an optional `context` that silently skips initialization.
-6. Cleanup:
-   - `reconfigure_assembly.py`'s unused `bpy` and `BoneStyleConfig` imports;
-   - the stray space in `collection.objects .get`;
+**After that:**
+- **Mirroring test:** with an IK foot role shared by L and R, does R draw mirrored? If not, R's style needs a negative X scale.
+- **Clear Unused Widgets** in the data viewer. It's lower priority with never-delete, and the list will show leftovers (including old per-bone root widgets).
+- **A Change Widget swap tool** (dropdown of widget types). It's nearly free: `style_diff` already carries a different standard widget as an edit.
+- **The signal row, Reset and the right-click Reset to Assembly Default** (step 4 of the original UI section). Reset of a shape is now just "assign the shared widget".
+- Rewrite this plan's Decisions/Core design around shared widgets, and delete the superseded sections.
 
-**Resume here:**
-1. ~~Fix the shared-widget delete bug.~~ Done, see below.
-2. ~~Store the widget fingerprint and the resolved palette.~~ Done.
-3. Build `BoneStyleConfig`:
-   - ~~3a. The diff: `style_diff()`.~~ Done and tested. See "Learned while testing 3a".
-   - ~~3b. The snapshot: `BoneStyleConfig.snapshot()`, plus `keep_objects` for `delete_assemblies`.~~ Done and tested.
-   - ~~3c. The overlay, in `apply_tool`.~~ Done and tested.
-   - 3e. Edited widgets survive a delete and are found again by bone name. See "Edited widgets outlive their assembly". This replaces `keep_objects` and the widget swap in `apply_tool`.
-   - 3f. Optional, do last: Clear Unused Widgets in the data viewer. 3e works without it. Leftover widgets cost almost nothing, so wait and see whether anyone wants to clear them.
-   - 3d. Data viewer: mark edited settings on each bone.
-4. UI: the signal row, Reset All, and the right-click Reset to Assembly Default.
-5. Docs:
-   - In `docs/data_viewer.md`, the line saying hand edits "aren't shown" changes with 3d.
-   - Clear Unused Widgets, plus one line in step 9 of `docs/workflow.md` (Check the rig's data).
-   - Explain that edited widgets come back when an assembly is recreated.
-
-How we'll work: the user builds this. Claude explains, reviews and helps on request.
+How we'll work: the user builds this, or Claude makes **one small change at a time** with its diff and its assumptions listed, and the user reviews before the next. No new files or features without describing them first.
 
 ## Context
 This comes from the TODO item "preserve hand-edited widgets/shape settings across reconfigure". Bone styles are already stored per bone in `BoneRef.style_json` (see `plans/bone_colors.md`, which is done). Today a reconfigure deletes the assembly and rebuilds it, so any style a user changed by hand is lost.
@@ -118,6 +82,8 @@ These record what the style produced, which is why they aren't in `style_json`. 
 A bone that's gone simply never comes up, so its diff is dropped. 3e replaces the shape swap.
 
 ## Edited widgets outlive their assembly (3e)
+*Superseded by shared widgets: kept for history.*
+
 Today a widget kept for a reconfigure is passed through `keep_objects`, and one whose bone is gone is deleted along with the assembly. Instead, a delete keeps edited widgets under their bone's widget name, and the build finds them again by that name. A reconfigure is a delete followed by a build, so it uses the same path and needs no special handling.
 
 **On delete (`delete_assemblies`):**
@@ -137,6 +103,8 @@ Today a widget kept for a reconfigure is passed through `keep_objects`, and one 
 **Consequence:** a hand-edited widget now beats a changed widget type even across a delete. If someone deletes an assembly and recreates it with a different widget type, their edited widget comes back. Reset, or Clear Unused Widgets before recreating, gets the new type.
 
 ## Clear Unused Widgets (3f)
+*Still planned, but simpler under shared widgets and never-delete: it lists widgets no bone in any rig uses.*
+
 A button in the data viewer. It removes objects in the widget collection (the `widget_collection` preference) that no bone in any armature in the file uses as `custom_shape`.
 - It never touches anything outside the widget collection.
 - Root and properties widgets are in use, so they're safe.
@@ -200,6 +168,8 @@ An add-on can't put buttons next to Blender's own fields. It can add rows to a p
 **Not doing:** a separate panel that repeats every style field with a reset icon on each row. It would give users two copies of every control.
 
 ## Done: shared widgets no longer get deleted
+*Superseded by shared widgets: kept for history.*
+
 `delete_assemblies` used to delete every object in `assembly.objects`. When Copy to Selected had given a bone in assembly B a widget owned by assembly A, reconfiguring or deleting A left B's bone with no shape.
 
 **Fix (in `delete_assemblies`):**
@@ -234,5 +204,5 @@ for a in C.object.data.rigtools_assemblies:
 - Blender has two bone colors: the Bone color and the Pose Bone color. We set the Pose Bone color. If a user changes the Bone color instead, nothing changes in Pose Mode. The signal row on the Pose Bone Color panel helps, but the docs should say so too.
 
 ## Open questions
-- **How `generate_widget_name` gets the rig's prefix.** It uses `generate_widget_name(name, context)` for now, because it works and every caller has `context`. It still doesn't feel right: a name function shouldn't need rig state. Rejected so far: passing the prefix, passing the settings, passing the armature data (which needs `get_armature_settings` without `context`), an optional `context` on `get_armature_settings`, and splitting initialize from get. The pointer list (no prefix at all) was rejected as more data. There may be an assumption we haven't questioned yet, as with widgets being found by name. Revisit when it comes to mind. One clue: Reapply Bone Colors (`operators/bone_colors.py`) goes through every armature in the file, so there `context.object` isn't the rig being worked on. It reads `obj.data.rigtools` directly and skips uninitialized rigs. That's deliberate: calling `get_armature_settings(obj.data, context)` would initialize those rigs with the active rig's name as their prefix. So initialize uses `context` as a stand-in for "this rig's object", which only works while the two are the same.
+- ~~How `generate_widget_name` gets the rig's prefix.~~ Settled: `generate_widget_name(name, context)`. Every caller has `context`, and per-rig widgets need the prefix. Watch out: Reapply Bone Colors goes through every armature, so `context.object` isn't always the rig. It reads settings directly and skips uninitialized rigs on purpose.
 - Silent or a summary? The leaning is silent. One option is a single INFO line from the reconfigure operator, such as "Kept hand edits on 12 bones; 2 no longer exist." It shows briefly in the status bar and stays in the Info log. No per-bone messages either way.

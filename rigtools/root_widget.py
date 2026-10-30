@@ -12,13 +12,13 @@ def apply_root_widgets(context, obj):
 
 	root = pose_bones.get(settings.root_bone_name)
 	if root:
-		BoneStyle(widget='ROOT', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, root, side="", replace_widget=True)
+		BoneStyle(widget='ROOT', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, root, side="")
 	else:
 		missing.append(settings.root_bone_name)
 
 	properties = pose_bones.get(settings.property_bone_name)
 	if properties:
-		BoneStyle(widget='GEAR', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, properties, side="", replace_widget=True)
+		BoneStyle(widget='GEAR', color='root', wire_width=ROOT_WIRE_WIDTH).apply(context, properties, side="")
 		properties.lock_location = (True, True, True)
 		properties.lock_rotation = (True, True, True)
 		properties.lock_scale = (True, True, True)

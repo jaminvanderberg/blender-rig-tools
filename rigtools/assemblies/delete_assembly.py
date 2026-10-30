@@ -56,10 +56,8 @@ def delete_assemblies(context, assembly_uids):
 				del prop_bone[property_name]
 		delete_snap_chain(obj.data, property_name)
 
-	# Standard widgets are shared and never owned. Don't remove objects other bones still use (via Copy to Selected, etc)
-	owned_objects = {bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects}
-	used_elsewhere = {pb.custom_shape for pb in obj.pose.bones if pb.name not in owned_names}
-	remove_objects(owned_objects - used_elsewhere)
+	# Widgets are shared and never owned, so this never removes a widget
+	remove_objects(bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects)
 
 	###################
 	# POSE MODE

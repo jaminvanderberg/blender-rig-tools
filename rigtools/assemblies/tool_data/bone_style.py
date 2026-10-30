@@ -24,10 +24,10 @@ class BoneStyle:
 			setattr(self, key, value)
 		return self
 
-	def apply(self, context, pose_bone, side, *, replace_widget=False):
+	def apply(self, context, pose_bone, side):
 		wgt = None
 		if self.widget is not None:
-			wgt = apply_widget(context, pose_bone, self.widget, replace=replace_widget) # 'NONE' -> no shape
+			wgt = apply_widget(context, pose_bone, self.widget) # 'NONE' -> no shape
 		if self.scale is not None:
 			pose_bone.custom_shape_scale_xyz = self.scale
 		if self.translate is not None:
