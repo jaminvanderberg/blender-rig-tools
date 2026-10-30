@@ -1,11 +1,8 @@
-import hashlib
-
 import bpy
 import math
 
 from rigtools.preferences import get_preferences
 from rigtools.utils.naming import generate_widget_name
-from rigtools.utils.object import remove_object
 
 fk_widget_types = [
 	('CIRCLE', 'Circle', 'Create a circle widget'),
@@ -54,9 +51,26 @@ def widget_scale_xyz(widget_type, s):
 		return (s, s, s)
 	return (s, 1.0, s)
 
-def create_widget(context, widget_type, bone_name, **kwargs):
+# Custom property marking a shared standard widget; the value is its widget type
+STANDARD_WIDGET_KEY = "rigtools_widget"
+
+def is_standard_widget(obj):
+	return obj is not None and STANDARD_WIDGET_KEY in obj
+
+def get_standard_widget(context, widget_type):
+	"""The one shared widget for this type, created the first time it's needed"""
 	if widget_type == 'NONE':
 		return None
+	name = f"WGT-{widget_type.title()}"
+	wgt = bpy.data.objects.get(name)
+	if wgt is None or wgt.get(STANDARD_WIDGET_KEY) != widget_type:
+		wgt = next((o for o in bpy.data.objects if o.get(STANDARD_WIDGET_KEY) == widget_type), None)
+	if wgt is None:
+		wgt = _create_widget(context, widget_type, name)
+		wgt[STANDARD_WIDGET_KEY] = widget_type
+	return wgt
+
+def _create_widget(context, widget_type, widget_name):
 	match widget_type:
 		case 'CIRCLE':
 			creator = _create_circle_widget
@@ -92,36 +106,27 @@ def create_widget(context, widget_type, bone_name, **kwargs):
 			raise ValueError(f"Invalid widget type: {widget_type}")
 
 	collection = _get_widget_collection(context, get_preferences(context).widget_collection)
-	widget_name = generate_widget_name(bone_name, context)
-	wgt = creator(widget_name, **kwargs)
+	wgt = creator(widget_name)
 	collection.objects.link(wgt)
 	return wgt
 
-def apply_widget(context, pose_bone, widget_type, *, replace=False, **kwargs):
-	old_wgt = pose_bone.custom_shape if replace else None
-
-	if old_wgt:
-		pose_bone.custom_shape = None
-		remove_object(old_wgt)
-
-	wgt = create_widget(context, widget_type, pose_bone.name, **kwargs)
+def apply_widget(context, pose_bone, widget_type, *, replace=False):
+	wgt = get_standard_widget(context, widget_type)
 	pose_bone.custom_shape = wgt
 	return wgt
 
-def find_widget(context, bone_name):
-	"""Find widgets left over from deleted assemblies"""
-	collection = bpy.data.collections.get(get_preferences(context).widget_collection)
-	wgt = collection.objects.get(generate_widget_name(bone_name, context)) if collection else None
-	return wgt if wgt and wgt.users == 1 else None
-
-def widget_fingerprint(wgt):
-	"""Widget hash for comparing old vs potentially modified widgets"""
-	if wgt is None or wgt.type != 'MESH':
-		return ""
-	mesh = wgt.data
-	coords = [round(c, 4) for v in mesh.vertices for c in v.co]
-	edges = [i for e in mesh.edges for i in e.vertices]
-	return hashlib.sha1(repr((coords, edges)).encode()).hexdigest()
+def make_widget_unique(context, pose_bone):
+	"""Give the bone its own copy of its standard widget, so editing it changes only this bone"""
+	shape = pose_bone.custom_shape
+	if not is_standard_widget(shape):
+		return shape
+	wgt = shape.copy()
+	wgt.data = shape.data.copy()
+	del wgt[STANDARD_WIDGET_KEY]
+	wgt.name = wgt.data.name = generate_widget_name(pose_bone.name, context)
+	_get_widget_collection(context, get_preferences(context).widget_collection).objects.link(wgt)
+	pose_bone.custom_shape = wgt
+	return wgt
 
 def _get_widget_collection(context, collection_name):
 	coll = bpy.data.collections.get(collection_name)

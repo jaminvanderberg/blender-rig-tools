@@ -25,6 +25,7 @@ from rigtools import root_widget
 from rigtools.operators import human_skeleton
 from rigtools.operators import create_twist_bones
 from rigtools.operators import bone_colors
+from rigtools.operators import widgets
 from rigtools.assemblies import assembly_data
 from rigtools.assemblies import config_registry
 from rigtools.panels import skirt_legs as skirt_legs_panel
@@ -72,6 +73,7 @@ def register():
 	human_skeleton.register()
 	create_twist_bones.register()
 	bone_colors.register()
+	widgets.register()
 
 	snapping_data.register()
 	rig_ui.register()
@@ -90,6 +92,7 @@ def unregister():
 	rig_ui.unregister()
 	snapping_data.unregister()
 
+	widgets.unregister()
 	bone_colors.unregister()
 	create_twist_bones.unregister()
 	human_skeleton.unregister()

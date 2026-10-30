@@ -3,9 +3,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.tool_data.reparent_rules import apply_reparent_rule
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.bone import select_bones
-from rigtools.utils.naming import generate_widget_name
 from rigtools.utils.object import remove_objects
-from rigtools.utils.widget import widget_fingerprint
 
 def delete_assembly(context, assembly_uid):
 	return delete_assemblies(context, [assembly_uid])[0]
@@ -58,29 +56,10 @@ def delete_assemblies(context, assembly_uids):
 				del prop_bone[property_name]
 		delete_snap_chain(obj.data, property_name)
 
-	# Don't remove objects which are referenced by other bones (via Copy to Selected, etc).
-	# The keeping bone's own widget is usually left unused; remove it so the kept widget
-	# takes its name, and with it that widget's row in the keeping assembly's objects
+	# Standard widgets are shared and never owned. Don't remove objects other bones still use (via Copy to Selected, etc)
 	owned_objects = {bpy.data.objects.get(ref.name) for assembly in assemblies for ref in assembly.objects}
-	# Kept = widgets referenced by bones in other assemblies
-	kept = {pb.custom_shape: pb.name for pb in obj.pose.bones if pb.custom_shape in owned_objects and pb.name not in owned_names}
-	# Stale = widgets from other assemblies that don't reference their own bones
-	# (this could possibly delete edited bones, but they are no longer in use; RigTools only preserves one widget per bone)
-	stale = {wgt for name in kept.values() if (wgt := bpy.data.objects.get(generate_widget_name(name, context))) and wgt.users == 1}
-
-	# Hand-edited widgets
-	edited = {}
-	for mech_bone in (ref for assembly in assemblies for ref in assembly.mechanism_bones):
-		pb = obj.pose.bones.get(mech_bone.name)
-		shape = pb.custom_shape if pb else None
-		if shape in owned_objects and mech_bone.widget_fingerprint and mech_bone.widget_fingerprint != widget_fingerprint(shape):
-			edited[shape] = mech_bone.name
-
-	remove_objects((owned_objects - set(kept) - set(edited)) | stale)
-	# The kept and edited bones are named after their own bones
-	for wgt, bone_name in {**edited, **kept}.items():
-		wgt.name = generate_widget_name(bone_name, context)
-
+	used_elsewhere = {pb.custom_shape for pb in obj.pose.bones if pb.name not in owned_names}
+	remove_objects(owned_objects - used_elsewhere)
 
 	###################
 	# POSE MODE

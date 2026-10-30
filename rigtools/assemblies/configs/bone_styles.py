@@ -3,7 +3,7 @@ import math
 
 import bpy
 
-from rigtools.utils.widget import widget_fingerprint
+from rigtools.utils.widget import STANDARD_WIDGET_KEY, is_standard_widget
 
 CUSTOM_SHAPE_PROPS = {
 	"custom_shape_scale_xyz": (1.0, 1.0, 1.0),
@@ -58,6 +58,10 @@ class BoneStyleDiff:
 					color.custom.normal = value.get("normal", color.custom.normal)
 					color.custom.select = value.get("select", color.custom.select)
 					color.custom.active = value.get("active", color.custom.active)
+			elif prop == "custom_shape":
+				shape = bpy.data.objects.get(value) if value else None
+				if shape or not value:
+					pose_bone.custom_shape = shape
 			elif prop == "custom_shape_transform":
 				transform_name = value
 				transform_bone = pose_bone.id_data.pose.bones.get(transform_name) if transform_name else None
@@ -91,7 +95,8 @@ def style_diff(pose_bone, bone_ref) -> dict:
 	if style.widget in (None, 'NONE'):
 		shape_modified = shape is not None
 	else:
-		shape_modified = bool(bone_ref.widget_fingerprint) and widget_fingerprint(shape) != bone_ref.widget_fingerprint
+		# Anything but the shared widget for this style is a hand edit
+		shape_modified = not is_standard_widget(shape) or shape[STANDARD_WIDGET_KEY] != style.widget
 
 	if shape_modified:
 		diff.add("custom_shape", shape.name if shape else None)

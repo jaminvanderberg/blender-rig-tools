@@ -7,8 +7,6 @@ from bpy.types import PropertyGroup
 from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label
-from rigtools.utils.object import remove_object
-from rigtools.utils.widget import find_widget, widget_fingerprint
 
 def find_assemblies(armature_data, bone_names):
 	wanted = set(bone_names)
@@ -55,7 +53,6 @@ class BoneRef(PropertyGroup):
 	name: StringProperty()
 	roles: CollectionProperty(type=RoleRef)
 	style_json: StringProperty()
-	widget_fingerprint: StringProperty() # hash
 	palette: StringProperty() # resolved widget color
 
 	def get_style(self) -> BoneStyle:
@@ -155,29 +152,14 @@ class AssemblyData(PropertyGroup):
 				raise ValueError(f"{type(tool).__name__} styled '{bone_name}', which isn't in assembly '{self.name}'")
 
 			pose_bone = pose_bones[bone_name]
-
-			old_wgt = find_widget(context, bone_name) if style.widget not in (None, 'NONE') else None
-
-			wgt = style.apply(context, pose_bones[bone_name], limb_collections.side)
-			if style.widget is not None:
-				mech_bone.widget_fingerprint = widget_fingerprint(wgt)
+			# Standard widgets are shared, so they aren't added to objects
+			style.apply(context, pose_bone, limb_collections.side)
 			if style.color is not None:
 				mech_bone.palette = pose_bone.color.palette
-
-			if old_wgt:
-				remove_object(wgt)
-				pose_bone.custom_shape = wgt = old_wgt			
 
 			prior_style = prior_styles.get(bone_name)
 			if prior_style:
 				prior_style.apply(pose_bone)
-				shape = pose_bone.custom_shape
-				if wgt and shape != wgt:
-					i = next(i for i, obj in enumerate(self.objects) if obj.name == wgt.name)
-					self.objects.remove(i)
-					remove_object(wgt)
-					if shape and shape.name not in (obj.name for obj in self.objects):
-						self.objects.add().name = shape.name
 
 			mech_bone.add_style(style)
 
