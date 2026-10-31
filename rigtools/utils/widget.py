@@ -1,4 +1,5 @@
 import bpy
+import hashlib
 import math
 
 from rigtools.preferences import get_preferences
@@ -51,26 +52,92 @@ def widget_scale_xyz(widget_type, s):
 		return (s, s, s)
 	return (s, 1.0, s)
 
-# Custom property marking a shared standard widget; the value is its widget type
+# Custom property marking a shared standard widget; the value is the name it was created with,
+# so it's still found after a rename, and never matches another rig's widget
 STANDARD_WIDGET_KEY = "rigtools_widget"
+# Custom property holding a hash of the mesh as RigTools generated it, to tell when it's been edited
+STANDARD_WIDGET_MESH_KEY = "rigtools_widget_mesh"
+
+DEFAULT_WIDGET_CLASSES = {'FK': "FK", 'IK': "IK"}
 
 def is_standard_widget(obj):
 	return obj is not None and STANDARD_WIDGET_KEY in obj
 
-def get_standard_widget(context, widget_type):
-	"""The one shared widget for this type, created the first time it's needed"""
+def standard_widget_name(context, widget_type, widget_class=None):
+	return generate_widget_name(widget_class or DEFAULT_WIDGET_CLASSES.get(widget_type, widget_type.title()), context)
+
+def find_standard_widget(context, widget_type, widget_class=None):
+	"""The shared widget for this class, or None if it hasn't been created"""
 	if widget_type == 'NONE':
 		return None
-	name = f"WGT-{widget_type.title()}"
+	name = standard_widget_name(context, widget_type, widget_class)
 	wgt = bpy.data.objects.get(name)
-	if wgt is None or wgt.get(STANDARD_WIDGET_KEY) != widget_type:
-		wgt = next((o for o in bpy.data.objects if o.get(STANDARD_WIDGET_KEY) == widget_type), None)
-	if wgt is None:
-		wgt = _create_widget(context, widget_type, name)
-		wgt[STANDARD_WIDGET_KEY] = widget_type
+	if wgt is None or wgt.get(STANDARD_WIDGET_KEY) != name:
+		wgt = next((o for o in bpy.data.objects if o.get(STANDARD_WIDGET_KEY) == name), None)
 	return wgt
 
+def get_standard_widget(context, widget_type, widget_class=None):
+	"""The one shared widget for this class, created the first time it's needed"""
+	if widget_type == 'NONE':
+		return None
+	wgt = find_standard_widget(context, widget_type, widget_class)
+	if wgt is None:
+		name = standard_widget_name(context, widget_type, widget_class)
+		wgt = _create_widget(context, widget_type, name)
+		wgt[STANDARD_WIDGET_KEY] = name
+		wgt[STANDARD_WIDGET_MESH_KEY] = mesh_fingerprint(wgt.data)
+	return wgt
+
+def restore_standard_widget(context, widget_type, widget_class=None):
+	"""Put the shared widget's mesh back the way RigTools generates it, undoing any edits"""
+	wgt = get_standard_widget(context, widget_type, widget_class)
+	if wgt is None:
+		return None
+	fresh = _widget_creator(widget_type)(wgt.name)
+	old_mesh = wgt.data
+	wgt.data = fresh.data
+	bpy.data.objects.remove(fresh)
+	if old_mesh.users == 0:
+		bpy.data.meshes.remove(old_mesh)
+	wgt.data.name = wgt.name
+	wgt[STANDARD_WIDGET_MESH_KEY] = mesh_fingerprint(wgt.data)
+	return wgt
+
+def mesh_fingerprint(mesh):
+	"""Hash of the mesh's shape, rounded so float noise doesn't count as an edit"""
+	data = hashlib.sha1()
+	for vert in mesh.vertices:
+		data.update(repr(tuple(round(c, 4) for c in vert.co)).encode())
+	for edge in mesh.edges:
+		data.update(repr(tuple(edge.vertices)).encode())
+	return data.hexdigest()
+
+def is_widget_mesh_edited(wgt):
+	"""Widgets made before the hash was stored count as edited, so they can still be restored"""
+	return wgt.get(STANDARD_WIDGET_MESH_KEY) != mesh_fingerprint(wgt.data)
+
+def unused_standard_widgets():
+	"""Shared widgets that no bone on any rig uses. Only RigTools' own widgets: a user's objects are never included"""
+	used = {
+		pose_bone.custom_shape.name
+		for obj in bpy.data.objects if obj.type == 'ARMATURE' and obj.pose
+		for pose_bone in obj.pose.bones if pose_bone.custom_shape
+	}
+	return [obj for obj in bpy.data.objects if is_standard_widget(obj) and obj.name not in used]
+
+def remove_widget(wgt):
+	mesh = wgt.data
+	bpy.data.objects.remove(wgt)
+	if mesh is not None and mesh.users == 0:
+		bpy.data.meshes.remove(mesh)
+
 def _create_widget(context, widget_type, widget_name):
+	collection = _get_widget_collection(context, get_preferences(context).widget_collection)
+	wgt = _widget_creator(widget_type)(widget_name)
+	collection.objects.link(wgt)
+	return wgt
+
+def _widget_creator(widget_type):
 	match widget_type:
 		case 'CIRCLE':
 			creator = _create_circle_widget
@@ -104,14 +171,10 @@ def _create_widget(context, widget_type, widget_name):
 			creator = _create_gear_widget
 		case _:
 			raise ValueError(f"Invalid widget type: {widget_type}")
+	return creator
 
-	collection = _get_widget_collection(context, get_preferences(context).widget_collection)
-	wgt = creator(widget_name)
-	collection.objects.link(wgt)
-	return wgt
-
-def apply_widget(context, pose_bone, widget_type):
-	wgt = get_standard_widget(context, widget_type)
+def apply_widget(context, pose_bone, widget_type, widget_class=None):
+	wgt = get_standard_widget(context, widget_type, widget_class)
 	pose_bone.custom_shape = wgt
 	return wgt
 

@@ -194,9 +194,10 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False,
 
 	return f"{formatted_base}{extension}"
 
-def generate_widget_name(name, context):
+def generate_widget_name(widget_class, context):
+	"""Shared widget name for this rig. The class is used as-is: no tag or side stripping"""
 	prefix = get_armature_settings(context.object.data, context).widget_prefix
-	return generate_bone_name(name, WIDGET_TEMPLATE.replace("{prefix}", prefix))
+	return WIDGET_TEMPLATE.format(prefix=prefix, name=widget_class)
 
 def find_side(bone_names):
 	ret = None

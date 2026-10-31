@@ -12,6 +12,10 @@ from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS, SEL
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES, side_display_name
+from rigtools.utils.widget import remove_widget, unused_standard_widgets
+
+# Up to this many widgets are named in the Clear Unused Widgets dialog; more are just counted
+LISTED_WIDGETS_MAX = 20
 
 TEMPLATE_GETTERS = {
 	'IK': get_ik_template,
@@ -498,6 +502,52 @@ class RIG_PT_data_viewer_check(bpy.types.Panel):
 				op = row.operator(RIG_OT_data_fix_issue.bl_idname, text="", icon='MODIFIER')
 				op.index = i
 
+class RIG_OT_clear_unused_widgets(bpy.types.Operator):
+	bl_idname = "rig.clear_unused_widgets"
+	bl_label = "Clear Unused Widgets"
+	bl_description = "Delete RigTools widgets that no bone uses. Your own objects are never deleted"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	@classmethod
+	def poll(cls, context):
+		return bool(unused_standard_widgets())
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self, confirm_text="Delete")
+
+	def draw(self, context):
+		widgets = sorted(wgt.name for wgt in unused_standard_widgets())
+		col = self.layout.column(align=True)
+		col.label(text=f"Delete {len(widgets)} unused widget{'s' if len(widgets) != 1 else ''}:")
+		for name in widgets[:LISTED_WIDGETS_MAX]:
+			col.label(text=name, icon='OBJECT_DATA')
+		if len(widgets) > LISTED_WIDGETS_MAX:
+			col.label(text=f"...and {len(widgets) - LISTED_WIDGETS_MAX} more")
+
+	def execute(self, context):
+		widgets = unused_standard_widgets()
+		for wgt in widgets:
+			remove_widget(wgt)
+		self.report({'INFO'}, f"Deleted {len(widgets)} unused widget{'s' if len(widgets) != 1 else ''}")
+		return {'FINISHED'}
+
+class RIG_PT_data_viewer_widgets(bpy.types.Panel):
+	bl_label = "Widgets"
+	bl_idname = "RIG_PT_data_viewer_widgets"
+	bl_space_type = 'PROPERTIES'
+	bl_region_type = 'WINDOW'
+	bl_context = 'data'
+	bl_parent_id = "RIG_PT_data_viewer"
+
+	def draw(self, context):
+		layout = self.layout
+		count = len(unused_standard_widgets())
+		if count:
+			layout.label(text=f"{count} unused widget{'s' if count != 1 else ''}", icon=icon('STATUS_INFO'))
+		else:
+			layout.label(text="No unused widgets", icon='CHECKMARK')
+		layout.operator(RIG_OT_clear_unused_widgets.bl_idname, icon='TRASH')
+
 classes = (
 	RigDataIssue,
 	RigDataSections,
@@ -505,11 +555,13 @@ classes = (
 	RIG_OT_data_check,
 	RIG_OT_data_fix_issue,
 	RIG_OT_data_fix_all,
+	RIG_OT_clear_unused_widgets,
 	RIG_UL_data_viewer_assemblies,
 	RIG_PT_data_viewer,
 	RIG_PT_data_viewer_assemblies,
 	RIG_PT_data_viewer_limbs,
 	RIG_PT_data_viewer_check,
+	RIG_PT_data_viewer_widgets,
 )
 
 def register():

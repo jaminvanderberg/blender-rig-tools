@@ -34,10 +34,12 @@ class StandardIK:
 		pole_distance: float = 1.0,
 		enable_snapping: bool = True,
 		ik_stretch_property_name: str,
+		ik_widget_class: str | None = None,
 	):
 		self.ik_stretch_property_name = ik_stretch_property_name
 		self.pole_distance = pole_distance
 		self.enable_snapping = enable_snapping
+		self.ik_widget_class = ik_widget_class
 
 		self.mch_bone_names = None
 		self.fk_bone_names = None
@@ -134,7 +136,7 @@ class StandardIK:
 		self.pole_vis_name = pole_vis_bone.name
 
 		style = self.mechanism_bones.add(self.ik_control_name, 'ik')
-		style.set(widget='IK', wire_width=IK_WIRE_WIDTH)
+		style.set(widget='IK', widget_class=self.ik_widget_class, wire_width=IK_WIRE_WIDTH)
 		style = self.mechanism_bones.add(self.pole_name, 'ik')
 		style.set(widget='SPHERE', wire_width=IK_WIRE_WIDTH)
 		if pole_vis_bone:

@@ -8,13 +8,15 @@ class FKChain:
 	def __init__(self, *,
 		fk_bone_template: str = "FK-{name}",
 		fk_widget: str = "CIRCLE",
+		fk_widget_class: str | None = None,
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
-		fk_color: str | None = None,
+		fk_color: str = "",
 	):
 		self.fk_bone_template = fk_bone_template
 		self.fk_widget = fk_widget
+		self.fk_widget_class = fk_widget_class
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.taper_fk_widgets = taper_fk_widgets
 		self.fk_role = fk_role
@@ -57,6 +59,7 @@ class FKChain:
 		for fk_name, scale in zip(self.fk_bone_names, scales):
 			self.mechanism_bones.style(fk_name, 
 			    widget=self.fk_widget,
+			    widget_class=self.fk_widget_class,
 			    color=self.fk_color,
 			    scale=widget_scale_xyz(self.fk_widget, scale)
 			)

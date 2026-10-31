@@ -39,7 +39,10 @@ class IKAssemblyOptions:
 	fk_widget: str = 'FK' # 'widget.fk_widget_types
 	enable_snapping: bool = True
 	tip_widget: str = 'CIRCLE'
+	tip_widget_class: str = ""
 	fk_end_widget: str = 'SAME'
+	fk_end_widget_class: str = ""
+	ik_widget_class: str = ""
 	normalize_fk_widget_scale: bool = False
 	taper_fk_widgets: bool = False
 
@@ -128,6 +131,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				tip_fk = FKChain(
 					fk_bone_template = bone_template("control"),
 					fk_widget = options.tip_widget,
+					fk_widget_class = options.tip_widget_class or None,
 					fk_role = ['fk', 'ik'],
 					fk_color = 'fk',
 				)
@@ -140,6 +144,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				switch_property_name = switch_property_name,
 				fk_widget_type = options.fk_widget,
 				fk_end_widget_type = options.fk_end_widget,
+				fk_end_widget_class = options.fk_end_widget_class or None,
 				normalize_fk_widget_scale = options.normalize_fk_widget_scale,
 				taper_fk_widgets = options.taper_fk_widgets,
 			)
@@ -214,6 +219,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					ik_stretch_property_name = ik_stretch_property_name,
 					pole_distance = options.pole_distance,
 					enable_snapping = options.enable_snapping,
+					ik_widget_class = options.ik_widget_class or None,
 				)
 				tweak_bone_names = tweak_chain.tweak_bone_names if options.add_tweak_bones else None
 				ik.edit_mode(context, ik_bone_names[:limb_count], fk_bone_names[:limb_count], tweak_bone_names, name_source=org_chain[:limb_count])

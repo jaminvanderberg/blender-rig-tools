@@ -152,6 +152,10 @@ class AssemblyData(PropertyGroup):
 				raise ValueError(f"{type(tool).__name__} styled '{bone_name}', which isn't in assembly '{self.name}'")
 
 			pose_bone = pose_bones[bone_name]
+			# Mirror sided widgets with a class (foot, hand, toe)
+			if style.widget_class and "R" in limb_collections.side.upper():
+				x, y, z = style.scale or (1.0, 1.0, 1.0)
+				style.scale = (-x, y, z)
 			# Standard widgets are shared, so they aren't added to objects
 			style.apply(context, pose_bone, limb_collections.side)
 			if style.color is not None:
@@ -256,6 +260,15 @@ def find_assembly(obj, uid):
 		if assembly.uid == uid:
 			return assembly
 	return None
+
+def styled_bone_refs(armature_data):
+	"""{bone name: the mechanism bone row that styled it}, for every bone an assembly styled"""
+	return {
+		bone_ref.name: bone_ref
+		for assembly in armature_data.rigtools_assemblies
+		for bone_ref in assembly.mechanism_bones
+		if bone_ref.style_json
+	}
 
 def _options_to_json(options):
 	data = asdict(options) if is_dataclass(options) else dict(options)

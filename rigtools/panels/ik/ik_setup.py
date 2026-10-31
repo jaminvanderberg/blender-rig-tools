@@ -164,6 +164,18 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		items=fk_widget_types,
 		default='BOX'
 	)
+	fk_end_widget_class: StringProperty(
+		name="FK End Widget Class",
+		description="Widgets are shared within a class",
+		default="",
+		options={'HIDDEN'}
+	)
+	ik_widget_class: StringProperty(
+		name="IK Widget Class",
+		description="Widgets are shared within a class",
+		default="",
+		options={'HIDDEN'}
+	)
 
 	normalize_fk_widget_scale: BoolProperty(
 		name="Normalize FK Widget Scale",
@@ -182,6 +194,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		description="Type of widget for FK bones past the last IK control",
 		items=fk_widget_types,
 		default='CIRCLE'
+	)
+	tip_widget_class: StringProperty(
+		name="Tip Widget Class",
+		description="Widgets are shared within a class",
+		default="",
+		options={'HIDDEN'}
 	)
 
 	enable_snapping: BoolProperty(
@@ -789,7 +807,10 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			tweak_relationship=self.tweak_relationship,
 			fk_widget=self.fk_widget,
 			tip_widget=self.tip_widget,
+			tip_widget_class=self.tip_widget_class,
 			fk_end_widget=self.fk_end_widget if self.fk_end_widget != "SAME" else self.fk_widget,
+			fk_end_widget_class=self.fk_end_widget_class,
+			ik_widget_class=self.ik_widget_class,
 			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
 			taper_fk_widgets=self.taper_fk_widgets,
 			enable_snapping=self.enable_snapping,

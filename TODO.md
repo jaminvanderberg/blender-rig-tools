@@ -23,3 +23,5 @@ remove name string and separators from preferences
 Only selects one assembly on reconfigure
 
 XZ Scale Fix not deleting.
+
+side is stored as the raw bone suffix (".R", "_R", ".R.001"), so ".R" and "_R" are different limbs, "-R" isn't a side at all, and get_side_letter / same_side_names / side_display_name / get_base_name / flip_side_name each re-parse it their own way. Store L/R/C + instance separately; keep the suffix only for building names.

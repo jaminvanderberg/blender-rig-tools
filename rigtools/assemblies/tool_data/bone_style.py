@@ -16,6 +16,7 @@ class BoneStyle:
 	translate: tuple | None = None
 	rotate: tuple | None = None
 	transform_bone: str | None = None
+	widget_class: str | None = None
 
 	def set(self, **settings) -> "BoneStyle":
 		for key, value in settings.items():
@@ -27,7 +28,7 @@ class BoneStyle:
 	def apply(self, context, pose_bone, side):
 		wgt = None
 		if self.widget is not None:
-			wgt = apply_widget(context, pose_bone, self.widget) # 'NONE' -> no shape
+			wgt = apply_widget(context, pose_bone, self.widget, self.widget_class) # 'NONE' -> no shape
 		if self.scale is not None:
 			pose_bone.custom_shape_scale_xyz = self.scale
 		if self.translate is not None:

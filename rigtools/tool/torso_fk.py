@@ -314,10 +314,13 @@ class TorsoFK:
 			fk_bone = edit_bones[fk_name]
 			# make all torso widgets the same size
 			scale = avg_size / fk_bone.length * 1.5 # but scaled up a little
+			widget_class = None
 			if i >= len(self.fk_bone_names) - self.neck_bone_count - 1:
 				scale = 1.5 # Keep neck size, but scale up as well
+				widget_class = "Neck"
 			if i == len(self.fk_bone_names) - 1:
 				scale = 1.0 # Head bone is already the right size
+				widget_class = "Head"
 
 			translate_y = 0.0
 			if i < self.lower_torso_bone_count:
@@ -328,7 +331,8 @@ class TorsoFK:
 				translate_y = fk_bone.length * 0.6
 
 			self.mechanism_bones.style(fk_name,
-			    widget=self.fk_widget, 
+			    widget=self.fk_widget,
+			    widget_class=widget_class,
 				scale=(scale, 1.0, scale),
 				translate=(0.0, translate_y, 0.0), 
 				wire_width=TORSO_FK_WIRE_WIDTH
@@ -336,6 +340,7 @@ class TorsoFK:
 
 		self.mechanism_bones.style(self.hip_bone_name,
 		    widget='CHEST',
+		    widget_class="Hips",
 			rotate=(0.0, math.pi, 0.0),
 			translate=(0.0, 0.0, -hip_bone.length * 0.25),
 			wire_width=CONTROL_WIRE_WIDTH,
@@ -343,12 +348,14 @@ class TorsoFK:
 		)
 		self.mechanism_bones.style(self.chest_bone_name,
 		    widget='CHEST',
+		    widget_class="Chest",
 			translate=(0.0, 0.0, chest_bone.length),
 			wire_width=CONTROL_WIRE_WIDTH,
 			color='torso'
 		)
 		self.mechanism_bones.style(self.torso_bone_name,
 		    widget='BOX',
+		    widget_class="Torso",
 			translate=(0.0, -torso_bone.length * 0.5, 0.0),
 			wire_width=CONTROL_WIRE_WIDTH,
 			color='torso'

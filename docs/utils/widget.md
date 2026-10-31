@@ -7,9 +7,35 @@ Widgets are the custom bone shapes used to display controls in Pose mode.  Many 
 
 ## Overview
 
-When an assembly is created, RigTools creates a widget object for each control and assigns it as the bone's custom shape.  Widgets are created in a separate, hidden collection in the scene (**WGT** by default; see *[addon preferences](../armature_settings.md#addon-preferences)*).
+When an assembly is created, RigTools assigns each control a widget as its custom shape.  Widgets are shared: each rig has one widget per shape, and every control with that shape uses it.  Widgets are named after the rig (for example, **WGT-Sarah-Circle**) and kept in a separate, hidden collection in the scene (**WGT** by default; see *[addon preferences](../armature_settings.md#addon-preferences)*).
 
-Widgets belong to the assembly that created them.  They are deleted when the assembly is deleted or reconfigured.
+Sharing keeps the number of widgets small and makes the one you want easy to find.  Widgets are never deleted, even when their assembly is deleted.  To remove leftover widgets, use **Clear Unused Widgets** in the *[Data Viewer](../data_viewer.md#widgets)*.
+
+## Editing widgets
+
+!!! warning
+    Editing a shared widget changes every control that uses it.  The Custom Shape panel shows which bones share a widget, and the 3D View header shows a warning while you edit one.
+
+Some controls have a widget of their own, so they're safe to edit:
+
+- **Torso:** torso, hips, chest, neck and head
+- **Arms and legs:** FK and IK hands, FK and IK feet, and toes
+
+Left and right share the hand, foot and toe widgets, so an edit to one side applies to both.
+
+To customize any other control, assign your own object as its custom shape.  RigTools keeps it when you reconfigure the assembly.  Only edit a shared widget if you want to change every control that uses it.
+
+## Reset to Default
+
+**Where:** Properties > Bone > Viewport Display > Custom Shape > Reset to Default, or right-click > Reset Style to Default (Pose mode)
+
+Changes to a control's custom shape settings and bone color are kept when you reconfigure its assembly.  The Custom Shape panel lists what you've changed under **Edited**.
+
+**Reset to Default** sets the selected controls back to the way their assembly built them.  It's only available when something on the selected controls has changed.  A dialog lists what has changed, so you can choose what to reset: Widget, Widget Mesh, Color, Translation, Rotation, Scale, Wire Width, Override Transform, and Display (Wireframe and Scale to Bone Length).  Your choices are remembered for next time.
+
+**Widget Mesh** undoes edits to the shared widget's shape.  Because the widget is shared, this changes every control that uses it.  Use it to recover a widget you edited by accident.
+
+Resetting the widget doesn't delete your own object; it's just no longer assigned.
 
 !!! screenshot "Image placeholder"
     `image/widgets.png` — A row of bones in Pose mode, each showing one of the selectable widget shapes (Circle, Rectangle, FK Shape, Box, Pill, Shoulder, IK Shape), labeled.

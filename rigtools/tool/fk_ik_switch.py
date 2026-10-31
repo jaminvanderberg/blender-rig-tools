@@ -12,12 +12,14 @@ class FKIKSwitch:
 		switch_property_name: str,
 		fk_widget_type: str = "CIRCLE",
 		fk_end_widget_type: str = "SAME",
+		fk_end_widget_class: str | None = None,
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 	):
 		self.switch_property_name = switch_property_name
 		self.fk_widget_type = fk_widget_type
 		self.fk_end_widget_type = fk_end_widget_type
+		self.fk_end_widget_class = fk_end_widget_class
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.taper_fk_widgets = taper_fk_widgets
 
@@ -50,13 +52,15 @@ class FKIKSwitch:
 		for i in range(len(self.fk_bone_names)):
 			fk_name = self.fk_bone_names[i]
 			scale = scales[i]
-			widget_type = (
-				self.fk_end_widget_type
-				if i == len(self.fk_bone_names) - 1 and self.fk_end_widget_type != "SAME"
-				else self.fk_widget_type
-			)
+			widget_type = self.fk_widget_type
+			widget_class = None
+			if i == len(self.fk_bone_names) - 1:
+				if self.fk_end_widget_type != "SAME":
+					widget_type = self.fk_end_widget_type
+				widget_class = self.fk_end_widget_class
 			self.mechanism_bones.style(fk_name,
 			    widget=widget_type,
+				widget_class=widget_class,
 				wire_width=LIMB_FK_WIRE_WIDTH,
 				scale=widget_scale_xyz(widget_type, scale)
 			)
