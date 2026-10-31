@@ -60,11 +60,20 @@ STANDARD_WIDGET_MESH_KEY = "rigtools_widget_mesh"
 
 DEFAULT_WIDGET_CLASSES = {'FK': "FK", 'IK': "IK"}
 
+# Every widget type _widget_creator can build
+STANDARD_WIDGET_TYPES = (
+	'CIRCLE', 'RECTANGLE', 'FK', 'BOX', 'PILL', 'SHOULDER', 'IK', 'SPHERE',
+	'LINE', 'TWIST', 'CHEST', 'ROLL', 'PADDLE', 'ROOT', 'GEAR',
+)
+
 def is_standard_widget(obj):
 	return obj is not None and STANDARD_WIDGET_KEY in obj
 
+def default_widget_class(widget_type):
+	return DEFAULT_WIDGET_CLASSES.get(widget_type, widget_type.title())
+
 def standard_widget_name(context, widget_type, widget_class=None):
-	return generate_widget_name(widget_class or DEFAULT_WIDGET_CLASSES.get(widget_type, widget_type.title()), context)
+	return generate_widget_name(widget_class or default_widget_class(widget_type), context)
 
 def find_standard_widget(context, widget_type, widget_class=None):
 	"""The shared widget for this class, or None if it hasn't been created"""

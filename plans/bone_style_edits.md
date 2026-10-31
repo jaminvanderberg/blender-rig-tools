@@ -4,9 +4,25 @@
 **Done and tested in Blender**, except Clear Unused Widgets (tested in background Blender only). Not committed yet: everything after `417b4a3`.
 
 What's left:
-- **Change Widget**, a swap tool (dropdown of widget types). Nearly free: `style_diff` already keeps a different shared widget as a hand edit, and Reset brings the default back.
+- **Test the Bone Style panel and Change Widget in Blender** (registration tested in background only).
+- **Decide** whether to remove our rows from Blender's Custom Shape panel now that the Bone Style panel exists.
 - **Small cleanups:** `BoneStyleDiff.bone_name` is never read; `human_skeleton.py` imports `apply_widget` without using it.
 - **Parked:** the side-suffix refactor (in `TODO.md`).
+
+### Feedback to work through (2026-10-30, after first look at the Bone Style panel)
+No changes made yet.
+
+**Change Widget and classes:**
+- Changing a bone with a special class (FK-Hand, Hips, Toe…) shouldn't drop it into a shared default class. It should probably keep its class. Problem: one class = one shape, and `WGT-Sarah-FK-Hand` already has the FK shape.
+- Sided classes are shared by L and R, so keeping the class would change both sides. That's usually the intent, but not always, and it gets awkward to document.
+- **Collision:** a default class can equal a special class. Changing an arm to CHEST gives it the default class "Chest", which is the torso's special chest widget, so the arm would share it. Same for ROOT ("Root"). Idea: rename those special classes (chest, and root) so no default class collides.
+
+**Bone Style panel layout:**
+- **Translation, Rotation, Scale:** usable but unreadable in one row. Options: stack them in rows, or simplify to uniform Scale and Y-only Translation, with an "Advanced" toggle for the full vectors.
+- **Wireframe, Bone Length scaling and Override Transform** may not belong in this panel.
+- **Widget Mesh row:** unreadable at sidebar width, and ill-fitting here. The user doesn't care much about it in this panel.
+- **Widget row:** the widget name is unreadable. The Change dropdown should probably show the widget currently in use instead.
+- **Reset to Default button:** no purpose here, since the per-field resets are much better. Maybe keep it only in Bone Properties > Custom Shape, along with the sharing info and the right-click item.
 
 How we work: the user builds, or Claude makes one change at a time with its diff and assumptions listed, and the user reviews before the next. No new files, features or renames without describing them first, and no edits until the user says go.
 
@@ -47,11 +63,13 @@ Style is the one kind of assembly data users are expected to edit, with Blender'
 ### Reconfigure
 `BoneStyleConfig.snapshot()` returns `{bone name: BoneStyleDiff}`. After each bone's style is applied in `apply_tool`, its `BoneStyleDiff` is applied on top. A shape is carried by object name; a name that no longer exists is skipped.
 
-## UI (`operators/widgets.py`)
+## UI (`panels/bone_style/bone_style_panel.py`)
 - **Custom Shape panel** (appended to `BONE_PT_display_custom_shape`):
   - **Shared Widget:** which bones use it, or "N bones" past `NAMED_BONES_MAX`.
   - **Edited:** the checkbox names of everything edited on the active bone, including Widget Mesh.
   - **Reset to Default** button.
+- **Bone Style sidebar panel** (`RIG_PT_bone_style`, n-Panel > Rig Tools, Pose mode, active bone; says so when the bone wasn't built by an assembly): Widget (name + **Change** menu), Widget Mesh (shared-by list), Translation, Rotation, Scale, Wire Width, Override Transform, Display, Color. The fields are Blender's own properties drawn again. Each row ends in a reset button when that setting is edited on the active bone (the button is the marker); it runs Reset with `only=<option>`, no dialog, on the selected bones, without changing the remembered checkboxes. Reset to Default at the bottom.
+- **Change Widget** (`RIG_OT_change_widget`): a menu of `STANDARD_WIDGET_TYPES` plus None. Assigns the type's shared widget with its *default* class (a class has one shape, so a bone's own class can't take another type). It's a hand edit: kept on reconfigure, Reset brings back the original.
 - **Pose mode right-click:** Reset Style to Default.
 - **3D View header:** a red warning while a shared widget is in Edit Mode.
 - **Reset to Default** (`RIG_OT_reset_bone_style`):
@@ -61,7 +79,7 @@ Style is the one kind of assembly data users are expected to edit, with Blender'
   - **Widget Mesh** restores each shared widget once, and only if its hash doesn't match. The report names the widgets restored. A user's own object is unassigned, never deleted.
   - **`RESET_OPTIONS`** maps each checkbox to its label and the settings it resets. It's the one table behind the checkboxes, "Edited:" and the dialog.
 - **Data viewer, Widgets subpanel** (`data_viewer/panel.py`): count of unused widgets, and **Clear Unused Widgets** (`RIG_OT_clear_unused_widgets`) with a Delete dialog listing them (up to `LISTED_WIDGETS_MAX`). It only deletes tagged RigTools widgets that no bone on any rig uses. It's not a Check Data fix, because fixes promise never to delete objects.
-- **Not doing:** a ✓ "edits kept" signal row (replaced by Edited + Reset), a right-click per-field reset (the dialog covers it), Make Unique.
+- **Not doing:** a ✓ "edits kept" signal row (replaced by Edited + Reset), a right-click per-field reset (the bone panel's reset buttons cover it), Make Unique.
 
 ## Learned
 - **RNA defaults aren't reliable.** `PoseBone.bl_rna.properties[...].default` doesn't match a new bone's values, so Blender defaults are hardcoded in `CUSTOM_SHAPE_PROPS`.

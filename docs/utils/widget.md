@@ -25,9 +25,17 @@ Left and right share the hand, foot and toe widgets, so an edit to one side appl
 
 To customize any other control, assign your own object as its custom shape.  RigTools keeps it when you reconfigure the assembly.  Only edit a shared widget if you want to change every control that uses it.
 
+## Bone Style
+
+**Where:** n-Panel > Rig Tools > Bone Style (Pose mode)
+
+Shows the active control's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  A setting that differs from what the assembly built has a reset button next to it, which resets just that setting on the selected controls.
+
+**Change** gives the selected controls a different widget.  It uses the shared widget for that shape, the same one every other control with that shape uses.  Like any change, it's kept when you reconfigure, and reset brings back the original.
+
 ## Reset to Default
 
-**Where:** Properties > Bone > Viewport Display > Custom Shape > Reset to Default, or right-click > Reset Style to Default (Pose mode)
+**Where:** n-Panel > Rig Tools > Bone Style, Properties > Bone > Viewport Display > Custom Shape, or right-click > Reset Style to Default (Pose mode)
 
 Changes to a control's custom shape settings and bone color are kept when you reconfigure its assembly.  The Custom Shape panel lists what you've changed under **Edited**.
 
