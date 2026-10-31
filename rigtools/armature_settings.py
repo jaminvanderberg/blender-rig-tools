@@ -60,6 +60,14 @@ def get_armature_settings(armature_data, context):
 		initialize_armature_settings(armature_data, context)
 	return armature_data.rigtools
 
+def get_widget_prefix(armature_object):
+	"""The rig's widget name prefix, set from the object name the first time.
+	Doesn't initialize the other settings: changing a widget on any armature shouldn't make it a RigTools rig"""
+	settings = armature_object.data.rigtools
+	if not settings.widget_prefix:
+		settings.widget_prefix = armature_object.name
+	return settings.widget_prefix
+
 def initialize_armature_settings(armature_data, context):
 	settings = armature_data.rigtools
 	was_initialized = settings.is_initialized

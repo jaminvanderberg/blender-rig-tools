@@ -37,7 +37,6 @@ def _same(a, b):
 @dataclass
 class BoneStyleDiff:
 	"""Difference between live bone and stored style"""
-	bone_name: str
 	diff: dict
 
 	def add(self, prop, value):
@@ -97,7 +96,7 @@ def style_defaults(context, bone_ref) -> dict:
 def style_diff(context, pose_bone, bone_ref) -> dict:
 	"""Returns difference from live bone vs stored style, as BoneStyleDiff"""
 	defaults = style_defaults(context, bone_ref)
-	diff = BoneStyleDiff(bone_name=pose_bone.name, diff={})
+	diff = BoneStyleDiff(diff={})
 
 	for prop in CUSTOM_SHAPE_PROPS:
 		live, expected = _get_prop(pose_bone, prop), defaults[prop]

@@ -10,7 +10,6 @@ from rigtools.preferences import get_preferences
 from rigtools.root_widget import apply_root_widgets
 from rigtools.utils.bone import select_bones
 from rigtools.utils.bone_collection import add_bone_collection
-from rigtools.utils.widget import apply_widget
 
 AUTHORED_HEIGHT = 1.651952
 A_POSE_ANGLE = 45.0

@@ -29,19 +29,31 @@ To customize any other control, assign your own object as its custom shape.  Rig
 
 **Where:** n-Panel > Rig Tools > Bone Style (Pose mode)
 
-Shows the active control's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  A setting that differs from what the assembly built has a reset button next to it, which resets just that setting on the selected controls.
+Shows the active bone's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  It works on any bone, on any armature.  On a control built by an assembly, a setting that differs from what the assembly built has a reset button next to it, which resets just that setting on the selected controls.
 
-**Change** gives the selected controls a different widget.  It uses the shared widget for that shape, the same one every other control with that shape uses.  Like any change, it's kept when you reconfigure, and reset brings back the original.
+**Slide** moves the widget along the bone.  On the Torso, Chest and Hips controls, it moves the widget up and down the body.
+
+**Scale** sizes the widget relative to how the assembly built it, so 1.0 is the original size.  On other bones, it's the widget's scale.  Widgets that run along the bone keep their length; round and flat widgets, and your own widgets, scale evenly.
+
+Click the **Slide** or **Scale** label to show the full X, Y and Z values instead.
+
+**Widget** shows the bone's current widget shape.  Pick another to give the selected bones a different widget.  It uses the shared widget for that shape, the same one every other bone on the rig with that shape uses.
+
+Hands, feet, toes, head, neck and the torso controls have their own widgets.  Changing one of these gives it its own widget for the new shape, not the one other bones use.  Only the selected controls change, so select both sides to change both.  The original widget is kept, edits included, and comes back when you change back to its shape.
+
+On a control built by an assembly, it's kept when you reconfigure, like any change, and reset brings back the original.
+
+**Reset Widget Mesh** appears under the widget when its shape has been edited.  It puts the shape back the way RigTools made it, on every bone that uses the widget.  A dialog shows how many bones that is.  With **Keep a copy of the edited mesh** on, your edited shape is kept as a separate object named **WGT-EDITED-**, for example **WGT-EDITED-Sarah-FK-Hand**, so you can assign it to a bone yourself.  **Clear Unused Widgets** removes copies no bone uses.
 
 ## Reset to Default
 
-**Where:** n-Panel > Rig Tools > Bone Style, Properties > Bone > Viewport Display > Custom Shape, or right-click > Reset Style to Default (Pose mode)
+**Where:** Properties > Bone > Viewport Display > Custom Shape, or right-click > Reset Style to Default (Pose mode)
 
 Changes to a control's custom shape settings and bone color are kept when you reconfigure its assembly.  The Custom Shape panel lists what you've changed under **Edited**.
 
 **Reset to Default** sets the selected controls back to the way their assembly built them.  It's only available when something on the selected controls has changed.  A dialog lists what has changed, so you can choose what to reset: Widget, Widget Mesh, Color, Translation, Rotation, Scale, Wire Width, Override Transform, and Display (Wireframe and Scale to Bone Length).  Your choices are remembered for next time.
 
-**Widget Mesh** undoes edits to the shared widget's shape.  Because the widget is shared, this changes every control that uses it.  Use it to recover a widget you edited by accident.
+**Widget Mesh** undoes edits to the shared widget's shape.  Because the widget is shared, this changes every control that uses it.  Use it to recover a widget you edited by accident.  **Keep a copy of the edited mesh** works the same as in Reset Widget Mesh above.
 
 Resetting the widget doesn't delete your own object; it's just no longer assigned.
 

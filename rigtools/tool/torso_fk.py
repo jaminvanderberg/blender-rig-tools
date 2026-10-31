@@ -339,7 +339,7 @@ class TorsoFK:
 			)
 
 		self.mechanism_bones.style(self.hip_bone_name,
-		    widget='CHEST',
+		    widget='WAVY',
 		    widget_class="Hips",
 			rotate=(0.0, math.pi, 0.0),
 			translate=(0.0, 0.0, -hip_bone.length * 0.25),
@@ -347,7 +347,7 @@ class TorsoFK:
 			color='torso'
 		)
 		self.mechanism_bones.style(self.chest_bone_name,
-		    widget='CHEST',
+		    widget='WAVY',
 		    widget_class="Chest",
 			translate=(0.0, 0.0, chest_bone.length),
 			wire_width=CONTROL_WIRE_WIDTH,

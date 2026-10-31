@@ -505,7 +505,7 @@ class RIG_PT_data_viewer_check(bpy.types.Panel):
 class RIG_OT_clear_unused_widgets(bpy.types.Operator):
 	bl_idname = "rig.clear_unused_widgets"
 	bl_label = "Clear Unused Widgets"
-	bl_description = "Delete RigTools widgets that no bone uses. Your own objects are never deleted"
+	bl_description = "Delete RigTools widgets, and kept copies of edited ones, that no bone uses. Your own objects are never deleted"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	@classmethod

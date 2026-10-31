@@ -1,7 +1,7 @@
 import math
 import re
 import string
-from rigtools.armature_settings import get_armature_settings
+from rigtools.armature_settings import get_widget_prefix
 from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
 from rigtools.rig_ui.rig_ui import get_base_name, flip_side_name
 
@@ -43,7 +43,10 @@ BONE = {
 	"fk_follow": "MCH-FOLLOW-{name}",
 }
 
-WIDGET_TEMPLATE = "WGT-{prefix}-{name}"
+WIDGET_START = "WGT-"
+WIDGET_TEMPLATE = WIDGET_START + "{prefix}-{name}"
+# A kept copy of an edited shared widget: WGT-Sarah-FK-Hand -> WGT-EDITED-Sarah-FK-Hand
+EDITED_WIDGET_TEMPLATE = WIDGET_START + "EDITED-{name}"
 
 COLLECTION = {
 	"ik": "{Name}.IK{side}",
@@ -196,8 +199,11 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False,
 
 def generate_widget_name(widget_class, context):
 	"""Shared widget name for this rig. The class is used as-is: no tag or side stripping"""
-	prefix = get_armature_settings(context.object.data, context).widget_prefix
-	return WIDGET_TEMPLATE.format(prefix=prefix, name=widget_class)
+	return WIDGET_TEMPLATE.format(prefix=get_widget_prefix(context.object), name=widget_class)
+
+def generate_edited_widget_name(widget_name):
+	"""Name for a kept copy of an edited shared widget, from the shared widget's name"""
+	return EDITED_WIDGET_TEMPLATE.format(name=widget_name.removeprefix(WIDGET_START))
 
 def find_side(bone_names):
 	ret = None

@@ -52,6 +52,6 @@ Click the wrench next to an issue to fix it, or **Fix All** to fix everything th
 
 ## Widgets
 
-RigTools never deletes widgets on its own, so widgets can be left over after you delete assemblies or change widget types.  This section shows how many RigTools widgets no bone uses.
+RigTools never deletes widgets on its own, so widgets can be left over after you delete assemblies or change widget types.  This section shows how many RigTools widgets no bone uses, including **WGT-EDITED-** copies kept when you reset an edited widget.
 
-**Clear Unused Widgets** lists them and deletes them after you confirm.  It only deletes widgets RigTools created.  Your own objects are never deleted, even if they're in the widget collection.  It can be undone.
+**Clear Unused Widgets** lists them and deletes them after you confirm.  It only deletes widgets RigTools created, and copies no bone uses.  Your own objects are never deleted, even if they're in the widget collection.  It can be undone.

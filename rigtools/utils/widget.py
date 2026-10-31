@@ -3,7 +3,7 @@ import hashlib
 import math
 
 from rigtools.preferences import get_preferences
-from rigtools.utils.naming import generate_widget_name
+from rigtools.utils.naming import generate_edited_widget_name, generate_widget_name
 
 fk_widget_types = [
 	('CIRCLE', 'Circle', 'Create a circle widget'),
@@ -26,7 +26,10 @@ ROOT_WIRE_WIDTH = 1.5
 master_widget_types = [item for item in fk_widget_types if item[0] != 'NONE']
 
 # Widgets that should keep their proportions when scaled (everything else scales X/Z only, keeping bone length)
-UNIFORM_SCALE_WIDGETS = {'SPHERE'}
+UNIFORM_SCALE_WIDGETS = {'SPHERE', 'WAVY', 'COMPASS', 'GEAR'}
+
+# Classes on bones that point forward, so their widgets slide along Z (up the body) instead of Y
+Z_SLIDE_WIDGET_CLASSES = {'Torso', 'Chest', 'Hips'}
 
 FK_WIDGET_TAPER = 0.2 # tip widget ends at 80% size
 
@@ -57,17 +60,25 @@ def widget_scale_xyz(widget_type, s):
 STANDARD_WIDGET_KEY = "rigtools_widget"
 # Custom property holding a hash of the mesh as RigTools generated it, to tell when it's been edited
 STANDARD_WIDGET_MESH_KEY = "rigtools_widget_mesh"
+# Custom property holding the widget type, so the bone's current shape is known after Change Widget
+STANDARD_WIDGET_TYPE_KEY = "rigtools_widget_type"
+# Custom property marking a kept copy of an edited shared widget; the value is the shared widget's name
+STANDARD_WIDGET_COPY_KEY = "rigtools_widget_copy"
 
 DEFAULT_WIDGET_CLASSES = {'FK': "FK", 'IK': "IK"}
 
 # Every widget type _widget_creator can build
 STANDARD_WIDGET_TYPES = (
 	'CIRCLE', 'RECTANGLE', 'FK', 'BOX', 'PILL', 'SHOULDER', 'IK', 'SPHERE',
-	'LINE', 'TWIST', 'CHEST', 'ROLL', 'PADDLE', 'ROOT', 'GEAR',
+	'LINE', 'TWIST', 'WAVY', 'ROLL', 'PADDLE', 'COMPASS', 'GEAR',
 )
 
 def is_standard_widget(obj):
 	return obj is not None and STANDARD_WIDGET_KEY in obj
+
+def standard_widget_type(obj):
+	"""The widget's type, or None for a user's own widget or one made before the type was stored"""
+	return obj.get(STANDARD_WIDGET_TYPE_KEY) if is_standard_widget(obj) else None
 
 def default_widget_class(widget_type):
 	return DEFAULT_WIDGET_CLASSES.get(widget_type, widget_type.title())
@@ -95,22 +106,34 @@ def get_standard_widget(context, widget_type, widget_class=None):
 		wgt = _create_widget(context, widget_type, name)
 		wgt[STANDARD_WIDGET_KEY] = name
 		wgt[STANDARD_WIDGET_MESH_KEY] = mesh_fingerprint(wgt.data)
+	# Also fills in the type on widgets made before it was stored
+	wgt[STANDARD_WIDGET_TYPE_KEY] = widget_type
 	return wgt
 
-def restore_standard_widget(context, widget_type, widget_class=None):
-	"""Put the shared widget's mesh back the way RigTools generates it, undoing any edits"""
+def restore_standard_widget(context, widget_type, widget_class=None, keep_copy=False):
+	"""Put the shared widget for this class back the way RigTools generates it. Returns the kept copy, if any"""
 	wgt = get_standard_widget(context, widget_type, widget_class)
-	if wgt is None:
-		return None
-	fresh = _widget_creator(widget_type)(wgt.name)
+	return restore_widget_mesh(wgt, keep_copy) if wgt else None
+
+def restore_widget_mesh(wgt, keep_copy=False):
+	"""Put a shared widget's mesh back the way RigTools generates it, undoing any edits.
+	keep_copy: the edited mesh moves to a new object instead of being deleted. Returns that copy, if any"""
+	fresh = _widget_creator(wgt[STANDARD_WIDGET_TYPE_KEY])(wgt.name)
 	old_mesh = wgt.data
 	wgt.data = fresh.data
 	bpy.data.objects.remove(fresh)
-	if old_mesh.users == 0:
+	copy = None
+	if keep_copy:
+		copy = bpy.data.objects.new(generate_edited_widget_name(wgt[STANDARD_WIDGET_KEY]), old_mesh)
+		copy[STANDARD_WIDGET_COPY_KEY] = wgt[STANDARD_WIDGET_KEY]
+		old_mesh.name = copy.name
+		for collection in wgt.users_collection:
+			collection.objects.link(copy)
+	elif old_mesh.users == 0:
 		bpy.data.meshes.remove(old_mesh)
 	wgt.data.name = wgt.name
 	wgt[STANDARD_WIDGET_MESH_KEY] = mesh_fingerprint(wgt.data)
-	return wgt
+	return copy
 
 def mesh_fingerprint(mesh):
 	"""Hash of the mesh's shape, rounded so float noise doesn't count as an edit"""
@@ -126,13 +149,17 @@ def is_widget_mesh_edited(wgt):
 	return wgt.get(STANDARD_WIDGET_MESH_KEY) != mesh_fingerprint(wgt.data)
 
 def unused_standard_widgets():
-	"""Shared widgets that no bone on any rig uses. Only RigTools' own widgets: a user's objects are never included"""
+	"""Shared widgets, and kept copies of edited ones, that no bone on any rig uses.
+	Only RigTools' own widgets: a user's objects are never included"""
 	used = {
 		pose_bone.custom_shape.name
 		for obj in bpy.data.objects if obj.type == 'ARMATURE' and obj.pose
 		for pose_bone in obj.pose.bones if pose_bone.custom_shape
 	}
-	return [obj for obj in bpy.data.objects if is_standard_widget(obj) and obj.name not in used]
+	return [
+		obj for obj in bpy.data.objects
+		if (is_standard_widget(obj) or STANDARD_WIDGET_COPY_KEY in obj) and obj.name not in used
+	]
 
 def remove_widget(wgt):
 	mesh = wgt.data
@@ -168,14 +195,14 @@ def _widget_creator(widget_type):
 			creator = _create_line_widget
 		case 'TWIST':
 			creator = _create_twist_widget
-		case 'CHEST':
-			creator = _create_chest_widget
+		case 'WAVY':
+			creator = _create_wavy_widget
 		case 'ROLL':
 			creator = _create_roll_widget
 		case 'PADDLE':
 			creator = _create_paddle_widget
-		case 'ROOT':
-			creator = _create_root_widget
+		case 'COMPASS':
+			creator = _create_compass_widget
 		case 'GEAR':
 			creator = _create_gear_widget
 		case _:
@@ -418,7 +445,7 @@ def _create_twist_widget(widget_name):
 	return wgt
 
 
-def _create_chest_widget(widget_name):
+def _create_wavy_widget(widget_name):
 	verts = [
 	(0.000000, -0.745914, -0.118223),
 	(-0.195090, -0.731528, -0.100247),
@@ -988,7 +1015,7 @@ def _create_shoulder_widget(widget_name):
 	wgt = bpy.data.objects.new(widget_name, mesh)
 	return wgt
 
-def _create_root_widget(widget_name):
+def _create_compass_widget(widget_name):
 	verts = [
         (0.000000, 1.400895, 0.002833),
         (-0.195090, 0.983559, 0.002833),
