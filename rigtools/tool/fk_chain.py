@@ -12,7 +12,7 @@ class FKChain:
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
 		fk_role: str | list[str] = 'fk',
-		fk_color: str = "",
+		fk_color: str | None = None,
 	):
 		self.fk_bone_template = fk_bone_template
 		self.fk_widget = fk_widget
@@ -26,8 +26,6 @@ class FKChain:
 		self.fk_bone_names = []
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, org_bone_names):
 		self.org_bone_names = org_bone_names

@@ -14,6 +14,7 @@ This tool creates the final FK chain and controls, but doesn't create the IK cha
 ## Parameters
 
 - FK Widget: the custom bone shape to use for FK controls.  Default varies by assembly type.  See *[widgets](../utils/widget.md)*.
+- IK Switch Default: determines whether the limb starts in FK or IK. Can vary by assembly type (arms = FK, legs = IK)
 - FK End Widget: the custom bone shape for the last FK control in the chain (the hand or foot).  Default: CIRCLE.  See *[widgets](../utils/widget.md)*.
 
 ## Related

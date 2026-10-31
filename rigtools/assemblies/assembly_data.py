@@ -4,6 +4,7 @@ import uuid
 import bpy
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, EnumProperty
 from bpy.types import PropertyGroup
+from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label
@@ -124,6 +125,8 @@ class AssemblyData(PropertyGroup):
 
 		pose_bones = obj.pose.bones
 		prior_styles = prior_configs.get("bone_styles", {})
+		prior_values = prior_configs.get("property_values", {})
+		prop_bone = pose_bones.get(get_armature_settings(armature_data, context).property_bone_name)
 
 		# Mechanism bones and collections
 		for bone_ref in tool.mechanism_bones:
@@ -168,26 +171,22 @@ class AssemblyData(PropertyGroup):
 			mech_bone.add_style(style)
 
 		# Properties
-		for prop in tool.property_names:
-			if not prop:
-				continue
-			if isinstance(prop, str):
-				name, role, qualifier = prop, "", ""
-			elif len(prop) == 2:
-				name, role = prop
-				qualifier = ""
-			else:
-				name, role, qualifier = prop
-			row = self.properties.add()
-			row.name = name
-			row.role = role
-			row.qualifier = qualifier
+		for prop in getattr(tool, 'tool_properties', ()):
+			assembly_prop = self.properties.add()
+			assembly_prop.name = prop.name
+			assembly_prop.role = prop.role
+			assembly_prop.qualifier = prop.qualifier
 
-		for obj in tool.object_names:
-			if not obj:
-				continue
-			row = self.objects.add()
-			row.name = obj
+			# Restore previous value
+			prior = prior_values.get(prop.name)
+			if prior is not None and prop.name in prop_bone:
+				items = prop_bone.id_properties_ui(prop.name).as_dict().get("items")
+				if not items or prior < len(items):
+					prop_bone[prop.name] = prior
+
+		for object_name in getattr(tool, 'object_names', ()):
+			assembly_obj = self.objects.add()
+			assembly_obj.name = object_name
 
 		if hasattr(tool, 'twist_states'):
 			for state in tool.twist_states:

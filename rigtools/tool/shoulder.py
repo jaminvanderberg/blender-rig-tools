@@ -15,12 +15,9 @@ VIS_LENGTH_SCALE = 1.4
 class Shoulder:
 	def __init__(self):
 		self.fk_bone_name = None
-		self.control_bone_name = None
 		self.vis_bone_name = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, fk_bone_name):
 		self.fk_bone_name = fk_bone_name

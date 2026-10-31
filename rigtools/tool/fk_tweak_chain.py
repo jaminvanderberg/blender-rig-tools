@@ -38,8 +38,6 @@ class FKTweakChain:
 		self.bone_lengths = {}
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 		self.reparent_rules = ReparentRules()
 
 	def edit_mode(self, context, org_bone_names):

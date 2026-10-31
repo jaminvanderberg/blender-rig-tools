@@ -36,8 +36,6 @@ class TorsoFK:
 		self.fk_bone_names = []
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 		self.twist_bones = {}
 		self.twist_states = []
@@ -234,7 +232,6 @@ class TorsoFK:
 		
 		if self.tweak_chain:
 			self.mechanism_bones.append(self.tweak_chain.mechanism_bones)
-			self.property_names.extend(self.tweak_chain.property_names)
 
 		# Parent the twist ORG bones to the tweak bones
 		tweak_index = 0
@@ -373,7 +370,6 @@ class TorsoFK:
 
 		if self.tweak_chain:
 			self.tweak_chain.pose_mode(context)
-			self.object_names.extend(self.tweak_chain.object_names)
 
 		# Master control falloff
 		if self.hips_mch_names:

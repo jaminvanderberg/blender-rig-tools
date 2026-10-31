@@ -29,7 +29,7 @@ To customize any other control, assign your own object as its custom shape.  Rig
 
 **Where:** n-Panel > Rig Tools > Bone Style (Pose mode)
 
-Shows the active bone's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  It works on any bone, on any armature.  On a control built by an assembly, a setting that differs from what the assembly built has a reset button next to it, which resets just that setting on the selected controls.
+Shows the active bone's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  It works on any bone, on any armature.  A setting that differs from its default has a reset button next to it, which resets just that setting on the selected bones.  On a control built by an assembly, the default is what the assembly built; on any other bone, it's Blender's default.
 
 **Slide** moves the widget along the bone.  On the Torso, Chest and Hips controls, it moves the widget up and down the body.
 
@@ -51,7 +51,7 @@ On a control built by an assembly, it's kept when you reconfigure, like any chan
 
 Changes to a control's custom shape settings and bone color are kept when you reconfigure its assembly.  The Custom Shape panel lists what you've changed under **Edited**.
 
-**Reset to Default** sets the selected controls back to the way their assembly built them.  It's only available when something on the selected controls has changed.  A dialog lists what has changed, so you can choose what to reset: Widget, Widget Mesh, Color, Translation, Rotation, Scale, Wire Width, Override Transform, and Display (Wireframe and Scale to Bone Length).  Your choices are remembered for next time.
+**Reset to Default** sets the selected controls back to the way their assembly built them.  Other bones go back to Blender's defaults, which means no widget.  It's only available when something on the selected controls has changed.  A dialog lists what has changed, so you can choose what to reset: Widget, Widget Mesh, Color, Translation, Rotation, Scale, Wire Width, Override Transform, and Display (Wireframe and Scale to Bone Length).  Your choices are remembered for next time.
 
 **Widget Mesh** undoes edits to the shared widget's shape.  Because the widget is shared, this changes every control that uses it.  Use it to recover a widget you edited by accident.  **Keep a copy of the edited mesh** works the same as in Reset Widget Mesh above.
 

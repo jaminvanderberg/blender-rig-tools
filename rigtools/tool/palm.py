@@ -22,8 +22,6 @@ class Palm:
 		self.mch_bone_names = []
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, org_bone_names):
 		self.org_bone_names = org_bone_names
@@ -53,7 +51,6 @@ class Palm:
 		self.mechanism_bones.extend(self.mch_bone_names, 'mch')
 
 		self.mechanism_bones.append(self.fk_chain.mechanism_bones)
-		self.property_names.extend(self.fk_chain.property_names)
 	
 		# Bone Colors
 		if self.index_falloff_type != "NONE":
@@ -71,7 +68,6 @@ class Palm:
 		pose_bones = obj.pose.bones
 
 		self.fk_chain.pose_mode(context)
-		self.object_names.extend(self.fk_chain.object_names)
 
 		fk_names = self.fk_chain.fk_bone_names
 		n = len(fk_names)

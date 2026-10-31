@@ -355,7 +355,7 @@ class RIG_PT_properties_ui(bpy.types.Panel):
 
 			for prop in properties:
 				role = prop["role"]
-				label = ROLE_DATA.get(role, {}).get("label", prop["name"])
+				label = ROLE_DATA[role]["label"]
 				if prop["qualifier"]:
 					label = f"{prop['qualifier']} {label}"
 

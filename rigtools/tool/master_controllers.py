@@ -17,10 +17,9 @@ class MasterControllers:
 		self.master_controller_widget = master_controller_widget
 
 		self.segments = []
+		self.control_bone_name = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, bone_names: list[str], name_source=None):
 		obj = context.object
@@ -80,6 +79,9 @@ class MasterControllers:
 				"master": master_bone.name if master_bone else fk_name,
 				"mch": mch_names,
 			})
+
+		if self.segments:
+			self.control_bone_name = self.segments[0]["master"]
 
 		return self
 

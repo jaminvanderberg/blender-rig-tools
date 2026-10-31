@@ -5,7 +5,7 @@ import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rna_prop_ui import rna_idprop_ui_create
 from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 
@@ -31,8 +31,7 @@ class SkirtRide:
 		self.terms = []
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
+		self.tool_properties = ToolProperties()
 
 	def edit_mode(self, context, fk_name):
 		self.fk_name = fk_name
@@ -40,7 +39,6 @@ class SkirtRide:
 		obj = context.object
 		armature_data = obj.data
 		edit_bones = armature_data.edit_bones
-		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
@@ -120,18 +118,8 @@ class SkirtRide:
 		if obj.mode != 'POSE':
 			bpy.ops.object.mode_set(mode='POSE')
 
-		if property_name not in prop_bone:
-			prop_bone[property_name] = 1.0
-			rna_idprop_ui_create(
-				prop_bone,
-				property_name,
-				default=1.0,
-				min=0.0,
-				max=1.0,
-			)
-			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)
-
-		self.property_names.append((property_name, "SKIRT_RIDE"))
+		prop = self.tool_properties.add(property_name, "SKIRT_RIDE")
+		prop.apply(prop_bone)
 
 		if not self.terms:
 			return self

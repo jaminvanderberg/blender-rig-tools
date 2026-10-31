@@ -29,7 +29,6 @@ class SplineIK:
 		self.twist_names = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
 		self.object_names = []
 
 	def edit_mode(self, context, mch_bone_names, name_source=None):
@@ -55,7 +54,6 @@ class SplineIK:
 		bone_count = len(bones)
 		for i in range(self.control_count):
 			chain_pos = (i / (self.control_count - 1)) * bone_count
-			joint_index = round(chain_pos)
 
 			if chain_pos >= bone_count:
 				seg_index = bone_count - 1

@@ -70,13 +70,16 @@ def delete_assemblies(context, assembly_uids):
 		for assembly in assemblies:
 			# constraints first
 			assembly_owned_names = {b.name for b in assembly.mechanism_bones}
+			# org-to-org constraints (e.g. IK XZ Scale Fix) also belong to the assembly
+			assembly_org_names = {s.name for s in assembly.org_states}
+			constraint_targets = assembly_owned_names | assembly_org_names
 			for org_state in assembly.org_states:
 				bone = obj.pose.bones.get(org_state.name)
 				if not bone:
 					continue
 				for c in list(bone.constraints):
 					sub = getattr(c, 'subtarget', "") or ""
-					if sub in assembly_owned_names:
+					if sub in constraint_targets:
 						bone.constraints.remove(c)
 
 			# Remove all constraints from twist bones

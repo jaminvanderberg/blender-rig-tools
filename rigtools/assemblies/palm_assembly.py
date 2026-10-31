@@ -16,6 +16,7 @@ def create_palm_assembly(context, chains: list[list[str]], template_id, template
 	"""replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 	prior_configs = prior_configs or {}
 	assemblies = []
+	select_bones = []
 
 	##############
 	# Edit mode
@@ -41,14 +42,17 @@ def create_palm_assembly(context, chains: list[list[str]], template_id, template
 		)
 		palm.edit_mode(context, chain)
 		assembly_chain.tools.append(palm)
+		select_bones.append(palm.fk_chain.fk_bone_names[-1])
 
 	##############
 	# Pose mode
 	##############
 	for assembly_chain in assemblies:
-		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+		uid = assembly_chain.assembly_uid
+		assembly = find_assembly(context.object, uid)
+		chain_prior_configs = prior_configs[uid] if replacement_uids else {}
 		for tool in assembly_chain.tools:
 			tool.pose_mode(context)
 			assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)
 
-	return [palm.fk_chain.fk_bone_names[0]]
+	return select_bones

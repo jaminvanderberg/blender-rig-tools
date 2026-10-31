@@ -1,6 +1,6 @@
 import math
 import bpy
-from rna_prop_ui import rna_idprop_ui_create
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
@@ -51,8 +51,7 @@ class StandardIK:
 		self.ik_chain_length = 0.0
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
+		self.tool_properties = ToolProperties()
 		self.mch_tweak_name = None
 
 	def edit_mode(self, context, mch_bone_names, fk_bone_names, tweak_bone_names=None, name_source=None):
@@ -174,18 +173,9 @@ class StandardIK:
 
 		prop_bone_name = settings.property_bone_name
 		prop_bone = pose_bones[prop_bone_name]
-		if self.ik_stretch_property_name not in prop_bone:
-			prop_bone[self.ik_stretch_property_name] = 1.0
-			rna_idprop_ui_create(
-				prop_bone,
-				self.ik_stretch_property_name,
-				default=1.0,
-				min=0.0,
-				max=1.0,
-			)
-			prop_bone.property_overridable_library_set(f'["{self.ik_stretch_property_name}"]', True)
 
-		self.property_names.append((self.ik_stretch_property_name, "IK_STRETCH"))
+		prop = self.tool_properties.add(self.ik_stretch_property_name, "IK_STRETCH")
+		prop.apply(prop_bone)
 
 		# Copy Transforms on the IK control bone to the last MCH bone
 		last_mch_bone_name = self.mch_bone_names[-1]

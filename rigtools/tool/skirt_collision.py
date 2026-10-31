@@ -4,6 +4,7 @@ from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.utils.bone import generate_mch_bones
 from rigtools.utils.naming import bone_template, generate_bone_name
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rna_prop_ui import rna_idprop_ui_create
 
 
@@ -49,8 +50,7 @@ class SkirtCollision:
 		self.pin_bone_names = []
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []		
+		self.tool_properties = ToolProperties()
 
 	def edit_mode(self, context, fk_names):
 		self.fk_bone_names = fk_names
@@ -111,8 +111,6 @@ class SkirtCollision:
 		self.mechanism_bones.extend(mch_names, 'mch')
 		self.mch_bone_names.extend(mch_names)
 
-		self.property_names.append((self.property_name, "SKIRT_COLLISION"))
-
 		return self
 
 	def pose_mode(self, context):
@@ -127,17 +125,8 @@ class SkirtCollision:
 			bpy.ops.object.mode_set(mode='POSE')
 
 		# Create the skirt collision property
-		if property_name not in prop_bone:
-			prop_bone[property_name] = 1.0
-			
-			rna_idprop_ui_create(
-				prop_bone,
-				property_name,
-				default=1.0,
-				min=0.0,
-				max=1.0
-			)
-			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)			
+		prop = self.tool_properties.add(self.property_name, "SKIRT_COLLISION")
+		prop.apply(prop_bone)
 
 		for fk_name, mch_name, collision_name, pin_name in zip(self.fk_bone_names, self.mch_bone_names, self.collision_bone_names, self.pin_bone_names):
 			target_bone = pose_bones[pin_name]
@@ -198,7 +187,7 @@ class SkirtCollision:
 			var.type = "SINGLE_PROP"
 			var.targets[0].id = obj
 			var.targets[0].data_path = f'pose.bones["{prop_bone.name}"]["{property_name}"]'
-			driver.expression = f"master"
+			driver.expression = "master"
 
 		return self
 

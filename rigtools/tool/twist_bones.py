@@ -82,8 +82,6 @@ class TwistBones:
 		self.driver_bone_names = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 		self.twist_bones = {}
 		self.tweak_chains = []
@@ -184,7 +182,6 @@ class TwistBones:
 				edit_bones[tweak.terminal_tweak_name].parent = edit_bones[org_bone_names[group[-1]]]
 
 			self.mechanism_bones.append(tweak.mechanism_bones)
-			self.property_names.extend(tweak.property_names)
 
 		return self
 
@@ -195,7 +192,6 @@ class TwistBones:
 
 		for tweak in self.tweak_chains:
 			tweak.pose_mode(context)
-			self.object_names.extend(tweak.object_names)
 
 		pose_bones = obj.pose.bones
 

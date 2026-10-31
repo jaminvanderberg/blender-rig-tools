@@ -33,6 +33,7 @@ IK_TEMPLATES = {
 			"add_rotation_isolation": True,
 			"inherit_scale_from_root": True,
 			"ik_type": "IK",
+			"ik_switch_default": "FK",
 			"pole_distance": 0.25,
 			"tweak_relationship": "STRETCH_TO",
 			"fk_widget": "FK",
@@ -62,6 +63,7 @@ IK_TEMPLATES = {
 			"twist_bone_count",
 			"twist_segments",
 			"fk_end_widget",
+			"ik_switch_default",
 		),
 		field_labels={
 			"fk_end_widget": "Hand FK Widget:",
@@ -283,6 +285,7 @@ REDO_PROPERTIES = {
 	"add_rotation_isolation",
 	"inherit_scale_from_root",
 	"ik_type",
+	"ik_switch_default",
 	"pole_distance",
 	"spline_control_count",
 	"spline_skip_first",

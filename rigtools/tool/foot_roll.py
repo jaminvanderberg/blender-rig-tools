@@ -22,8 +22,6 @@ class FootRoll:
 		self.vis_name = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, mch_ik_foot_name, ik_foot_name, heel_pivot_name, org_toe_name):
 		obj = context.object

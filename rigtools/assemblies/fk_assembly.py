@@ -48,9 +48,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 	prior_configs = prior_configs or {}
 
 	assemblies = []
-
-	fk_names = []
-	tweak = None
+	select_bones = []
 
 	try:
 		##############
@@ -154,11 +152,23 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				shoulder.edit_mode(context, fk_names[0])
 				assembly_chain.tools.append(shoulder)
 
+			# SELECTION
+			control = next((t.control_bone_name for t in assembly_chain.tools 
+				if getattr(t, 'control_bone_name', None)), None
+			)
+			if not control:
+				control = fk_names[0] if fk_names \
+					else next((n for n in tweak.tweak_bone_names if n), None) \
+					or tweak.terminal_tweak_name
+			select_bones.append(control)
+
 		##############
 		# Pose mode
 		##############
 		for assembly_chain in assemblies:
-			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+			uid = assembly_chain.assembly_uid
+			assembly = find_assembly(context.object, uid)
+			chain_prior_configs = prior_configs[uid] if replacement_uids else {}
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
 				assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)
@@ -169,20 +179,5 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 				
 	finally:
 		armature_data.use_mirror_x = original_mirror
-
-		select_bones = []
-		for assembly_chain in assemblies:
-			for tool in assembly_chain.tools:
-				control = getattr(tool, 'control_bone_name', None)
-				if control:
-					select_bones.append(control)
-					break
-
-		if not select_bones:
-			if fk_names:
-				select_bones.append(fk_names[0])
-			else:
-				name = next((n for n in tweak.tweak_bone_names if n), None) or tweak.terminal_tweak_name
-				select_bones.append(name)
 
 	return select_bones

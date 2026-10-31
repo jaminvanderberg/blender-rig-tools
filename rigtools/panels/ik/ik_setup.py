@@ -106,6 +106,16 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		default='IK'
 	)
 
+	ik_switch_default: EnumProperty(
+		name="IK Switch Default",
+		description="Default setting for the FK/IK Switch property",
+		items=[
+			('IK', "IK", "Default to IK"),
+			('FK', "FK", "Default to FK"),
+		],
+		default='IK'
+	)
+
 	ik_bone_count: IntProperty(
 		name="IK Bone Count",
 		description="Number of bones to use for the IK chain",
@@ -595,8 +605,9 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget", "add_tweak_bones", "tweak_relationship"],
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "ik_switch_default", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget"], lambda: (
 				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
+				draw.split_field(col, "IK Switch Default:", "ik_switch_default"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 				draw.split_row(col, [
 					SplitSection(label="Normalize Widget Scale", prop="normalize_fk_widget_scale"),
@@ -800,6 +811,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			add_rotation_isolation=self.add_rotation_isolation,
 			inherit_scale_from_root=self.inherit_scale_from_root,
 			ik_type=self.ik_type,
+			ik_switch_default=self.ik_switch_default,
 			spline_control_count=self.spline_control_count,
 			spline_skip_first=self.spline_skip_first,
 			spline_skip_last=self.spline_skip_last,

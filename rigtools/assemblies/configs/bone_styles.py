@@ -3,6 +3,7 @@ import math
 
 import bpy
 
+from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.widget import STANDARD_WIDGET_KEY, get_standard_widget, is_standard_widget, standard_widget_name
 
 CUSTOM_SHAPE_PROPS = {
@@ -71,9 +72,10 @@ class BoneStyleDiff:
 
 def style_defaults(context, bone_ref) -> dict:
 	"""Each kept setting as the assembly built it: {property: default}.
-	custom_shape is the shared widget's name, since looking the widget up could create it,
-	and this runs while drawing. color is left out when the stored palette is unknown."""
-	style = bone_ref.get_style()
+	Without a bone_ref, Blender's defaults: no widget, no color.
+	custom_shape is the widget name, which may not exist yet, or None for no widget."""
+	style = bone_ref.get_style() if bone_ref else BoneStyle()
+	palette = bone_ref.palette if bone_ref else None
 	defaults = {}
 
 	for prop, default in CUSTOM_SHAPE_PROPS.items():
@@ -88,8 +90,8 @@ def style_defaults(context, bone_ref) -> dict:
 	else:
 		defaults["custom_shape"] = standard_widget_name(context, style.widget, style.widget_class)
 
-	if style.color is None or bone_ref.palette:
-		defaults["color"] = bone_ref.palette or 'DEFAULT'
+	if style.color is None or palette:
+		defaults["color"] = palette or 'DEFAULT'
 
 	return defaults
 
@@ -143,8 +145,11 @@ def reset_style(context, pose_bone, bone_ref, props):
 			continue
 		value = defaults[prop]
 		if prop == "custom_shape":
-			style = bone_ref.get_style()
-			pose_bone.custom_shape = get_standard_widget(context, style.widget, style.widget_class) if value else None
+			if value:
+				style = bone_ref.get_style()
+				pose_bone.custom_shape = get_standard_widget(context, style.widget, style.widget_class)
+			else:
+				pose_bone.custom_shape = None
 		elif prop == "custom_shape_transform":
 			pose_bone.custom_shape_transform = pose_bone.id_data.pose.bones.get(value) if value else None
 		elif prop == "color":

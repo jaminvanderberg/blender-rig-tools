@@ -26,7 +26,7 @@ Style is the one kind of assembly data users are expected to edit, with Blender'
 - **Change Widget only changes the selected bones**, never the other side. Select both to change both. Reset to Default then undoes exactly what Change did.
 - **Changing a special-class bone never touches its widget.** It gets the class's own widget for the new shape (`{class}-{Shape}`, for example `WGT-Sarah-FK-Hand-Circle`), so it doesn't share with generic bones, and the original keeps any hand edits. Changing back to the original type uses the original widget again. Swapping the mesh inside the shared widget was rejected because it destroys edits.
 - **Restoring an edited mesh can keep it.** Reset Widget Mesh moves the edited mesh to a `WGT-EDITED-` copy instead of deleting it (on by default). A second copy gets Blender's `.001`; that's fine.
-- **The Bone Style panel works on any bone, on any armature.** The reset buttons only appear on assembly bones, which have a default to reset to. Naming a widget sets only the widget prefix, so changing a widget doesn't turn an armature into a RigTools rig.
+- **The Bone Style panel works on any bone, on any armature.** On other bones, the reset buttons and Reset to Default go back to Blender's defaults (`style_defaults` with no `bone_ref`), including no widget. Naming a widget sets only the widget prefix, so changing a widget doesn't turn an armature into a RigTools rig.
 - **No migration.** Only Sarah has shared widgets so far.
 
 ## Core design

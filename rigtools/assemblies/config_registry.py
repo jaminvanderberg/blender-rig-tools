@@ -9,6 +9,7 @@ from rigtools.assemblies.configs.ik_parent import (
 	register as register_ik_parent_wm,
 	unregister as unregister_ik_parent_wm,
 )
+from rigtools.assemblies.configs.property_values import PropertyValuesConfig
 from rigtools.assemblies.configs.skirt_ride import SkirtRideConfig, classes as skirt_ride_classes
 from rigtools.assemblies.configs.skirt_collision import SkirtCollisionConfig, classes as skirt_collision_classes
 
@@ -17,6 +18,7 @@ CONFIGS = {
 	SkirtRideConfig.id: SkirtRideConfig,
 	SkirtCollisionConfig.id: SkirtCollisionConfig,
 	BoneStyleConfig.id: BoneStyleConfig,
+	PropertyValuesConfig.id: PropertyValuesConfig,
 }
 
 

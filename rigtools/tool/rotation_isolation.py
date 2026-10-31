@@ -1,10 +1,9 @@
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.naming import name_bone
 from rigtools.armature_settings import get_armature_settings
 import mathutils
 import bpy
-from rna_prop_ui import rna_idprop_ui_create
-
 
 class RotationIsolation:
 	def __init__(self, *,
@@ -24,8 +23,7 @@ class RotationIsolation:
 		self.root_bone_name = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
+		self.tool_properties = ToolProperties()
 
 	def edit_mode(self, context, bone_names):
 		obj = context.object
@@ -70,8 +68,6 @@ class RotationIsolation:
 			self.mechanism_bones.add(socket_bone.name, 'mch')
 			self.mechanism_bones.add(int_bone.name, 'mch')
 			
-		self.property_names.append((self.property_name, "ROTATION_ISOLATION", self.property_qualifier))
-
 		return self
 
 	def pose_mode(self, context):
@@ -83,18 +79,8 @@ class RotationIsolation:
 
 		prop_bone = obj.pose.bones[settings.property_bone_name]
 		property_name = self.property_name
-
-		if property_name not in prop_bone:
-			prop_bone[property_name] = 1.0
-			
-			rna_idprop_ui_create(
-				prop_bone,
-				property_name,
-				default=1.0,
-				min=0.0,
-				max=1.0
-			)
-			prop_bone.property_overridable_library_set(f'["{property_name}"]', True)
+		prop = self.tool_properties.add(self.property_name, "ROTATION_ISOLATION", self.property_qualifier)
+		prop.apply(prop_bone)
 
 		root_name = self.root_bone_name or settings.root_bone_name
 

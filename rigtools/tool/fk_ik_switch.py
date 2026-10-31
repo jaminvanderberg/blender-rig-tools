@@ -1,15 +1,16 @@
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.bone import duplicate_chain
 from rigtools.utils.naming import bone_template
 from rigtools.armature_settings import get_armature_settings
-from rna_prop_ui import rna_idprop_ui_create
 from rigtools.preferences import get_preferences
 from rigtools.utils.widget import LIMB_FK_WIRE_WIDTH, chain_widget_scales, widget_scale_xyz
 
 class FKIKSwitch:
 	def __init__(self, *,
 		switch_property_name: str,
+		ik_switch_default: str = 'IK',
 		fk_widget_type: str = "CIRCLE",
 		fk_end_widget_type: str = "SAME",
 		fk_end_widget_class: str | None = None,
@@ -17,6 +18,7 @@ class FKIKSwitch:
 		taper_fk_widgets: bool = False,
 	):
 		self.switch_property_name = switch_property_name
+		self.ik_switch_default = ik_switch_default
 		self.fk_widget_type = fk_widget_type
 		self.fk_end_widget_type = fk_end_widget_type
 		self.fk_end_widget_class = fk_end_widget_class
@@ -28,8 +30,7 @@ class FKIKSwitch:
 		self.ik_bone_names = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
+		self.tool_properties = ToolProperties()
 
 	def edit_mode(self, context, switch_bone_names, name_source=None):
 		self.switch_bone_names = switch_bone_names
@@ -45,7 +46,6 @@ class FKIKSwitch:
 
 		self.mechanism_bones.extend(self.ik_bone_names, 'mch')
 		self.mechanism_bones.extend(self.fk_bone_names, 'fk')
-		self.property_names.append((self.switch_property_name, "FK_IK_SWITCH"))
 
 		scales = chain_widget_scales([obj.data.edit_bones[name].length for name in self.fk_bone_names],
 			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
@@ -80,16 +80,9 @@ class FKIKSwitch:
 		prop_bone = pose_bones.get(prop_bone_name)
 		prop_name = self.switch_property_name
 
-		if prop_name not in prop_bone:
-			prop_bone[prop_name] = 1.0
-			rna_idprop_ui_create(
-				prop_bone,
-				prop_name,
-				default=1.0,
-				min=0.0,
-				max=1.0
-			)
-			prop_bone.property_overridable_library_set(f'["{prop_name}"]', True)
+		default_value = 0.0 if self.ik_switch_default == 'FK' else 1.0
+		prop = self.tool_properties.add(prop_name, "FK_IK_SWITCH")
+		prop.apply(prop_bone, default=default_value)
 
 		for i, (switch_bone_name, fk_bone_name, ik_bone_name) in enumerate(zip(self.switch_bone_names, self.fk_bone_names, self.ik_bone_names)):
 			switch_bone = pose_bones[switch_bone_name]

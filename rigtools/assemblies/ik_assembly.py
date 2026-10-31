@@ -7,7 +7,6 @@ from rigtools.heel_pivots import get_heel_pivot
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.foot_roll import FootRoll
 from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_property
-from rigtools.utils.bone_collection import add_bone_collection
 from rigtools.tool.twist_bones import TwistBones, TwistSegment
 
 # Tools
@@ -29,6 +28,7 @@ class IKAssemblyOptions:
 	add_rotation_isolation: bool = True
 	inherit_scale_from_root: bool = False
 	ik_type: str = 'IK' # 'IK' or 'SPLINE'
+	ik_switch_default: str = 'IK'
 	ik_bone_count: int = 3
 	pole_distance: float = 1.0
 	spline_control_count: int = 3
@@ -76,7 +76,6 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 	armature_data = context.object.data
 	original_mirror = armature_data.use_mirror_x
 	armature_data.use_mirror_x = False
-	edit_bones = armature_data.edit_bones
 	prior_configs = prior_configs or {}
 
 	assemblies = []
@@ -142,6 +141,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
 			fk_ik_switch = FKIKSwitch(
 				switch_property_name = switch_property_name,
+				ik_switch_default = options.ik_switch_default,
 				fk_widget_type = options.fk_widget,
 				fk_end_widget_type = options.fk_end_widget,
 				fk_end_widget_class = options.fk_end_widget_class or None,
@@ -280,7 +280,9 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 		# Pose mode
 		##############
 		for assembly_chain in assemblies:
-			assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+			uid = assembly_chain.assembly_uid
+			assembly = find_assembly(context.object, uid)
+			chain_prior_configs = prior_configs[uid] if replacement_uids else {}
 			for tool in assembly_chain.tools:
 				tool.pose_mode(context)
 				assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)

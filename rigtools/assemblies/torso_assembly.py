@@ -30,6 +30,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 	"""replacement_uids lines up with chains when rebuilding; prior_configs is keyed by uid"""
 	prior_configs = prior_configs or {}
 	assemblies = []
+	select_bones = []
 
 	##############
 	# Edit mode
@@ -95,13 +96,17 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 			head_rotation_isolation.edit_mode(context, [head_name])
 			assembly_chain.tools.append(head_rotation_isolation)
 
+		select_bones.append(torso_fk_chain.torso_bone_name)
+
 	##############
 	# Pose mode
 	##############
 	for assembly_chain in assemblies:
-		assembly = find_assembly(context.object, assembly_chain.assembly_uid)
+		uid = assembly_chain.assembly_uid
+		assembly = find_assembly(context.object, uid)
+		chain_prior_configs = prior_configs[uid] if replacement_uids else {}
 		for tool in assembly_chain.tools:
 			tool.pose_mode(context)
 			assembly.apply_tool(context, tool, assembly_chain.limb_collections, chain_prior_configs)
 
-	return [torso_fk_chain.torso_bone_name]
+	return select_bones

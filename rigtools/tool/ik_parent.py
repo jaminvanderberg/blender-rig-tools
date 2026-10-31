@@ -4,9 +4,9 @@ from typing import List
 
 import bpy
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
-from rna_prop_ui import rna_idprop_ui_create
 
 from rigtools.armature_settings import get_armature_settings
+from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.naming import name_bone
 
@@ -37,8 +37,7 @@ class IKParent:
 		self.self_parent_mch = None
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
+		self.tool_properties = ToolProperties()
 
 	def edit_mode(self, context, bone_names: list[str], self_parent_name: str = ""):
 		obj = context.object
@@ -60,7 +59,6 @@ class IKParent:
 			self.parent_bone_names.append(parent_bone.name)
 
 		self.mechanism_bones.extend(self.parent_bone_names, 'mch')
-		self.property_names.append((self.property_name, "IK_PARENT"))
 
 		if len(self.parent_bone_names) > 1:
 			self.self_parent_mch = self.parent_bone_names[1]
@@ -100,34 +98,13 @@ class IKParent:
 		if not parents:
 			raise ValueError("IK parent requires at least one parent target")
 
-		labels = [parent.label for parent in parents]
-		items = [(str(i), label, label) for i, label in enumerate(labels)]
+		items = [(str(i), parent.label, parent.label) for i, parent in enumerate(parents)]
 
-		if self.property_name not in prop_bone:
-			if not create:
-				raise ValueError(f"IK parent property '{self.property_name}' not found")
-			prop_bone[self.property_name] = default
-			rna_idprop_ui_create(
-				prop_bone,
-				self.property_name,
-				default=default,
-				min=0,
-				max=len(labels) - 1,
-				items=items,
-			)
-			prop_bone.property_overridable_library_set(f'["{self.property_name}"]', True)
-			return
+		if not create and self.property_name not in prop_bone:
+			raise ValueError(f"IK parent property '{self.property_name}' not found")
 
-		current = int(prop_bone[self.property_name])
-		rna_idprop_ui_create(
-			prop_bone,
-			self.property_name,
-			default=default,
-			min=0,
-			max=len(labels) - 1,
-			items=items,
-		)
-		prop_bone[self.property_name] = min(max(current, 0), len(labels) - 1)
+		prop = self.tool_properties.add(self.property_name, "IK_PARENT")
+		prop.apply(prop_bone, default=default, items=items)
 
 	def _setup_constraints(self, context):
 		obj = context.object

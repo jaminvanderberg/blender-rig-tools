@@ -20,8 +20,6 @@ class FingerCurl:
 		self.axis = ""
 
 		self.mechanism_bones = MechanismBones()
-		self.property_names = []
-		self.object_names = []
 
 	def edit_mode(self, context, fk_bone_names):
 		self.fk_bone_names = fk_bone_names

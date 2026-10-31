@@ -42,11 +42,9 @@ def _edited_options(context, pose_bones, first_only=False):
 	edited = set()
 	checked_widgets = set() # each shared widget's mesh is hashed once
 	for pose_bone in pose_bones:
-		bone_ref = bone_refs.get(pose_bone.name)
-		if bone_ref is None:
-			continue
+		bone_ref = bone_refs.get(pose_bone.name) # None: compared with Blender's defaults
 		edited.update(SETTING_OPTIONS[prop] for prop in style_diff(context, pose_bone, bone_ref).diff)
-		wgt = _shared_widget(context, bone_ref)
+		wgt = _shared_widget(context, bone_ref) if bone_ref else None
 		if wgt and "widget_mesh" not in edited and wgt.name not in checked_widgets:
 			checked_widgets.add(wgt.name)
 			if is_widget_mesh_edited(wgt):
@@ -66,7 +64,7 @@ KEEP_COPY_DESCRIPTION = "Move the edited mesh to a new WGT-EDITED- object instea
 class RIG_OT_reset_bone_style(bpy.types.Operator):
 	bl_idname = "rig.reset_bone_style"
 	bl_label = "Reset Style to Default"
-	bl_description = "Set the selected bones' custom shape and color back to the way their assembly built them"
+	bl_description = "Set the selected bones' custom shape and color back to the way their assembly built them, or to Blender's defaults"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	widget: BoolProperty(name="Widget", description="Assign the shared widget the assembly built", default=True)
@@ -88,7 +86,7 @@ class RIG_OT_reset_bone_style(bpy.types.Operator):
 		if obj is None or obj.type != 'ARMATURE' or obj.pose is None:
 			return False
 		if not _edited_options(context, _selected_pose_bones(context), first_only=True):
-			cls.poll_message_set("Nothing on the selected bones differs from the assembly default")
+			cls.poll_message_set("Nothing on the selected bones differs from its default")
 			return False
 		return True
 
@@ -114,16 +112,13 @@ class RIG_OT_reset_bone_style(bpy.types.Operator):
 		props = [prop for option in options for prop in RESET_OPTIONS[option][1]]
 
 		bone_refs = styled_bone_refs(obj.data)
-		reset = skipped = 0
+		reset = 0
 		widgets = set() # (type, class): each shared widget is restored once
 		for pose_bone in _selected_pose_bones(context):
-			bone_ref = bone_refs.get(pose_bone.name)
-			if bone_ref is None:
-				skipped += 1
-				continue
+			bone_ref = bone_refs.get(pose_bone.name) # None: back to Blender's defaults
 			reset_style(context, pose_bone, bone_ref, props)
-			style = bone_ref.get_style()
-			if style.widget not in (None, 'NONE'):
+			style = bone_ref.get_style() if bone_ref else None
+			if style and style.widget not in (None, 'NONE'):
 				widgets.add((style.widget, style.widget_class))
 			reset += 1
 
@@ -143,8 +138,6 @@ class RIG_OT_reset_bone_style(bpy.types.Operator):
 			message += f", restored {', '.join(sorted(restored))}"
 		if copies:
 			message += f", kept {', '.join(sorted(copies))}"
-		if skipped:
-			message += f" ({skipped} not built by RigTools, skipped)"
 		self.report({'INFO'}, message)
 		return {'FINISHED'}
 
