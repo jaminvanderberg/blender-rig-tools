@@ -33,20 +33,21 @@ Z_SLIDE_WIDGET_CLASSES = {'Torso', 'Chest', 'Hips'}
 
 FK_WIDGET_TAPER = 0.2 # tip widget ends at 80% size
 
-def chain_widget_scales(lengths, *, normalize=False, taper=False):
+def chain_widget_scales(lengths, *, normalize=False, taper=False, scale=1.0):
 	"""Per-bone widget scale factor for a chain.
 	normalize: size every widget to the chain's average bone length.
-	taper: shrink widgets toward the tip (only with normalize)."""
+	taper: shrink widgets toward the tip (only with normalize).
+	scale: multiplier on every widget."""
 	n = len(lengths)
 	if not normalize:
-		return [1.0] * n
+		return [scale] * n
 	avg = sum(lengths) / n if n else 0.0
 	scales = []
 	for i, length in enumerate(lengths):
 		s = avg / length
 		if taper and n > 1:
 			s *= 1.0 - FK_WIDGET_TAPER * i / (n - 1)
-		scales.append(s)
+		scales.append(s * scale)
 	return scales
 
 def widget_scale_xyz(widget_type, s):

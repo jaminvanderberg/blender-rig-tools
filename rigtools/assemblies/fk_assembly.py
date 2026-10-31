@@ -24,6 +24,7 @@ class FKAssemblyOptions:
 	tweak_relationship: str = 'STRETCH_TO'
 	normalize_fk_widget_scale: bool = False
 	taper_fk_widgets: bool = False
+	fk_widget_scale: float = 1.0
 	add_rotation_isolation: bool = True
 	add_skirt_collision: bool = False
 	skirt_collision_target_bone_names: list[str] = field(default_factory=list)
@@ -80,6 +81,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					tweak_relationship=options.tweak_relationship,
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					taper_fk_widgets=options.taper_fk_widgets,
+					fk_widget_scale=options.fk_widget_scale,
 				)
 				tweak.edit_mode(context, chain)
 				assembly_chain.tools.append(tweak)
@@ -91,6 +93,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 					fk_widget=options.fk_widget,
 					normalize_fk_widget_scale=options.normalize_fk_widget_scale,
 					taper_fk_widgets=options.taper_fk_widgets,
+					fk_widget_scale=options.fk_widget_scale,
 					fk_role=['fk', 'ik'] if options.share_fk_ik_role else 'fk',
 					fk_color='fk',
 				)

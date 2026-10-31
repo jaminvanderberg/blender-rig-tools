@@ -11,6 +11,7 @@ class FKChain:
 		fk_widget_class: str | None = None,
 		normalize_fk_widget_scale: bool = False,
 		taper_fk_widgets: bool = False,
+		fk_widget_scale: float = 1.0,
 		fk_role: str | list[str] = 'fk',
 		fk_color: str | None = None,
 	):
@@ -19,6 +20,7 @@ class FKChain:
 		self.fk_widget_class = fk_widget_class
 		self.normalize_fk_widget_scale = normalize_fk_widget_scale
 		self.taper_fk_widgets = taper_fk_widgets
+		self.fk_widget_scale = fk_widget_scale
 		self.fk_role = fk_role
 		self.fk_color = fk_color
 
@@ -53,7 +55,7 @@ class FKChain:
 			last_parent = fk_bone
 
 		scales = chain_widget_scales([edit_bones[name].length for name in self.fk_bone_names],
-			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets)
+			normalize=self.normalize_fk_widget_scale, taper=self.taper_fk_widgets, scale=self.fk_widget_scale)
 		for fk_name, scale in zip(self.fk_bone_names, scales):
 			self.mechanism_bones.style(fk_name, 
 			    widget=self.fk_widget,

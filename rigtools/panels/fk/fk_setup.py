@@ -3,6 +3,7 @@ from bpy.props import (
 	StringProperty,
 	BoolProperty,
 	EnumProperty,
+	FloatProperty,
 	IntProperty,
 )
 
@@ -214,6 +215,14 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		name="Taper FK Widgets",
 		description="Shrink normalized FK widgets toward the tip.",
 		default=False
+	)
+
+	fk_widget_scale: FloatProperty(
+		name="FK Widget Scale",
+		description="Multiplier on the size of every FK widget.",
+		default=1.0,
+		min=0.01,
+		options={'HIDDEN'},
 	)
 
 	create_shoulder_vis: BoolProperty(
@@ -478,6 +487,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			finger_curl_axis=self.finger_curl_axis,
 			normalize_fk_widget_scale=self.normalize_fk_widget_scale,
 			taper_fk_widgets=self.taper_fk_widgets,
+			fk_widget_scale=self.fk_widget_scale,
 			create_shoulder_vis=self.create_shoulder_vis,
 			share_fk_ik_role=self.share_fk_ik_role,
 		)
