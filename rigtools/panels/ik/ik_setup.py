@@ -4,7 +4,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, C
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.utils.profiling import profile
-from rigtools.heel_pivots import get_heel_pivot
+from rigtools.rig_data.heel_pivots import get_heel_pivot
 from rigtools.assemblies.ik_templates import (
 	get_ik_template,
 	resolve_ik_parents,
@@ -15,7 +15,7 @@ from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
-from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
+from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.naming import guess_limb_name
 from rigtools.utils.icons import icon
 from rigtools.tool.spline_ik import spline_twist_type

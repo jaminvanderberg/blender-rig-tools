@@ -5,9 +5,9 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty
 from mathutils import Matrix, Vector
 
 from rigtools.armature_settings import get_armature_settings
-from rigtools.heel_pivots import set_heel_pivot
+from rigtools.rig_data.heel_pivots import set_heel_pivot
 from rigtools.preferences import get_preferences
-from rigtools.root_widget import apply_root_widgets
+from rigtools.operators.root_widget import apply_root_widgets
 from rigtools.utils.bone import select_bones
 from rigtools.utils.bone_collection import add_bone_collection
 

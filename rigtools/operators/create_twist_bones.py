@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import IntProperty
 
-from rigtools.twist_bones import create_def_twist_chain, get_twist_chain, get_twist_parent
+from rigtools.rig_data.twist_chain import create_def_twist_chain, get_twist_chain, get_twist_parent
 from rigtools.utils.bone import get_selected_bones, select_bones
 
 

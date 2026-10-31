@@ -6,7 +6,7 @@ from rigtools.armature_settings import get_armature_settings
 from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
-from rigtools.twist_bones import create_twist_chain, get_twist_chain
+from rigtools.rig_data.twist_chain import create_twist_chain, get_twist_chain
 from rigtools.utils.bone import duplicate_bone, generate_mch_bones, match_orientation
 from rigtools.utils.naming import generate_bone_name, bone_template, name_bone
 from rigtools.utils.bone_chain import get_length_weighted_midpoint

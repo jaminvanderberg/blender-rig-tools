@@ -10,7 +10,7 @@ from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_tors
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
-from rigtools.twist_bones import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
+from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import guess_limb_name

@@ -3,7 +3,7 @@ from typing import List
 
 from rigtools.assemblies.assembly_data import AssemblyChain, create_assembly_data, find_assembly
 from rigtools.assemblies.limb_collections import ensure_limb_collections
-from rigtools.heel_pivots import get_heel_pivot
+from rigtools.rig_data.heel_pivots import get_heel_pivot
 from rigtools.tool.fk_chain import FKChain
 from rigtools.tool.foot_roll import FootRoll
 from rigtools.utils.naming import bone_template, guess_assembly_name, find_side, name_property

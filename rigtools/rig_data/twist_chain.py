@@ -3,7 +3,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator, Panel
 
-from rigtools.heel_pivots import RIG_OT_set_heel_pivot, get_heel_pivot, get_heel_pivot_feet, set_heel_pivot
+from rigtools.rig_data.heel_pivots import RIG_OT_set_heel_pivot, get_heel_pivot, get_heel_pivot_feet, set_heel_pivot
 from rigtools.utils.bone import duplicate_bone_subdivided
 from rigtools.utils.naming import bone_template, flip_side_name, same_side_names
 

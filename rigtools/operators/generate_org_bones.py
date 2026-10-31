@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
-from rigtools.heel_pivots import get_heel_pivot, set_heel_pivot
-from rigtools.twist_bones import get_twist_bones, get_twist_parent, set_twist_parent
+from rigtools.rig_data.heel_pivots import get_heel_pivot, set_heel_pivot
+from rigtools.rig_data.twist_chain import get_twist_bones, get_twist_parent, set_twist_parent
 from rigtools.utils.bone import is_bone_visible, duplicate_bone
 from rigtools.utils.naming import generate_bone_name, get_base_name, bone_name_matches
 from rigtools.utils.bone_collection import set_bone_collection

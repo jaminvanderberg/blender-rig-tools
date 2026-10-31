@@ -10,18 +10,18 @@ bl_info = {
 
 import bpy
 
-from rigtools import generate_org_bones
-from rigtools import panel
-from rigtools import selection_panel
+from rigtools.operators import generate_org_bones
+from rigtools.panels.main import main_panel
+from rigtools.panels.selection import selection_panel
 from rigtools import preferences
 from rigtools import preferences_io
 from rigtools import armature_settings
 from rigtools.operators import migrate_rig
-from rigtools import twist_bones
-from rigtools import rename_chain
-from rigtools import parent_along_chain
-from rigtools import weight_paint_proxy
-from rigtools import root_widget
+from rigtools.rig_data import twist_chain
+from rigtools.operators import rename_chain
+from rigtools.operators import parent_along_chain
+from rigtools.operators import weight_paint_proxy
+from rigtools.operators import root_widget
 from rigtools.operators import human_skeleton
 from rigtools.operators import create_twist_bones
 from rigtools.operators import bone_colors
@@ -42,7 +42,7 @@ classes = (
 	preferences.RigToolsPreferences,
 	preferences_io.RIG_OT_export_preferences,
 	preferences_io.RIG_OT_import_preferences,
-	panel.RIG_PT_tools_npanel,
+	main_panel.RIG_PT_tools_npanel,
 	generate_org_bones.RIG_OT_generate_org_bones,
 	parent_along_chain.RIG_OT_parent_along_chain,
 )
@@ -56,7 +56,7 @@ def register():
 
 	armature_settings.register()
 	migrate_rig.register()
-	twist_bones.register()
+	twist_chain.register()
 	selection_panel.register()
 
 	assembly_data.register()
@@ -100,7 +100,7 @@ def unregister():
 	weight_paint_proxy.unregister()
 	rename_chain.unregister()
 	selection_panel.unregister()
-	twist_bones.unregister()
+	twist_chain.unregister()
 
 	data_viewer_panel.unregister()
 	assembly_panel.unregister()
