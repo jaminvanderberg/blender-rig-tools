@@ -1,7 +1,6 @@
 import json
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, CollectionProperty
-from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
 from rigtools.utils.profiling import profile
@@ -70,7 +69,7 @@ class RIG_OT_remove_twist_segment(bpy.types.Operator):
 		return {'FINISHED'}
 
 class RIG_OT_advanced_ik_setup(bpy.types.Operator):
-	"""Create a FK/IK switching setup with advanced options."""
+	"""Create a FK/IK switching setup."""
 	bl_idname = "rig.advanced_ik_setup"
 	bl_label = "Generate IK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
@@ -380,7 +379,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			template = get_ik_template(properties.template_id)
 			if template:
 				return template.description
-		return "Create a FK/IK switching setup with advanced options."
+		return "Create a FK/IK switching setup."
 	
 	##################################################################################################
 	# invoke
@@ -407,34 +406,6 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			require_chain=require_chain,
 		)
 		self.dialog_twist_json = json.dumps(snapshot)
-
-	def _invoke_from_selection(self, context):
-		wm = context.window_manager
-		if len(wm.rig_ik_parents) == 0:
-			settings = get_armature_settings(context.object.data, context)
-			root = wm.rig_ik_parents.add()
-			root.label, root.bone = "Root", settings.root_bone_name
-			torso = wm.rig_ik_parents.add()
-			torso.label, torso.bone = "Torso", settings.torso_bone_name
-
-		wm.rig_twist_segments.clear()
-
-		try:
-			chains = find_chains_from_selection(context)
-		except ChainBranchingError as e:
-			self.report({'ERROR'}, str(e))
-			return {'CANCELLED'}
-
-		if not chains:
-			self.report({'ERROR'}, "No chains selected.")
-			return {'CANCELLED'}
-
-		self._store_dialog_chains(chains)
-		self._store_twist_snapshot(context, chains, require_chain=True)
-		limb_name = guess_limb_name(chains[0][0], context)
-		self.limb_property_base_name = limb_name
-		self.template_name = "Advanced"
-		self.template_id = ""
 
 	def _invoke_from_template(self, context):
 		template = get_ik_template(self.template_id)
@@ -534,13 +505,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
-		elif self.template_id:
+		else:
 			result = self._invoke_from_template(context)
 			template = get_ik_template(self.template_id)
 			if template:
 				show_dialog = template.show_dialog
-		else:
-			result = self._invoke_from_selection(context)
 
 		if result == {'CANCELLED'}:
 			return result
@@ -559,7 +528,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	def draw(self, context):
 		layout = self.layout
 
-		template = get_ik_template(self.template_id) if self.template_id else None
+		template = get_ik_template(self.template_id)
 		split_size = 0.5
 
 		def field_visible(field_name):

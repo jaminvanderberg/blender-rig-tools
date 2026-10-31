@@ -20,7 +20,7 @@ from rigtools.utils.widget import fk_widget_types
 
 
 class RIG_OT_advanced_torso_setup(bpy.types.Operator):
-	"""Setup Torso Assembly with advanced options"""
+	"""Setup Torso Assembly"""
 	bl_idname = "rig.advanced_torso_setup"
 	bl_label = "Generate Torso Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
@@ -169,7 +169,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			template = get_torso_template(properties.template_id)
 			if template:
 				return template.description
-		return "Setup torso assembly with advanced options"
+		return "Setup torso assembly"
 
 	##################################################################################################
 	# invoke
@@ -204,21 +204,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			require_chain=require_chain,
 		)
 		self.dialog_twist_json = json.dumps(snapshot)
-
-	def _invoke_from_selection(self, context):
-		try:
-			chains = find_chains_from_selection(context)
-		except ChainBranchingError as e:
-			self.report({'ERROR'}, str(e))
-			return {'CANCELLED'}
-
-		if not chains:
-			self.report({'ERROR'}, "No chains selected.")
-			return {'CANCELLED'}
-
-		self._store_dialog_chains(chains)
-		self._store_twist_snapshot(context, chains, require_chain=True)
-		self.template_name = "Advanced"
 
 	def _invoke_from_template(self, context):
 		template = get_torso_template(self.template_id)
@@ -268,13 +253,11 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
-		elif self.template_id:
+		else:
 			result = self._invoke_from_template(context)
 			template = get_torso_template(self.template_id)
 			if template:
 				show_dialog = template.show_dialog
-		else:
-			result = self._invoke_from_selection(context)
 
 		if result == {'CANCELLED'}:
 			return result
@@ -288,7 +271,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 	def draw(self, context):
 		layout = self.layout
-		template = get_torso_template(self.template_id) if self.template_id else None
+		template = get_torso_template(self.template_id)
 		split_size = 0.6
 
 		def field_visible(field_name):

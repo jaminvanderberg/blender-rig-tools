@@ -18,8 +18,6 @@ class TemplateDraw:
 		self.related_fields = related_fields
 
 	def is_allowed(self, field_name):
-		if not self.template:
-			return True
 		if field_name in self.template.redo_fields:
 			return True
 		related = self.related_fields.get(field_name)

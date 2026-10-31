@@ -43,6 +43,7 @@ FK_TEMPLATES = {
 			"create_master_controllers",
 			"master_controllers_skip_first",
 			"add_tweak_bones",
+			"fk_widget_scale",
 		),
 	),
 	"fk_only": FKTemplate(
@@ -66,6 +67,7 @@ FK_TEMPLATES = {
 			"taper_fk_widgets",
 			"create_master_controllers",
 			"master_controllers_skip_first",
+			"fk_widget_scale",
 		),
 	),
 	"skirt": FKTemplate(
@@ -221,6 +223,8 @@ FK_TEMPLATES = {
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",
 			"fk_widget_scale": 0.5,
+			"normalize_fk_widget_scale": True,
+			"taper_fk_widgets": True,			
 			"create_master_controllers": True,
 			"master_controllers_skip_first": False,
 			"master_controllers_type": "FK",
@@ -230,6 +234,7 @@ FK_TEMPLATES = {
 		redo_fields=(
 			"limb_property_base_name",
 			"fk_widget",
+			"fk_widget_scale",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
 			"skip_first_tweak",
@@ -279,6 +284,7 @@ REDO_PROPERTIES = {
 	"limb_property_base_name",
 	"skip_first_tweak",
 	"fk_widget",
+	"fk_widget_scale",
 	"normalize_fk_widget_scale",
 	"taper_fk_widgets",
 	"create_master_controllers",

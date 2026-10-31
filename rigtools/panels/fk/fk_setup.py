@@ -25,7 +25,7 @@ from rigtools.utils.bone_chain import ChainBranchingError, find_chains_from_sele
 from rigtools.utils.widget import fk_widget_types, master_widget_types
 
 class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
-	"""Setup FK/Tweak setup with advanced options"""
+	"""Setup FK/Tweak assembly"""
 	bl_idname = "rig.advanced_fk_setup"
 	bl_label = "Generate FK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
@@ -222,7 +222,6 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		description="Multiplier on the size of every FK widget.",
 		default=1.0,
 		min=0.01,
-		options={'HIDDEN'},
 	)
 
 	create_shoulder_vis: BoolProperty(
@@ -252,25 +251,10 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			template = get_fk_template(properties.template_id)
 			if template:
 				return template.description
-		return "Setup FK/Tweak setup with advanced options"
+		return "Setup FK/Tweak assembly"
 
 	##################################################################################################
 	# invoke
-
-	def _invoke_from_selection(self, context):
-		try:
-			chains = find_chains_from_selection(context)
-		except ChainBranchingError as e:
-			self.report({'ERROR'}, str(e))
-			return {'CANCELLED'}
-
-		if not chains:
-			self.report({'ERROR'}, "No chains selected.")
-			return {'CANCELLED'}
-
-		self.limb_property_base_name = guess_limb_name(chains[0][0], context)
-		self.template_name = "Advanced"
-		self.template_id = ""
 
 	def _invoke_from_template(self, context):
 		template = get_fk_template(self.template_id)
@@ -317,13 +301,11 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
-		elif self.template_id:
+		else:
 			result = self._invoke_from_template(context)
 			template = get_fk_template(self.template_id)
 			if template:
 				show_dialog = template.show_dialog
-		else:
-			result = self._invoke_from_selection(context)
 
 		if result == {'CANCELLED'}:
 			return result
@@ -342,7 +324,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 	def draw(self, context):
 		layout = self.layout
-		template = get_fk_template(self.template_id) if self.template_id else None
+		template = get_fk_template(self.template_id)
 		split_size = 0.6
 
 		def field_visible(field_name):
@@ -353,7 +335,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			if field_name in ["normalize_fk_widget_scale", "taper_fk_widgets"]:
 				return self.control_mode != 'TWEAK' and self.fk_widget != 'NONE'
 			if field_name in ["add_tweak_bones"]:
-				control_mode_visible = template is None or "control_mode" in template.redo_fields
+				control_mode_visible = "control_mode" in template.redo_fields
 				return self.control_mode != 'TWEAK' and not control_mode_visible
 			if field_name in ["add_rotation_isolation", "create_rotation_follow_setup"]:
 				return self.control_mode != 'TWEAK'
@@ -382,13 +364,14 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"],
+		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"],
 			"FK Chain Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets"], lambda: (
+			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets"], lambda: (
 				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
 				draw.split_field(col, "Control Mode:", "control_mode"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
+				draw.split_field(col, "FK Widget Scale:", "fk_widget_scale"),
 				draw.split_row(col, [
 					SplitSection(label="Normalize Widget Scale", prop="normalize_fk_widget_scale"),
 					SplitSection(label="Taper", prop="taper_fk_widgets", enabled=self.normalize_fk_widget_scale),

@@ -138,7 +138,7 @@ def get_palm_chains(context):
 
 
 class RIG_OT_advanced_palm_setup(bpy.types.Operator):
-	"""Setup Palm Assembly with advanced options"""
+	"""Setup Palm Assembly"""
 	bl_idname = "rig.advanced_palm_setup"
 	bl_label = "Generate Palm Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
@@ -210,15 +210,6 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	##################################################################################################
 	# invoke
 
-	def _invoke_from_selection(self, context):
-		chains = find_palm_chains_from_selection(context)
-
-		if not chains:
-			self.report({'ERROR'}, "No chains selected.")
-			return {'CANCELLED'}
-
-		self.template_name = "Advanced"
-
 	def _invoke_from_template(self, context):
 		template = get_palm_template(self.template_id)
 		if not template:
@@ -276,13 +267,11 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 
 		if self.assembly_uid:
 			result = self._invoke_from_assembly(context)
-		elif self.template_id:
+		else:
 			result = self._invoke_from_template(context)
 			template = get_palm_template(self.template_id)
 			if template:
 				show_dialog = template.show_dialog
-		else:
-			result = self._invoke_from_selection(context)
 
 		if result == {'CANCELLED'}:
 			return result
@@ -318,7 +307,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 
 	def draw(self, context):
 		layout = self.layout
-		template = get_palm_template(self.template_id) if self.template_id else None
+		template = get_palm_template(self.template_id)
 		split_size = 0.6
 
 		def field_visible(field_name):
