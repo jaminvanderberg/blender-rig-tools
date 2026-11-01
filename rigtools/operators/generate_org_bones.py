@@ -3,7 +3,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProp
 from rigtools.rig_data.heel_pivots import get_heel_pivot, set_heel_pivot
 from rigtools.rig_data.twist_chain import get_twist_bones, get_twist_parent, set_twist_parent
 from rigtools.utils.bone import is_bone_visible, duplicate_bone
-from rigtools.utils.naming import generate_bone_name, get_base_name, bone_name_matches
+from rigtools.utils.naming import generate_bone_name, get_affixes_from_template, get_base_name, bone_name_matches
 from rigtools.utils.bone_collection import set_bone_collection
 from rigtools.preferences import get_preferences, get_separators
 from rigtools.utils.bone_collection import copy_collection_structure
@@ -89,7 +89,7 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 			collection.assign(org_bone)
 
 	def infer_target_name(self, armature_data, bone_name):
-		prefix, suffix = self.get_affixes()
+		prefix, suffix = get_affixes_from_template(self.def_bone_name)
 		base_name = self.get_def_base_name(bone_name, prefix, suffix)
 		inferred = generate_bone_name(base_name, self.target_bone_name, strip_name=False)
 		if inferred in armature_data.edit_bones:
@@ -174,22 +174,6 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 				constraint.target = context.object
 				constraint.subtarget = target_name
 
-	def get_affixes(self):
-		separators = tuple(get_separators())
-		if '{name}' in self.def_bone_name:
-			fixes = self.def_bone_name.split('{name}')
-			prefix = fixes[0]
-			suffix = fixes[1]
-		elif self.def_bone_name.startswith(separators):
-			# If it starts with a separator, we'll treat it as a suffix
-			prefix = ''
-			suffix = self.def_bone_name
-		else:
-			# Anything else, we'll treat as a prefix
-			prefix = self.def_bone_name
-			suffix = ''
-		return prefix, suffix
-
 	def get_def_base_name(self, def_name, prefix, suffix):
 		core_base_name, extension = get_base_name(def_name)
 		end = -len(suffix) if suffix else None
@@ -207,7 +191,7 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		bone_data = obj.data
-		prefix, suffix = self.get_affixes()
+		prefix, suffix = get_affixes_from_template(self.def_bone_name)
 		original_mode = obj.mode
 
 		all_bones = bone_data.bones

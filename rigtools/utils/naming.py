@@ -41,6 +41,7 @@ BONE = {
 	"skirt_ride": "MCH-SKIRT-RIDE-{name}",
 	"skirt_ride_target": "MCH-{name}-TGT-{org}",
 	"fk_follow": "MCH-FOLLOW-{name}",
+	"corrective": "MCH-CORR-{name}"
 }
 
 WIDGET_START = "WGT-"
@@ -110,6 +111,23 @@ def same_side_names(name_a, name_b):
 	if not side_a or not side_b:
 		return True
 	return ('L' in side_a.upper()) == ('L' in side_b.upper())
+
+def does_match_def_name(context, bone_name):
+	prefs = get_preferences(context)
+	if bone_name_matches(bone_name, *get_affixes_from_template(prefs.def_template)):
+		return True
+	return False
+
+def get_affixes_from_template(template):
+	"""Split a naming template into (prefix, suffix) around {name}."""
+	if '{name}' in template:
+		fixes = template.split('{name}')
+		return fixes[0], fixes[1]
+	if template.startswith(tuple(get_separators())):
+		# If it starts with a separator, we'll treat it as a suffix
+		return '', template
+	# Anything else, we'll treat as a prefix
+	return template, ''
 
 def bone_name_matches(bone_name, prefix, suffix):
 	base_name, extension = get_base_name(bone_name)

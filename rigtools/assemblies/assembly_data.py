@@ -9,15 +9,26 @@ from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
 from rigtools.utils.naming import limb_group_label
 
-def find_assemblies(armature_data, bone_names):
+def find_assemblies(armature_data, bone_names, *, include_org_states=True, include_mechanism_bones=True):
 	wanted = set(bone_names)
 	assemblies = []
 	for assembly in armature_data.rigtools_assemblies:
-		names = {o.name for o in assembly.org_states}
-		names.update(b.name for b in assembly.mechanism_bones)
+		names = set()
+		if include_org_states:
+			names.update(o.name for o in assembly.org_states)
+		if include_mechanism_bones:
+			names.update(b.name for b in assembly.mechanism_bones)
 		if names & wanted:
 			assemblies.append(assembly)
 	return assemblies
+
+def find_org_state(armature_data, bone_name):
+	"""The stored org_state for the first assembly containing bone_name, or None"""
+	for assembly in armature_data.rigtools_assemblies:
+		for state in assembly.org_states:
+			if state.name == bone_name:
+				return state
+	return None
 
 # Config payloads that tools write back into options_json; they hold per-chain bone names
 CONFIG_OPTION_KEYS = {"ik_parent_config", "skirt_collision", "skirt_ride"}
