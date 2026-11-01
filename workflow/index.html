@@ -693,6 +693,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../correctives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrective Bones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_viewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Viewer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1899,14 +1955,43 @@ See <em><a href="../fk_assemblies/#torso">torso assembly</a></em><br></p>
 <p>Add shoulder, palm, and finger assemblies if desired.  Add assemblies for hair, cloth, tails, etc.
 Use "FK only" for short detail chains, or "Simple FK" if you want tweak controls.</p>
 </li>
+<li>
+<p>[Optional] Add corrective bones<br></p>
+<p class="where"><strong>n-Panel &gt; RigTools &gt; Tools &gt; Create Corrective Bone</strong></p>
+<p>Fix the shape of joints that collapse when bent a long way, such as the shoulders.
+The corrective bones need DEF bones and weights too, so add them before steps 3 and 4.
+See <em><a href="../correctives/">Corrective Bones</a></em>.<br></p>
+</li>
+<li>
+<p>Set up the Rig UI<br></p>
+<p class="where"><strong>n-Panel &gt; Item &gt; Rig UI</strong></p>
+<p>Arrange the collection buttons, and hide the collections animators don't need, like MCH and ORG.
+See <em><a href="../rig_ui/">Rig UI</a></em>.<br></p>
+</li>
+<li>
+<p>[Optional] Check the rig's data<br></p>
+<p class="where"><strong>Properties &gt; Armature &gt; RigTools &gt; Check Data</strong></p>
+<p>Run Check Data to find anything RigTools remembers that's no longer on the rig, such as renamed bones or deleted collections.
+See <em><a href="../data_viewer/">Data Viewer</a></em>.<br></p>
+</li>
+<li>
+<p>Hand the rig off to animators<br></p>
+<p class="where"><strong>n-Panel &gt; RigTools &gt; Tools &gt; Embed Animator UI</strong></p>
+<p>Embed the Rig UI script in the file so animators see the Rig UI panels without installing RigTools.
+Or have animators install the <strong>RigTools UI</strong> add-on instead.
+See <em><a href="../rigui/animators/">Sharing with Animators</a></em>.<br></p>
+</li>
 </ol>
 <h2 id="related">Related</h2>
 <ul>
 <li><a href="../ik_assemblies/">Inverse Kinematics Assemblies</a></li>
 <li><a href="../fk_assemblies/">Forward Kinematics Assemblies</a></li>
 <li><a href="../twist_bones/">Twist Bones</a></li>
+<li><a href="../correctives/">Corrective Bones</a></li>
 <li><a href="../org_def/">ORG &amp; DEF</a></li>
 <li><a href="../rig_ui/">Rig UI</a></li>
+<li><a href="../data_viewer/">Data Viewer</a></li>
+<li><a href="../rigui/animators/">Sharing with Animators</a></li>
 </ul>
 
 

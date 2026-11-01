@@ -633,6 +633,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../correctives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrective Bones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data_viewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Viewer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1948,6 +2004,7 @@
 </figure>
 <h3 id="assembly-bone-collections">Assembly bone collections</h3>
 <p>Assemblies put their controls into bone collections named after the limb and side.  For example, an arm on the left side creates collections for its FK controls, IK controls, and tweaks, such as <code>Arm.FK.L</code>, <code>Arm.IK.L</code>, and <code>Arm.Tweak.L</code>.  Mechanism bones go into MCH collections, grouped under a parent <strong>MCH</strong> collection.</p>
+<p>A limb with only FK controls keeps them in a single collection, such as <code>Hair.L</code>.  When the limb also gets IK, torso controls, or dedicated master controllers, the FK controls move to their own collection, such as <code>Tail.FK.L</code>, and the torso controls or dedicated masters go in <code>Tail.L</code>.  Once a limb's FK controls have moved, they stay in their own collection.</p>
 <p>Assemblies that share a limb name and side share the same collections.  For example, the left shoulder goes in with the left arm, and the left palm and fingers share the left hand collections.</p>
 <p>The collections for a limb can be renamed from the <em><a href="../../assemblies/#assembly-panel">Assembly Panel</a></em>.  Click the collection icon next to the assembly name, and enter the new names.  The Rig UI layout is updated to match.</p>
 <h2 id="editing-the-layout">Editing the layout</h2>
@@ -1987,7 +2044,7 @@
 </tbody>
 </table>
 <p>Gaps can be selected, moved with Row up / Row down, and removed with the <strong>X</strong> button next to them.</p>
-<p>Renaming from the Rig UI renames the actual bone collection, and keeps the assemblies that use it up to date.  Everything else in edit mode only changes the layout.</p>
+<p>Renaming from the Rig UI renames the actual bone collection, and keeps the assemblies that use it up to date.  Renaming to the name of another collection merges the two: the bones and child collections are moved into the existing collection, and the renamed one is removed.  Everything else in edit mode only changes the layout.</p>
 <p>Hidden collections are shown greyed out in edit mode, and aren't shown at all outside of edit mode.  Hiding is useful for collections that animators should never need, like MCH, ORG, and DEF.</p>
 <p>Click <strong>Edit</strong> again to finish editing.</p>
 <div class="admonition screenshot">

@@ -631,6 +631,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../correctives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrective Bones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data_viewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Viewer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1775,6 +1831,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#editing-widgets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing widgets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bone-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bone Style
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reset-to-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reset to Default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#widget-types" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1869,6 +1958,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#editing-widgets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing widgets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bone-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bone Style
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reset-to-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reset to Default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#widget-types" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1928,8 +2050,36 @@
 </div>
 <p>Widgets are the custom bone shapes used to display controls in Pose mode.  Many assemblies have one or more widget parameters for choosing the shape of their controls.</p>
 <h2 id="overview">Overview</h2>
-<p>When an assembly is created, RigTools creates a widget object for each control and assigns it as the bone's custom shape.  Widgets are created in a separate, hidden collection in the scene (<strong>WGT</strong> by default; see <em><a href="../../armature_settings/#addon-preferences">addon preferences</a></em>).</p>
-<p>Widgets belong to the assembly that created them.  They are deleted when the assembly is deleted or reconfigured.</p>
+<p>When an assembly is created, RigTools assigns each control a widget as its custom shape.  Widgets are shared: each rig has one widget per shape, and every control with that shape uses it.  Widgets are named after the rig (for example, <strong>WGT-Sarah-Circle</strong>) and kept in a separate, hidden collection in the scene (<strong>WGT</strong> by default; see <em><a href="../../armature_settings/#addon-preferences">addon preferences</a></em>).</p>
+<p>Sharing keeps the number of widgets small and makes the one you want easy to find.  Widgets are never deleted, even when their assembly is deleted.  To remove leftover widgets, use <strong>Clear Unused Widgets</strong> in the <em><a href="../../data_viewer/#widgets">Data Viewer</a></em>.</p>
+<h2 id="editing-widgets">Editing widgets</h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Editing a shared widget changes every control that uses it.  The Custom Shape panel shows which bones share a widget, and the 3D View header shows a warning while you edit one.</p>
+</div>
+<p>Some controls have a widget of their own, so they're safe to edit:</p>
+<ul>
+<li><strong>Torso:</strong> torso, hips, chest, neck and head</li>
+<li><strong>Arms and legs:</strong> FK and IK hands, FK and IK feet, and toes</li>
+</ul>
+<p>Left and right share the hand, foot and toe widgets, so an edit to one side applies to both.</p>
+<p>To customize any other control, assign your own object as its custom shape.  RigTools keeps it when you reconfigure the assembly.  Only edit a shared widget if you want to change every control that uses it.</p>
+<h2 id="bone-style">Bone Style</h2>
+<p><strong>Where:</strong> n-Panel &gt; Rig Tools &gt; Bone Style (Pose mode)</p>
+<p>Shows the active bone's widget settings and color in one place, the same settings as Blender's Custom Shape and Pose Bone Color panels.  It works on any bone, on any armature.  A setting that differs from its default has a reset button next to it, which resets just that setting on the selected bones.  On a control built by an assembly, the default is what the assembly built; on any other bone, it's Blender's default.</p>
+<p><strong>Slide</strong> moves the widget along the bone.  On the Torso, Chest and Hips controls, it moves the widget up and down the body.</p>
+<p><strong>Scale</strong> sizes the widget relative to how the assembly built it, so 1.0 is the original size.  On other bones, it's the widget's scale.  Widgets that run along the bone keep their length; round and flat widgets, and your own widgets, scale evenly.</p>
+<p>Click the <strong>Slide</strong> or <strong>Scale</strong> label to show the full X, Y and Z values instead.</p>
+<p><strong>Widget</strong> shows the bone's current widget shape.  Pick another to give the selected bones a different widget.  It uses the shared widget for that shape, the same one every other bone on the rig with that shape uses.</p>
+<p>Hands, feet, toes, head, neck and the torso controls have their own widgets.  Changing one of these gives it its own widget for the new shape, not the one other bones use.  Only the selected controls change, so select both sides to change both.  The original widget is kept, edits included, and comes back when you change back to its shape.</p>
+<p>On a control built by an assembly, it's kept when you reconfigure, like any change, and reset brings back the original.</p>
+<p><strong>Reset Widget Mesh</strong> appears under the widget when its shape has been edited.  It puts the shape back the way RigTools made it, on every bone that uses the widget.  A dialog shows how many bones that is.  With <strong>Keep a copy of the edited mesh</strong> on, your edited shape is kept as a separate object named <strong>WGT-EDITED-</strong>, for example <strong>WGT-EDITED-Sarah-FK-Hand</strong>, so you can assign it to a bone yourself.  <strong>Clear Unused Widgets</strong> removes copies no bone uses.</p>
+<h2 id="reset-to-default">Reset to Default</h2>
+<p><strong>Where:</strong> Properties &gt; Bone &gt; Viewport Display &gt; Custom Shape, or right-click &gt; Reset Style to Default (Pose mode)</p>
+<p>Changes to a control's custom shape settings and bone color are kept when you reconfigure its assembly.  The Custom Shape panel lists what you've changed under <strong>Edited</strong>.</p>
+<p><strong>Reset to Default</strong> sets the selected controls back to the way their assembly built them.  Other bones go back to Blender's defaults, which means no widget.  It's only available when something on the selected controls has changed.  A dialog lists what has changed, so you can choose what to reset: Widget, Widget Mesh, Color, Translation, Rotation, Scale, Wire Width, Override Transform, and Display (Wireframe and Scale to Bone Length).  Your choices are remembered for next time.</p>
+<p><strong>Widget Mesh</strong> undoes edits to the shared widget's shape.  Because the widget is shared, this changes every control that uses it.  Use it to recover a widget you edited by accident.  <strong>Keep a copy of the edited mesh</strong> works the same as in Reset Widget Mesh above.</p>
+<p>Resetting the widget doesn't delete your own object; it's just no longer assigned.</p>
 <div class="admonition screenshot">
 <p class="admonition-title">Image placeholder</p>
 <p><code>image/widgets.png</code> — A row of bones in Pose mode, each showing one of the selectable widget shapes (Circle, Rectangle, FK Shape, Box, Pill, Shoulder, IK Shape), labeled.</p>

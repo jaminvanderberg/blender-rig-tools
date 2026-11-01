@@ -815,6 +815,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../correctives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Corrective Bones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_viewer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Viewer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2160,13 +2216,16 @@ The <em><a href="../operators/human_skeleton/">RigTools Human Skeleton</a></em> 
 <li>Widget Collection: the scene collection where <em><a href="../utils/widget/">widgets</a></em> are created.  Default: <code>WGT</code>.</li>
 </ul>
 <h3 id="control-colors">Control Colors</h3>
-<p>The bone color sets used for each type of control.</p>
+<p>The bone color sets used for each type of control.  FK and IK have a separate color for left, center, and right controls.  The side comes from the limb.</p>
 <ul>
-<li>FK Color: default Theme 4.</li>
-<li>IK Color: default Theme 1.</li>
-<li>Master Control Color: used for the root, torso controls, master controllers, and other special controls.  Default Theme 2.</li>
-<li>Tweak Color: default Theme 9.</li>
+<li>FK: default Theme 4 for left and center, Theme 1 for right.</li>
+<li>IK: default Theme 4 for left, Theme 1 for center and right.</li>
+<li>FK Master: used for master controllers, finger curl, and the index and pinky palm controls.  Default: Theme 2.</li>
+<li>Tweak: default Theme 9.</li>
+<li>Torso: used for the torso, hips, chest, neck, and head controls.  Default: Theme 9.</li>
+<li>Root: used for the root and properties bones.  Default: Theme 1.</li>
 </ul>
+<p>Changing a color only affects controls created afterwards.  Click <strong>Reapply Bone Colors</strong> to recolor every rig in the file with the current colors.</p>
 <h2 id="related">Related</h2>
 <ul>
 <li><a href="../org_def/">ORG &amp; DEF</a></li>
