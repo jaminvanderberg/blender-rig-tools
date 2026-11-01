@@ -2,11 +2,12 @@ from mathutils import Euler, Vector
 import bpy
 from rigtools.assemblies.assembly_data import find_assemblies, find_org_state
 from rigtools.preferences import get_preferences
+from rigtools.rig_data.correctives import find_correctives
 from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.utils.naming import does_match_def_name, name_bone
-from bpy.props import BoolProperty
+from bpy.props import BoolProperty, StringProperty
 
 class CorrectiveSetup:
 	def __init__(self, target_name, corrective_name):
@@ -264,9 +265,39 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 			self.report({'INFO'}, "Successfully created corrective bone.")
 
 		return {'FINISHED'}
+	
+class RIG_OT_delete_corrective(bpy.types.Operator):
+	bl_idname = "rig.delete_corrective"
+	bl_label = "Delete Corrective"
+	bl_description = ("Remove this corrective constraint, "
+		"and its MCH if nothing else uses it")
+	bl_options = {'REGISTER', 'UNDO'}
+
+	bone_name: StringProperty()
+	constraint_name: StringProperty()
+
+	def execute(self, context):
+		obj = context.object
+		pose_bone = obj.pose.bones[self.bone_name]
+		constraint = pose_bone.constraints[self.constraint_name]
+		mch_name = constraint.subtarget
+		pose_bone.constraints.remove(constraint)
+
+		# Keep the MCH if another corrective still reads it
+		still_used = any(c.subtarget == mch_name
+			for _, c in find_correctives(obj))
+		if not still_used:
+			bpy.ops.object.mode_set(mode='EDIT')
+			edit_bones = obj.data.edit_bones
+			edit_bones.remove(edit_bones[mch_name])
+			bpy.ops.object.mode_set(mode='POSE')
+
+		self.report({'INFO'}, f"Removed '{self.constraint_name}'.")
+		return {'FINISHED'}
 
 classes = (
 	RIG_OT_create_corrective_bone,
+	RIG_OT_delete_corrective,
 )
 
 def register():
