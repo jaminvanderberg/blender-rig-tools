@@ -112,8 +112,8 @@ def same_side_names(name_a, name_b):
 		return True
 	return ('L' in side_a.upper()) == ('L' in side_b.upper())
 
-def does_match_def_name(context, bone_name):
-	prefs = get_preferences(context)
+def does_match_def_name(bone_name):
+	prefs = get_preferences()
 	if bone_name_matches(bone_name, *get_affixes_from_template(prefs.def_template)):
 		return True
 	return False

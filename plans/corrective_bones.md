@@ -1,13 +1,11 @@
 # Corrective bones
 
 ## Next steps (start here)
-`RIG_OT_create_corrective_bone` (`operators/corrective_bones.py`) works end to end: validation, reader MCH, capture, Transformation constraint, pose cleared. Tested on the arm.
+`RIG_OT_create_corrective_bone` (`operators/corrective_bones.py`) works end to end, including mirroring. Per-side logic lives in `CorrectiveSetup` (validate, edit_mode, pose_mode, capture, apply, mirror_from). Mirror defaults to on; a missing mirror is a note, not an error. Validation and capture happen before any changes; MCHs created this run are removed if the target is at rest.
 
 **Resume here:**
-1. Cleanup: move the "corrective isn't posed" check before edit mode; remove a newly created MCH when the target is at rest.
-2. Storage for corrective records (per constraint).
-3. Panel for the active corrective bone (sliders, recapture, delete).
-4. Mirroring: shared mirror function, used by a redo option and a panel button.
+1. Storage for corrective records (per constraint).
+2. Panel for the active corrective bone (sliders, recapture, delete, mirror button).
 
 How we'll work: the user builds this. Claude explains, reviews and helps on request.
 

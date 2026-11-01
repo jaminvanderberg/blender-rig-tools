@@ -1,86 +1,114 @@
-import math
+from mathutils import Euler, Vector
 import bpy
 from rigtools.assemblies.assembly_data import find_assemblies, find_org_state
 from rigtools.preferences import get_preferences
+from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.utils.naming import does_match_def_name, name_bone
+from bpy.props import BoolProperty
 
-class RIG_OT_create_corrective_bone(bpy.types.Operator):
-	bl_idname = "rig.create_corrective_bone"
-	bl_label = "Create Corrective Bone"
-	bl_description = "Create a corrective bone that helps create the correct shape when bones are moved to extremes"
-	bl_options = {'REGISTER', 'UNDO'}
+class CorrectiveSetup:
+	def __init__(self, target_name, corrective_name):
+		self.target_name = target_name
+		self.corrective_name = corrective_name
+		self.mch_name = name_bone("corrective", target_name)
+		self.created = False
 
-	@classmethod
-	def poll(cls, context):
-		return (context.mode == 'POSE'
-			and context.active_pose_bone is not None
-			and len(context.selected_pose_bones) == 2)
+		self.location = None
+		self.rotation = None
+		self.axis = None
+		self.from_value = None
 
-	def execute(self, context):
-		obj = context.object
-		armature_data = obj.data
+	def mirrored(self, obj):
+		"""Setup for the opposite side, or None if there isn't one"""
+		target_name = flip_side_name(self.target_name)
+		corrective_name = flip_side_name(self.corrective_name)
+		if not target_name or not corrective_name:
+			return None
+		pose_bones = obj.pose.bones
+		if target_name not in pose_bones or corrective_name not in pose_bones:
+			return None
+		return CorrectiveSetup(target_name, corrective_name)
 
-		corrective = context.active_pose_bone
-		target = next(pb for pb in context.selected_pose_bones if pb != corrective)
+	def validate(self, context):
+		armature_data = context.object.data
+		pose_bones = context.object.pose.bones
 
 		# Target bone can't be part of an assembly's mechanism bones (the ones that can get deleted)
-		owners = find_assemblies(armature_data, [target.name], include_org_states=False)
+		owners = find_assemblies(armature_data, [self.target_name], include_org_states=False)
 		if owners:
-			self.report({'ERROR'}, f"'{target.name}' belongs to assembly '{owners[0].name}'. Use the ORG bone.")
-			return {'CANCELLED'}
+			return (f"'{self.target_name}' belongs to assembly "
+				f"'{owners[0].name}'. Use the ORG bone.")
 		
 		# Corrective shouldn't have any other constraint types (stacking transforms is ok)
+		corrective = pose_bones[self.corrective_name]
 		others = [c for c in corrective.constraints if c.type != 'TRANSFORM']
 		if others:
-			self.report({'ERROR'}, f"'{corrective.name}' has a {others[0].type} constraint.")
-			return {'CANCELLED'}
+			return f"'{corrective.name}' has a {others[0].type} constraint."
 		
 		# An added protection to block DEF bones by name. Might not catch everything, but still good
-		if does_match_def_name(context, target.name):
-			self.report({'ERROR'}, f"'{target.name}' is a DEF bone. Use the ORG bone.")
-			return {'CANCELLED'}
-		if does_match_def_name(context, corrective.name):
-			self.report({'ERROR'}, f"'{corrective.name}' is a DEF bone. Use the ORG bone.")
-			return {'CANCELLED'}
-
-		target_name = target.name
-		corrective_name = corrective.name
-		mch_name = name_bone("corrective", target_name)
+		for name in (self.target_name, self.corrective_name):
+			if does_match_def_name(name):
+				return f"'{name}' is a DEF bone. Use the ORG bone."
 		
-		bpy.ops.object.mode_set(mode='EDIT')
+		return None
+
+	def edit_mode(self, armature_data):
 		edit_bones = armature_data.edit_bones
+		if self.mch_name in edit_bones:
+			return
+		target_bone = edit_bones[self.target_name]
 
-		if mch_name not in edit_bones:
-			target_bone = edit_bones[target_name]
+		# If the target bone is part of an assembly, use the assembly's saved parent
+		org_state = find_org_state(armature_data, self.target_name)
+		if org_state:
+			parent_name = org_state.parent
+		elif target_bone.parent:
+			parent_name = target_bone.parent.name
+		else:
+			parent_name = ""
 
-			# If the target bone is part of an assembly, use the assemblies saved parent
-			org_state = find_org_state(armature_data, target_name)
-			if org_state:
-				parent_name = org_state.parent
-			else:
-				parent_name = target_bone.parent.name if target_bone.parent else ""
+		mch_bone = duplicate_bone(armature_data, target_bone,
+			self.mch_name, 1.0)
+		mch_bone.parent = edit_bones[parent_name] if parent_name else None
+		mch_bone.use_deform = False
 
-			mch_bone = duplicate_bone(armature_data, target_bone, mch_name, 1.0)
-			mch_bone.parent = edit_bones[parent_name] if parent_name else None
-			mch_bone.use_deform = False
+		for coll in list(mch_bone.collections):
+			coll.unassign(mch_bone)
+		mch_coll = ensure_bone_collection(armature_data,
+			get_preferences().mch_collection_name, hidden=True)
+		mch_coll.assign(mch_bone)
+		self.created = True
 
-			for coll in list(mch_bone.collections):
-				coll.unassign(mch_bone)
-			ensure_bone_collection(armature_data, get_preferences().mch_collection_name, hidden=True).assign(mch_bone)
+	def capture_corrective_pose(self, obj):
+		"""Store the corrective's pose. Error message if it isn't posed."""
+		corrective = obj.pose.bones[self.corrective_name]
+		# Find the transforms for the corrective bone
+		self.location = corrective.matrix_basis.to_translation() # matrix_basis ignores constraints
+		self.rotation = corrective.matrix_basis.to_euler()
+		if not self.uses_location() and not self.uses_rotation():
+			return (f"'{self.corrective_name}' isn't posed. "
+				"Move or rotate it first.")
+		return None
+	
+	def uses_location(self):
+		return self.location.length > 1e-5
 
-		bpy.ops.object.mode_set(mode='POSE')
-		pose_bones = obj.pose.bones
-		mch = pose_bones[mch_name]
+	def uses_rotation(self):
+		return max(abs(a) for a in self.rotation) > 1e-4
 
+	def pose_mode(self, obj):
+		mch = obj.pose.bones[self.mch_name]
 		if not mch.constraints:
 			copy = mch.constraints.new('COPY_TRANSFORMS')
 			copy.target = obj
-			copy.subtarget = target_name
+			copy.subtarget = self.target_name
 
-		# Find the largest input axis on the reader
-		context.view_layer.update()
+	def capture_target_pose(self, obj):
+		"""Store the largest rotation axis on the reader. Error message if
+		the target is at rest. Call context.view_layer.update() first."""
+		mch = obj.pose.bones[self.mch_name]
 		local = obj.convert_space(
 			pose_bone=mch,
 			matrix=mch.matrix,
@@ -88,48 +116,47 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 			to_space='LOCAL',
 		)
 		reading = local.to_euler()
-		axis = max(range(3), key=lambda i: abs(reading[i]))
-		from_value = reading[axis]
+		# Find the largest input axis on the reader
+		self.axis = max(range(3), key=lambda i: abs(reading[i]))
+		self.from_value = reading[self.axis]
+		if abs(self.from_value) < 1e-4:
+			return f"'{self.target_name}' is at rest. Pose it first."
+		return None
+	
+	def apply(self, obj):
+		"""Add the Transformation constraints and clear the corrective's pose"""
+		if self.uses_location():
+			self.add_transform(obj, self.axis, self.from_value,
+				'LOCATION', self.location)
+		if self.uses_rotation():
+			self.add_transform(obj, self.axis, self.from_value,
+				'ROTATION', self.rotation)
 
-		if abs(from_value) < 1e-4:
-			self.report({'ERROR'},
-				f"'{target_name}' is at rest. Pose it first.")
-			return {'CANCELLED'}
-
-		# Find the transforms for the corrective bone
-		corrective = pose_bones[corrective_name]
-		location = corrective.matrix_basis.to_translation() # matrix_basis ignores constraints
-		rotation = corrective.matrix_basis.to_euler()
-
-		apply_loc = bool(location.length > 1e-5)
-		apply_rot = bool(max(abs(a) for a in rotation) > 1e-4)
-
-		if not apply_loc and not apply_rot:
-			self.report({'ERROR'},
-				f"'{corrective_name}' isn't posed. Move or rotate it first.")
-			return {'CANCELLED'}
-
-		if apply_loc:
-			self.add_transform(corrective, obj, mch_name, 
-				axis, from_value, 'LOCATION', location)
-		if apply_rot:
-			self.add_transform(corrective, obj, mch_name,
-				axis, from_value, 'ROTATION', rotation)
-
-		# Clear the pose so the correction isn't applied twice			
+		# Clear the pose so the correction isn't applied twice
+		corrective = obj.pose.bones[self.corrective_name]
 		corrective.location = (0, 0, 0)
 		corrective.rotation_quaternion = (1, 0, 0, 0)
 		corrective.rotation_euler = (0, 0, 0)
 
-		self.report({'INFO'}, f"")
-		return {'FINISHED'}
+	def mirror_from(self, source):
+		"""Copy source's captured values, flipped across X.
+		Assumes symmetric rest rolls: location X flips, rotation Y and Z flip"""
+		self.axis = source.axis
+		if source.axis == 0:
+			self.from_value = source.from_value
+		else:
+			self.from_value = -source.from_value
+		x, y, z = source.location
+		self.location = Vector((-x, y, z))
+		rx, ry, rz = source.rotation
+		self.rotation = Euler((rx, -ry, -rz))		
 	
-	def add_transform(self, pose_bone, obj, mch_name,
-			axis, from_value, map_to, values):
+	def add_transform(self, obj, axis, from_value, map_to, values):
+		pose_bone = obj.pose.bones[self.corrective_name]
 		c = pose_bone.constraints.new('TRANSFORM')
-		c.name = f"Corrective {map_to.title()} ({mch_name})"
+		c.name = f"Corrective {map_to.title()} ({self.mch_name})"
 		c.target = obj
-		c.subtarget = mch_name
+		c.subtarget = self.mch_name
 		c.target_space = 'LOCAL'
 		c.owner_space = 'LOCAL'
 
@@ -159,7 +186,84 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 		else:
 			c.mix_mode = 'ADD'
 
+	def remove_mch(self, edit_bones):
+		"""Edit mode only. Remove the MCH if this setup created it."""
+		if self.created:
+			edit_bones.remove(edit_bones[self.mch_name])	
 
+
+class RIG_OT_create_corrective_bone(bpy.types.Operator):
+	bl_idname = "rig.create_corrective_bone"
+	bl_label = "Create Corrective Bone"
+	bl_description = "Create a corrective bone that helps create the correct shape when bones are moved to extremes"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	mirror: BoolProperty(
+		name="Mirror",
+		description="Also create the corrective on the opposite side",
+		default=True,
+	)
+
+	@classmethod
+	def poll(cls, context):
+		return (context.mode == 'POSE'
+			and context.active_pose_bone is not None
+			and len(context.selected_pose_bones) == 2)
+
+	def execute(self, context):
+		obj = context.object
+		armature_data = obj.data
+
+		corrective = context.active_pose_bone
+		target = next(pb for pb in context.selected_pose_bones if pb != corrective)
+
+		source = CorrectiveSetup(target.name, corrective.name)
+		setups = [source]
+		mirrored = source.mirrored(obj) if self.mirror else None
+		if mirrored:
+			setups.append(mirrored)
+
+		for setup in setups:
+			error = setup.validate(context)
+			if error:
+				self.report({'ERROR'}, error)
+				return {'CANCELLED'}
+		
+		error = source.capture_corrective_pose(obj)
+		if error:
+			self.report({'ERROR'}, error)
+			return {'CANCELLED'}
+		
+		bpy.ops.object.mode_set(mode='EDIT')
+		for setup in setups:
+			setup.edit_mode(armature_data)
+
+		bpy.ops.object.mode_set(mode='POSE')
+		for setup in setups:
+			setup.pose_mode(obj)
+
+		context.view_layer.update()
+		error = source.capture_target_pose(obj)
+		if error:
+			bpy.ops.object.mode_set(mode='EDIT')
+			for setup in setups:
+				setup.remove_mch(armature_data.edit_bones)
+			bpy.ops.object.mode_set(mode='POSE')
+			self.report({'ERROR'}, error)
+			return {'CANCELLED'}
+		
+		if mirrored:
+			mirrored.mirror_from(source)
+		for setup in setups:
+			setup.apply(obj)
+		if self.mirror and not mirrored:
+			self.report({'INFO'}, "No mirror found; created one side only.")
+		elif mirrored:
+			self.report({'INFO'}, "Successfully created mirrored corrective bones.")
+		else:
+			self.report({'INFO'}, "Successfully created corrective bone.")
+
+		return {'FINISHED'}
 
 classes = (
 	RIG_OT_create_corrective_bone,
