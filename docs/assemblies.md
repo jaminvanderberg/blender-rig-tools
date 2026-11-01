@@ -130,6 +130,9 @@ If you select all the bones in the rig, it will show you all assemblies.
 
 From this panel, you can reconfigure an assembly or delete it.
 
+When the active bone is a corrective bone, its settings show at the top of this panel.
+See *[Corrective Bones](correctives.md#adjusting-a-corrective)*.
+
 !!! warning
     Reconfiguring an assembly will delete it and then create it.
     This comes with the same caveats as deleting.

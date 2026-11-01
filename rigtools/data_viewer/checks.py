@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import bpy
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION
 from rigtools.preferences import get_preferences
+from rigtools.rig_data.correctives import find_correctives
 from rigtools.rig_ui.snapping_data import delete_snap_chain
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES, limb_group_label
 
@@ -38,7 +39,7 @@ def run_checks(obj) -> list[Issue]:
 	issues += _check_snap_chains(armature_data, bones)
 	issues += _check_layout(armature_data)
 	issues += _check_settings(armature_data, bones)
-	issues += _check_orphan_mch(armature_data)
+	issues += _check_orphan_mch(obj)
 	return issues
 
 def _check_assemblies(obj, bones):
@@ -180,7 +181,8 @@ def _check_settings(armature_data, bones):
 			issues.append(Issue('WARNING', f"Armature settings: {key.title()} bone {name} is missing"))
 	return issues
 
-def _check_orphan_mch(armature_data):
+def _check_orphan_mch(obj):
+	armature_data = obj.data
 	all_collections = getattr(armature_data, "collections_all", armature_data.collections)
 	mch = all_collections.get(get_preferences().mch_collection_name)
 	if not mch:
@@ -190,6 +192,8 @@ def _check_orphan_mch(armature_data):
 		owned.update(b.name for b in assembly.mechanism_bones)
 		owned.update(s.name for s in assembly.org_states)
 		owned.update(s.name for s in assembly.twist_states)
+	# Corrective MCHs aren't in an assembly; they're owned while a corrective reads them
+	owned.update(c.subtarget for _, c in find_correctives(obj))
 	return [
 		Issue('INFO', f"{bone.name} is in {mch.name} but no assembly owns it", bone=bone.name)
 		for bone in mch.bones if bone.name not in owned

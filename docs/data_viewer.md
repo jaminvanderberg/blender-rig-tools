@@ -33,6 +33,16 @@ Each limb shows:
 - The select button selects the controls of every assembly that uses the limb, ready for **Reconfigure All Selected** in the Assembly panel. It needs Pose or Edit mode.
 - The pencil button renames the limb's collections, the same as in the *[Assembly panel](assemblies.md)*.
 
+## Correctives
+
+Lists every *[corrective bone](correctives.md)* on the rig, whether or not it's selected.  Each corrective bone shows:
+
+- The bones that drive it, whether it moves or rotates, and the angle where it reaches full strength.
+- The hidden helper bone it uses, in grey.
+- The select button selects the corrective bone.  It needs Pose or Edit mode.
+
+If a driving bone or helper bone was deleted or renamed by hand, that line is shown in red.
+
 ## Data Check
 
 RigTools remembers bones, collections, objects and properties by name. If you rename or delete one by hand, or an operation is interrupted, RigTools can end up remembering something that isn't there anymore.
@@ -41,7 +51,7 @@ RigTools remembers bones, collections, objects and properties by name. If you re
 
 - **Errors** mean an assembly may not reconfigure or delete correctly. For example, an ORG bone was renamed or deleted, or two assemblies use the same bone. These can't be fixed automatically. Rename the bone back, or undo the change.
 - **Warnings** are references to things that no longer exist, such as a deleted bone, widget object, bone collection, or FK/IK snapping data for a removed assembly.
-- **Info** items are worth a look but often harmless, such as bones in the MCH collection that no assembly owns.
+- **Info** items are worth a look but often harmless, such as bones in the MCH collection that no assembly or corrective uses.
 
 Click the select button next to an issue to show its assembly in the list and select its bone.
 

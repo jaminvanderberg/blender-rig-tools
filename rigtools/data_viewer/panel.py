@@ -1,4 +1,5 @@
 import json
+import math
 import bpy
 from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProperty, StringProperty
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
@@ -9,6 +10,7 @@ from rigtools.assemblies.palm_templates import get_palm_template
 from rigtools.assemblies.torso_templates import get_torso_template
 from rigtools.data_viewer.checks import apply_fix, assemblies_by_limb, bone_names, collection_names, get_property_bone, limb_label, run_checks
 from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS, SELECT_SIMILAR_ROLES
+from rigtools.rig_data.correctives import correction_end, find_correctives
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES, side_display_name
@@ -464,6 +466,76 @@ class RIG_PT_data_viewer_limbs(bpy.types.Panel):
 					right.active = False
 					right.label(text=f"{name}  (not created)")
 
+class RIG_PT_data_viewer_correctives(bpy.types.Panel):
+	bl_label = "Correctives"
+	bl_idname = "RIG_PT_data_viewer_correctives"
+	bl_space_type = 'PROPERTIES'
+	bl_region_type = 'WINDOW'
+	bl_context = 'data'
+	bl_parent_id = "RIG_PT_data_viewer"
+	bl_options = {'DEFAULT_CLOSED'}
+
+	def draw(self, context):
+		layout = self.layout
+		obj = context.object
+		# Scans every bone's constraints, so it only runs while this panel is open
+		correctives = find_correctives(obj)
+		if not correctives:
+			layout.label(text="No correctives")
+			return
+
+		by_bone = {}
+		for pose_bone, c in correctives:
+			by_bone.setdefault(pose_bone.name, []).append(c)
+
+		selectable = can_select(context)
+		for bone_name, constraints in by_bone.items():
+			box = layout.box()
+			col = box.column(align=True)
+
+			header = col.row(align=True)
+			header.label(text=bone_name, icon='BONE_DATA')
+			sub = header.row(align=True)
+			sub.enabled = selectable
+			op = sub.operator(RIG_OT_data_select.bl_idname, text="",
+				icon='RESTRICT_SELECT_OFF')
+			op.bone_names_json = json.dumps([bone_name])
+
+			for i, c in enumerate(constraints):
+				if i:
+					col.separator()
+				self._draw_constraint(col, obj, c)
+
+	@staticmethod
+	def _draw_constraint(col, obj, c):
+		# The MCH or its Copy Transforms can be deleted by hand;
+		# show that rather than fail
+		mch = obj.pose.bones.get(c.subtarget)
+		copies = [m for m in mch.constraints
+			if m.type == 'COPY_TRANSFORMS'] if mch else []
+		target = copies[0].subtarget if copies else ""
+
+		axis = c.map_to_x_from.lower()
+		angle = getattr(c, f"from_{correction_end(c)}_{axis}_rot")
+		kind = "Rotate" if c.map_to == 'ROTATION' else "Move"
+
+		row = col.row(align=True)
+		row.alert = not target or target not in obj.pose.bones
+		row.separator(factor=2)
+		row.label(text=f"{target or 'missing target'} > {kind}",
+			icon='CON_TRANSFORM')
+		sub = row.row()
+		sub.alignment = 'RIGHT'
+		sub.label(text=f"{axis.upper()} {math.degrees(angle):.1f}°")
+
+		row = col.row(align=True)
+		row.active = False
+		row.alert = mch is None
+		# Blank icons indent without adding height (a large separator would)
+		row.separator(factor=2)
+		row.label(text=c.subtarget if mch else f"{c.subtarget} (missing)",
+			icon='BLANK1')
+
 class RIG_PT_data_viewer_check(bpy.types.Panel):
 	bl_label = "Data Check"
 	bl_idname = "RIG_PT_data_viewer_check"
@@ -560,6 +632,7 @@ classes = (
 	RIG_PT_data_viewer,
 	RIG_PT_data_viewer_assemblies,
 	RIG_PT_data_viewer_limbs,
+	RIG_PT_data_viewer_correctives,
 	RIG_PT_data_viewer_check,
 	RIG_PT_data_viewer_widgets,
 )

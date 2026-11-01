@@ -7,7 +7,7 @@ from bpy.types import PropertyGroup
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.limb_collections import LimbCollectionMap
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
-from rigtools.utils.naming import limb_group_label
+from rigtools.utils.naming import does_match_def_name, limb_group_label
 
 def find_assemblies(armature_data, bone_names, *, include_org_states=True, include_mechanism_bones=True):
 	wanted = set(bone_names)
@@ -49,14 +49,6 @@ def find_similar_assemblies(armature_data, source, mode, include_mirror):
 		if mode == 'CONFIG' and {k: v for k, v in options.items() if k not in CONFIG_OPTION_KEYS} != source_config:
 			continue
 		yield assembly
-
-def check_assembly_use(armature_data, bone_names):
-	to_check = set(bone_names)
-	assemblies = []
-	for assembly in armature_data.rigtools_assemblies:
-		if to_check & {o.name for o in assembly.org_states}:
-			assemblies.append(assembly)
-	return assemblies
 
 class RoleRef(PropertyGroup):
 	name: StringProperty()
@@ -232,9 +224,12 @@ class AssemblyData(PropertyGroup):
 		return [bone.name for bone in self.org_states]
 
 def create_assembly_data(obj, org_bones, name, assembly_type, template_id, template_name, options, side="", uid=None):
-	assemblies = check_assembly_use(obj.data, org_bones)
+	assemblies = find_assemblies(obj.data, org_bones)
 	if assemblies:
 		raise ValueError(f"Selected bones are being used by other assemblies: {', '.join(a.name for a in assemblies)}")
+	def_bones = [name for name in org_bones if does_match_def_name(name)]
+	if def_bones:
+		raise ValueError(f"{', '.join(def_bones)} are DEF bones. Use the ORG bones.")
 
 	assembly_data = obj.data.rigtools_assemblies.add()
 	assembly_data.uid = uid or str(uuid.uuid4())

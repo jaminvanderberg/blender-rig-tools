@@ -46,5 +46,3 @@ def draw_constraint(layout, obj, pose_bone, c):
 	row.label(text="Rotate" if c.map_to == 'ROTATION' else "Move")
 	for out in "xyz":
 		row.prop(c, f"to_{end}_{out}{suffix}", text=out.upper())
-		
-	col.prop(c, "influence", slider=True)
