@@ -25,6 +25,10 @@ class RIG_PT_tools_npanel(bpy.types.Panel):
 			layout.operator("rig.apply_root_widgets", icon='ORIENTATION_GLOBAL')
 			draw_embed_button(layout, context.object.data)
 
+		if mode == 'POSE':
+			layout.label(text="Pose Tools:")
+			layout.operator("rig.create_corrective_bone", icon='CON_TRANSFORM')
+
 		if mode in {'POSE', 'EDIT_ARMATURE'}:
 			layout.label(text="Chain Tools:")
 			layout.operator("rig.rename_chain", icon='GROUP_BONE')

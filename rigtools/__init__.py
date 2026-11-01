@@ -32,7 +32,6 @@ from rigtools.panels import skirt_legs as skirt_legs_panel
 from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
-from rigtools.panels.assembly import corrective_panel
 from rigtools.panels.bone_style import bone_style_panel
 from rigtools.data_viewer import panel as data_viewer_panel
 from rigtools.rig_ui import collections_panel
@@ -67,7 +66,6 @@ def register():
 	ik_panel.register()
 	fk_panel.register()
 	assembly_panel.register()
-	corrective_panel.register()
 	data_viewer_panel.register()
 
 	rename_chain.register()
@@ -108,7 +106,6 @@ def unregister():
 	twist_chain.unregister()
 
 	data_viewer_panel.unregister()
-	corrective_panel.unregister()
 	assembly_panel.unregister()
 	ik_panel.unregister()
 	fk_panel.unregister()

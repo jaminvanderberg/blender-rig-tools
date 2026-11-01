@@ -1,65 +1,50 @@
-import bpy
-from rigtools.rig_data.correctives import corrective_constraints, corrective_target
-from rigtools.utils.icons import icon
+from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target
 
-class RIG_PT_corrective_panel(bpy.types.Panel):
-	bl_label = "Corrective"
-	bl_idname = "RIG_PT_corrective_panel"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'UI'
-	bl_category = "Rig Tools"
-	bl_parent_id = "RIG_PT_assembly_panel"
+def draw_correctives(layout, context):
+	"""Correctives on the active bone, drawn at the top of the assembly panel.
+	Draws nothing if the active bone isn't a corrective."""
+	pose_bone = context.active_pose_bone
+	if context.mode != 'POSE' or not pose_bone:
+		return
+	if pose_bone not in context.selected_pose_bones:
+		return
 
-	@classmethod
-	def poll(cls, context):
-		return context.mode == 'POSE'
+	constraints = corrective_constraints(pose_bone)
+	if not constraints:
+		return
 
-	def draw(self, context):
-		layout = self.layout
-		obj = context.object
-		layout.operator("rig.create_corrective_bone", icon='ADD')
+	obj = context.object
+	for c in constraints:
+		draw_constraint(layout, obj, pose_bone, c)
+	layout.separator()
 
-		found = False
-		for pose_bone in context.selected_pose_bones:
-			for c in corrective_constraints(pose_bone):
-				found = True
-				self.draw_constraint(layout, obj, pose_bone, c)
+def draw_constraint(layout, obj, pose_bone, c):
+	box = layout.box()
+	header = box.column()
+	header.label(text="Corrective Bone", icon='CON_TRANSFORM')
+	
+	col = box.column(align=True)
 
-		if not found:
-			layout.label(text="No correctives selected",
-				icon=icon('STATUS_INFO'))
+	row = col.row(align=True)
+	target = corrective_target(obj, c)
+	row.label(text=f"{target}")
+	op = row.operator("rig.mirror_corrective", text="", icon='MOD_MIRROR')
+	op.bone_name = pose_bone.name
+	op.constraint_name = c.name
+	op = row.operator("rig.delete_corrective", text="", icon='TRASH')
+	op.bone_name = pose_bone.name
+	op.constraint_name = c.name
 
-	def draw_constraint(self, layout, obj, pose_bone, c):
-		box = layout.box()
-		row = box.row()
-		target = corrective_target(obj, c)
-		row.label(text=f"{target} > {pose_bone.name}", icon='CON_TRANSFORM')
-		op = row.operator("rig.delete_corrective", text="", icon='TRASH')
-		op.bone_name = pose_bone.name
-		op.constraint_name = c.name
+	axis = c.map_to_x_from.lower()
+	end = correction_end(c)
 
-		# Input: the one axis the corrective reads
-		axis = c.map_to_x_from.lower()
-		row = box.row(align=True)
-		row.prop(c, f"from_min_{axis}_rot", text="From")
-		row.prop(c, f"from_max_{axis}_rot", text="")
+	col.separator(factor=0.5)
+	col.prop(c, f"from_{end}_{axis}_rot", text="From")
 
-		# Output: min/max per axis
-		suffix = "_rot" if c.map_to == 'ROTATION' else ""
-		col = box.column(align=True)
-		for out in "xyz":
-			row = col.row(align=True)
-			row.prop(c, f"to_min_{out}{suffix}", text=out.upper())
-			row.prop(c, f"to_max_{out}{suffix}", text="")
-
-classes = (
-	RIG_PT_corrective_panel,
-)
-
-def register():
-	for cls in classes:
-		bpy.utils.register_class(cls)
-
-def unregister():
-	for cls in reversed(classes):
-		bpy.utils.unregister_class(cls)
+	suffix = "_rot" if c.map_to == 'ROTATION' else ""
+	row = col.row(align=True)
+	row.label(text="Rotate" if c.map_to == 'ROTATION' else "Move")
+	for out in "xyz":
+		row.prop(c, f"to_{end}_{out}{suffix}", text=out.upper())
+		
+	col.prop(c, "influence", slider=True)
