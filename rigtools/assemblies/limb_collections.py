@@ -1,9 +1,11 @@
 from bpy.types import PropertyGroup
 from bpy.props import StringProperty, BoolProperty
 from rigtools.preferences import get_preferences
-from rigtools.rig_ui.collections_panel import rename_layout_collection
+from rigtools.rig_ui.collections_panel import LayoutGroup, place_new_collections, rename_layout_collection
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.utils.naming import name_collection, LIMB_COLLECTION_ROLES
+
+_LAYOUT_ROLE_ORDER = ("control", "ik", "fk", "tweak")
 
 def find_bones_by_limb_role(armature_data, limb, side, role):
 	names = []
@@ -76,6 +78,18 @@ class LimbCollectionMap(PropertyGroup):
 				coll = ensure_bone_collection(armature_data, getattr(self, role))
 			coll.assign(bone)
 
+	def get_collections(self):
+		"""This limb's collections, in Rig UI order"""
+		armature_data = self.id_data
+		all_collections = getattr(armature_data, "collections_all", armature_data.collections)
+		colls = []
+		for role in _LAYOUT_ROLE_ORDER:
+			coll = all_collections.get(getattr(self, role))
+			if coll and coll not in colls:
+				colls.append(coll)
+		return colls
+
+
 def find_limb_collections(armature_data, limb, side):
 	for row in armature_data.rigtools_limb_collections:
 		if row.limb == limb and row.side == side:
@@ -106,3 +120,23 @@ def ensure_limb_collections(armature_data, limb, side, promote = False):
 		row.control = name_collection("control", limb, side)
 
 	return row
+
+
+def _get_limb_collections_all_sides(armature_data, limb_name):
+	"""This limb's collections, on both sides"""
+	return [
+		coll
+		for limb in armature_data.rigtools_limb_collections
+		if limb.limb == limb_name
+		for coll in limb.get_collections()
+	]
+
+def place_new_limb_collections(armature_data):
+	place_new_collections(armature_data, [
+		LayoutGroup(
+			collections=limb.get_collections(),
+			limb_collections_all_sides=_get_limb_collections_all_sides(armature_data, limb.limb),
+			sided=bool(limb.side),
+		)
+		for limb in armature_data.rigtools_limb_collections
+	])

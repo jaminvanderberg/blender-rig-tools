@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 import bpy
 from bpy.props import BoolProperty, StringProperty, EnumProperty, CollectionProperty
 
 from rigtools.rig_ui import rig_ui
-from rigtools.rig_ui.rig_ui import _coll_by_name, _hidden_map, _is_hidden, _iter_rows, draw_collections_view
-from rigtools.utils.naming import LIMB_COLLECTION_ROLES
+from rigtools.rig_ui.rig_ui import _coll_by_name, _hidden_map, _is_hidden, _iter_rows, draw_collections_view, flip_side_name
+from rigtools.utils.naming import LIMB_COLLECTION_ROLES, get_side_letter
 
 
 class RigUICollectionLayoutItem(bpy.types.PropertyGroup):
@@ -47,6 +48,77 @@ def _apply_rows(armature_data, rows):
 			item.collection_name = coll.name
 			item.same_row = i > 0
 			item.hidden = hidden.get(coll.name, False)
+
+_MAX_THIRD_ROW_NAME = 12 # Longer names get cut off three to a row
+
+@dataclass
+class LayoutGroup:
+	collections: list[bpy.types.BoneCollection]
+	limb_collections_all_sides: list[bpy.types.BoneCollection]
+	sided: bool
+
+def _insert_limb_row(rows, colls, limb_collections_all_sides):
+	"""Add a row after the limb's last row, or at the bottom below a gap"""
+	for i in range(len(rows) - 1, -1, -1):
+		row = rows[i]
+		if row['type'] != 'items':
+			continue
+		if any(coll in limb_collections_all_sides for coll in row['colls']):
+			rows.insert(i + 1, {'type': 'items', 'colls': colls})
+			return
+	if rows and rows[-1]['type'] != 'gap':
+		rows.append({'type': 'gap'})
+	rows.append({'type': 'items', 'colls': colls})
+
+def _join_opposite_side(rows, coll):
+	"""Join the same collection on the other side if it's alone on its row"""
+	row_i, _, _ = _find_collection_row(rows, flip_side_name(coll.name))
+	if row_i < 0 or len(rows[row_i]['colls']) != 1:
+		return False
+	index = 0 if get_side_letter(coll.name) == 'L' else 1
+	rows[row_i]['colls'].insert(index, coll)
+	return True
+
+def _split_centered(colls):
+	long_name = any(len(coll.name) > _MAX_THIRD_ROW_NAME for coll in colls)
+	if len(colls) == 4 or (len(colls) == 3 and long_name):
+		return [colls[:2], colls[2:]]
+	return [colls]
+
+def place_new_collections(armature_data, groups):
+	"""Arrange new collections that aren't in layout yet"""
+	placed = {
+		item.collection_name
+		for item in armature_data.rig_ui_layout
+		if not item.is_gap
+	}
+	claimed = set(placed)
+	new_groups = []
+	for group in groups:
+		colls = [coll for coll in group.collections if coll.name not in claimed]
+		claimed.update(coll.name for coll in colls)
+		if colls:
+			new_groups.append((group, colls))
+	if not new_groups:
+		return
+
+	new_names = claimed - placed
+	# _iter_rows gave each new collection its own row, so replace those
+	rows = [
+		row for row in _iter_rows(armature_data)
+		if row['type'] == 'gap' or row['colls'][0].name not in new_names
+	]
+
+	for group, colls in new_groups:
+		if group.sided:
+			for coll in colls:
+				if not _join_opposite_side(rows, coll):
+					_insert_limb_row(rows, [coll], group.limb_collections_all_sides)
+		else:
+			for row_colls in _split_centered(colls):
+				_insert_limb_row(rows, row_colls, group.limb_collections_all_sides)
+
+	_apply_rows(armature_data, rows)
 
 def _find_collection_row(rows, name):
 	for i, row in enumerate(rows):
@@ -130,6 +202,16 @@ def _full_row(rows, name, direction):
 		rows.insert(src_i + 1, new_row)
 	return True
 
+def _move_row(rows, name, direction):
+	row_i, _, _ = _find_collection_row(rows, name)
+	if row_i < 0:
+		return False
+	swap = row_i - 1 if direction == 'UP' else row_i + 1
+	if swap < 0 or swap >= len(rows):
+		return False
+	rows[row_i], rows[swap] = rows[swap], rows[row_i]
+	return True
+
 def _move_gap(rows, owner_name, direction):
 	gap_i = _find_gap_before(rows, owner_name)
 	if gap_i < 0:
@@ -184,7 +266,7 @@ class RIG_OT_ui_select_collection(bpy.types.Operator):
 class RIG_OT_ui_collection_move(bpy.types.Operator):
 	bl_idname = "rig.ui_collection_move"
 	bl_label = "Move Collection"
-	bl_description = "Move the selection to another row"
+	bl_description = "Move the selection to another row. Shift+click Row Up/Down to move its whole row"
 	bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
 
 	direction: EnumProperty(
@@ -195,6 +277,11 @@ class RIG_OT_ui_collection_move(bpy.types.Operator):
 			('ROW_DOWN', "Row Down", "Move to its own row below"),
 		),
 	)
+	whole_row: BoolProperty(default=False, options={'SKIP_SAVE'})
+
+	def invoke(self, context, event):
+		self.whole_row = event.shift
+		return self.execute(context)
 
 	@classmethod
 	def poll(cls, context):
@@ -224,6 +311,8 @@ class RIG_OT_ui_collection_move(bpy.types.Operator):
 
 		if self.direction in {'JOIN_UP', 'JOIN_DOWN'}:
 			ok = _join_row(rows, name, vert)
+		elif self.whole_row:
+			ok = _move_row(rows, name, vert)
 		else:
 			ok = _full_row(rows, name, vert)
 		if not ok:

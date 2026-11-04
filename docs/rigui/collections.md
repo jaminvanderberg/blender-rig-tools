@@ -9,7 +9,7 @@ Buttons for showing and hiding the rig's bone collections.
 
 The Rig UI panel shows a toggle button for each bone collection, so animators can quickly hide or show FK controls, IK controls, tweaks, and so on.  It works with the armature selected, and also with one of the character's meshes selected.
 
-New bone collections are added to the bottom of the panel automatically.  Bone collections whose parent collection is hidden in Blender aren't shown.
+New bone collections are added to the panel automatically.  Those created by an assembly are [grouped by limb](#assembly-layout), and any others get their own row at the bottom.  Bone collections whose parent collection is hidden in Blender aren't shown.
 
 The button layout is stored on the armature, so it's saved with the rig and shared with anyone who uses it.  The layout is separate from Blender's bone collection list; rearranging or hiding buttons in the Rig UI doesn't change the order or visibility of the bone collections themselves.
 
@@ -28,6 +28,16 @@ Assemblies that share a limb name and side share the same collections.  For exam
 
 The collections for a limb can be renamed from the *[Assembly Panel](../assemblies.md#assembly-panel)*.  Click the collection icon next to the assembly name, and enter the new names.  The Rig UI layout is updated to match.
 
+### Assembly layout
+
+When an assembly creates new bone collections, their buttons are arranged automatically.  Within a limb, they're ordered as main controls, IK, FK, then tweaks.
+
+- **Left and right limbs:** Each collection joins its opposite side if that button is alone on its row, with the left side on the left.  Otherwise, it gets its own row.
+- **Center limbs:** Up to three collections share a row, and four are split into two rows of two.  Three collections are split into rows of two and one if any name is longer than 12 characters, to keep the names readable.
+- **Position:** Rows for a new limb go at the bottom of the panel, with a gap above them.  Rows added to an existing limb go directly below that limb's last row.
+
+Only new buttons are arranged, so rebuilding an assembly doesn't undo your layout changes.  If a rig's layout has never been saved, the first assembly build arranges the collections of all its existing limbs too.
+
 ## Editing the layout
 
 !!! note
@@ -38,7 +48,7 @@ Click **Edit** to rearrange the buttons.  In edit mode, clicking a button select
 | Button | Action |
 | --- | --- |
 | Gap | Add a gap (blank space) above the selected row. |
-| Row up / Row down | Move the collection to its own row above or below. |
+| Row up / Row down | Move the collection to its own row above or below.  Shift+click to move its whole row instead. |
 | Join up / Join down | Move the collection onto the row above or below. |
 | ◀ / ▶ | Move the collection left or right within its row. |
 | ▾ menu | Rename the bone collection, or Hide/Show it in the Rig UI. |

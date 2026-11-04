@@ -1,5 +1,7 @@
 import bpy
 
+from rigtools.assemblies.limb_collections import place_new_limb_collections
+
 class AssemblyTransactionError(RuntimeError):
 	pass
 
@@ -12,7 +14,9 @@ def _rollback():
 
 def run_assembly_transaction(operation, *, rollback=True):
 	try:
-		return operation()
+		result = operation()
+		place_new_limb_collections(bpy.context.object.data)
+		return result
 	except Exception as e:
 		if rollback:
 			bpy.app.timers.register(_rollback)
