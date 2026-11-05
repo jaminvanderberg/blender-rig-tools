@@ -32,17 +32,9 @@ _COLOR_ROLE_MAP = {
 }
 _SIDED_COLOR_ROLES = {'fk', 'ik'}
 
-def side_letter(side):
-    s = side.upper()
-    if "R" in s:
-        return "R"
-    elif "L" in s:
-        return "L"
-    return "C"
-
 def get_bone_color(prefs, role, side=""):
     """role: 'fk', 'ik', 'tweak', 'control', 'torso', 'root'.  Only fk/ik are sided."""
     if role in _SIDED_COLOR_ROLES:
-        suffix = {"L": "_left", "R": "_right"}.get(side_letter(side), "")
+        suffix = {"L": "_left", "R": "_right"}.get(side, "")
         return getattr(prefs, f"{_COLOR_ROLE_MAP[role]}{suffix}")
     return getattr(prefs, _COLOR_ROLE_MAP[role])

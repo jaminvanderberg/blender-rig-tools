@@ -277,7 +277,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				self.report({'ERROR'}, "No chains selected.")
 				return {'CANCELLED'}
 
-			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
+			self.limb_property_base_name = guess_limb_name(chains[0][0])
 
 		self.template_name = template.label
 

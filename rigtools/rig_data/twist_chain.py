@@ -4,8 +4,9 @@ from bpy.props import StringProperty
 from bpy.types import Operator, Panel
 
 from rigtools.rig_data.heel_pivots import RIG_OT_set_heel_pivot, get_heel_pivot, get_heel_pivot_feet, set_heel_pivot
+from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.bone import duplicate_bone_subdivided
-from rigtools.utils.naming import bone_template, flip_side_name, same_side_names
+from rigtools.utils.naming import bone_template, same_side_names
 
 TWIST_MAP_KEY = "rigtools_twist_parents"
 

@@ -4,7 +4,6 @@ from rigtools.assemblies.tool_data.tool_properties import ToolProperties
 from rigtools.utils.bone import duplicate_chain
 from rigtools.utils.naming import bone_template
 from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
 from rigtools.utils.widget import LIMB_FK_WIRE_WIDTH, chain_widget_scales, widget_scale_xyz
 
 class FKIKSwitch:
@@ -36,12 +35,11 @@ class FKIKSwitch:
 		self.switch_bone_names = switch_bone_names
 
 		obj = context.object
-		prefs = get_preferences()
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
 
-		self.fk_bone_names = duplicate_chain(obj.data, switch_bone_names, prefs.fk_template, 1.0, name_source)
+		self.fk_bone_names = duplicate_chain(obj.data, switch_bone_names, bone_template("fk"), 1.0, name_source)
 		self.ik_bone_names = duplicate_chain(obj.data, switch_bone_names, bone_template("ik_mch"), 1.0, name_source)
 
 		self.mechanism_bones.extend(self.ik_bone_names, 'mch')

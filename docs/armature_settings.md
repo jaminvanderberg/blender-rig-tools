@@ -57,19 +57,6 @@ The addon preferences set the defaults for new rigs.  Changing the preferences d
 - Selection Buttons: comma-separated list of the *[quick selection](selection.md#quick-select-buttons)* buttons.  Default: `FK, IK-, Tweak, DEF, ORG, MCH`.
 - Columns: the number of columns for the selection buttons.  Default: 3.
 
-### Name Stripping
-
-- Tags to Strip: comma-separated list of prefixes and suffixes removed from bone names when RigTools names new bones.  Default: `ORG, DEF, MCH, CTRL`.  For example, `ORG-forearm.L` becomes `FK-forearm.L` instead of `FK-ORG-forearm.L`.
-- Separators: the characters that separate tags from the rest of the name.  Default: `-._`
-
-### Naming
-
-- DEF Bone: the naming template for deform bones.  Default: `DEF-{name}`.
-- Target/ORG Bone: the naming template for ORG bones.  Default: `ORG-{name}`.
-- FK Bone: the naming template for FK controls.  Default: `FK-{name}`.
-
-`{name}` is replaced with the base name of the bone.  `.L` / `.R` suffixes are always kept at the end of the name.  These are used by *[Generate ORG Bones](operators/generate_org_bones.md)* and the assemblies.
-
 ### Rig Structure Defaults
 
 - Root Bone, Torso Bone, Hips Bone, Chest Bone, Head Bone, Property Bone: the defaults for the *[armature settings](#settings)* above.

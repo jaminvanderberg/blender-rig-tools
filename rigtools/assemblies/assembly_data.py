@@ -94,7 +94,8 @@ class ReparentRule(PropertyGroup):
 class AssemblyData(PropertyGroup):
 	uid: StringProperty()
 	name: StringProperty()
-	side: StringProperty()
+	limb: StringProperty()	
+	side: StringProperty(default="C")
 	ui_label: StringProperty()
 	assembly_type: EnumProperty(items=[
 		('FK', "FK", ""),
@@ -159,7 +160,7 @@ class AssemblyData(PropertyGroup):
 
 			pose_bone = pose_bones[bone_name]
 			# Mirror sided widgets with a class (foot, hand, toe)
-			if style.widget_class and "R" in limb_collections.side.upper():
+			if style.widget_class and limb_collections.side == "R":
 				x, y, z = style.scale or (1.0, 1.0, 1.0)
 				style.scale = (-x, y, z)
 			# Standard widgets are shared, so they aren't added to objects
@@ -223,7 +224,7 @@ class AssemblyData(PropertyGroup):
 	def get_chain(self):
 		return [bone.name for bone in self.org_states]
 
-def create_assembly_data(obj, org_bones, name, assembly_type, template_id, template_name, options, side="", uid=None):
+def create_assembly_data(obj, org_bones, name, assembly_type, template_id, template_name, options, side, uid=None):
 	assemblies = find_assemblies(obj.data, org_bones)
 	if assemblies:
 		raise ValueError(f"Selected bones are being used by other assemblies: {', '.join(a.name for a in assemblies)}")

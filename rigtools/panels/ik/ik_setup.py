@@ -443,7 +443,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		self._store_dialog_chains(chains)
 		if not self.limb_property_base_name:
-			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
+			self.limb_property_base_name = guess_limb_name(chains[0][0])
 
 		wm = context.window_manager
 		wm.rig_ik_parents.clear()

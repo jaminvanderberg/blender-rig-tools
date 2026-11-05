@@ -1,4 +1,5 @@
 import math
+from multiprocessing import context
 
 import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatProperty
@@ -142,7 +143,7 @@ class RIG_OT_create_human_skeleton(bpy.types.Operator):
 
 		armature_data = bpy.data.armatures.new("RigTools Human")
 		obj = bpy.data.objects.new("RigTools Human", armature_data)
-		context.scene.collection.objects.link(obj)
+		context.collection.objects.link(obj)
 		obj.location = context.scene.cursor.location
 
 		for selected in context.selected_objects:
@@ -204,6 +205,10 @@ class RIG_OT_create_human_skeleton(bpy.types.Operator):
 			bpy.ops.object.mode_set(mode='POSE')
 			apply_root_widgets(context, obj)
 			bpy.ops.object.mode_set(mode='OBJECT')
+
+		obj.show_in_front = True
+		armature_data.use_mirror_x = True
+		armature_data.show_axes = True
 
 		self.report({'INFO'}, "Created RigTools Human skeleton")
 		return {'FINISHED'}

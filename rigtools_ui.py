@@ -8,7 +8,7 @@ bl_info = {
 	"category": "Rigging"
 }
 
-RIG_DATA_VERSION = 8 # highest rig version this script understands
+RIG_DATA_VERSION = 9 # highest rig version this script understands
 
 import bpy
 import re
@@ -77,7 +77,7 @@ def mirror_pose_selection(context, selected):
 
 # Naming
 def get_base_name(bone_name) -> tuple[str, str]:
-	symmetry_pattern = r'(\.[LR]|\_[LR])(\.\d+)?$'
+	symmetry_pattern = r'[._\- ][LR](\.\d+)?$'
 	match = re.search(symmetry_pattern, bone_name, re.IGNORECASE)
 
 	if match:

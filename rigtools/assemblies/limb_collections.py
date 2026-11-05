@@ -19,7 +19,7 @@ def find_bones_by_limb_role(armature_data, limb, side, role):
 
 class LimbCollectionMap(PropertyGroup):
 	limb: StringProperty()
-	side: StringProperty()
+	side: StringProperty(default="C")
 
 	fk: StringProperty()
 	ik: StringProperty()
@@ -136,7 +136,7 @@ def place_new_limb_collections(armature_data):
 		LayoutGroup(
 			collections=limb.get_collections(),
 			limb_collections_all_sides=_get_limb_collections_all_sides(armature_data, limb.limb),
-			sided=bool(limb.side),
+			sided=bool(limb.side != "C"),
 		)
 		for limb in armature_data.rigtools_limb_collections
 	])

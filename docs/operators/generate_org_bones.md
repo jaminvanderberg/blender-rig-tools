@@ -25,8 +25,8 @@ Twist bone and heel pivot assignments are copied from the DEF bones to the new O
     - Selected Bones: only the selected DEF bones.  Requires Edit or Pose mode.
     - Visible Bones: all visible DEF bones.
     - All Bones: all DEF bones in the armature.
-- DEF Bone Name: the naming template used to find DEF bones.  Default: `DEF-{name}` (from the *[addon preferences](../armature_settings.md#naming)*).
-- Target Bone Name: the naming template for the new ORG bones.  Default: `ORG-{name}` (from the addon preferences).
+- DEF Bone Name: the naming template used to find DEF bones.  Default: `DEF-{name}`.
+- Target Bone Name: the naming template for the new ORG bones.  Default: `ORG-{name}`.
 - Relationship Type: how the DEF bones follow the ORG bones.  Default: Copy Transforms.
     - Copy Transforms: the DEF bone gets a Copy Transforms constraint targeting its ORG bone.  The DEF hierarchy is left alone.
     - Parent/Child: the DEF bone is parented to its ORG bone.

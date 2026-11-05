@@ -228,7 +228,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		self._store_dialog_chains(chains)
 		self._store_twist_snapshot(context, chains, require_chain=True)
 		if not self.limb_property_base_name:
-			self.limb_property_base_name = guess_limb_name(chains[0][0], context)
+			self.limb_property_base_name = guess_limb_name(chains[0][0])
 
 		self.template_name = template.label
 

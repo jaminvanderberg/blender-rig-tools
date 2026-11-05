@@ -3,7 +3,6 @@ import bpy
 from mathutils import Vector
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
 from rigtools.armature_settings import get_armature_settings
-from rigtools.preferences import get_preferences
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
 from rigtools.rig_data.twist_chain import create_twist_chain, get_twist_chain
@@ -59,7 +58,6 @@ class TorsoFK:
 
 		if obj.mode != 'EDIT':
 			bpy.ops.object.mode_set(mode='EDIT')
-		prefs = get_preferences()
 		settings = get_armature_settings(armature_data, context)
 
 		edit_bones = armature_data.edit_bones
@@ -156,7 +154,7 @@ class TorsoFK:
 			elif is_head_bone:
 				fk_bone_name = settings.head_bone_name
 			else:
-				fk_bone_name = generate_bone_name(org_name, prefs.fk_template)
+				fk_bone_name = generate_bone_name(org_name, bone_template("fk"))
 
 			fk_bone = duplicate_bone(armature_data, org_bone, fk_bone_name, 1.0)
 			fk_bones.append(fk_bone)

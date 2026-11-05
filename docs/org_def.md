@@ -56,7 +56,7 @@ See *[Foot Roll](tools/foot_roll.md#heel-pivot)* for where to place the heel piv
 
 ## Naming
 
-RigTools uses the bone names to tell DEF and ORG bones apart, and to name the bones it creates.  The defaults are `DEF-{name}` and `ORG-{name}`, with `.L` / `.R` suffixes kept at the end.  For example, `DEF-forearm.L` and `ORG-forearm.L`.  The naming templates can be changed in the *[addon preferences](armature_settings.md#naming)*.
+RigTools uses the bone names to tell DEF and ORG bones apart, and to name the bones it creates.  The names are `DEF-{name}` and `ORG-{name}`, with `.L` / `.R` suffixes kept at the end.  For example, `DEF-forearm.L` and `ORG-forearm.L`.  The side can also be written as `_L`, `-L`, or a space and `L`, and the same for `R`.
 
 ## Tips
 

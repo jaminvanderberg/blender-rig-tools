@@ -4,7 +4,7 @@ import json
 from rigtools.armature_settings import CURRENT_RIG_DATA_VERSION, needs_rig_upgrade
 from rigtools.assemblies.limb_collections import ensure_limb_collections
 from rigtools.assemblies.tool_data.bone_style import BoneStyle
-from rigtools.utils.naming import limb_group_label, name_bone
+from rigtools.utils.naming import get_side_letter, limb_group_label, name_bone
 
 # Note to AI: ALWAYS provide thorough debug output when migrating data.
 
@@ -222,12 +222,41 @@ def migrate_7_to_8(armature_data, context):
 	)
 
 
+def migrate_8_to_9(armature_data, context):
+	"""Store side as one letter (L/R/C) instead of the raw bone suffix."""
+	print(
+		f"migrate_8_to_9: {len(armature_data.rigtools_assemblies)} assemblies, "
+		f"{len(armature_data.rigtools_limb_collections)} limb collections"
+	)
+
+	for assembly in armature_data.rigtools_assemblies:
+		side = get_side_letter(assembly.side)
+		print(f"  assembly {assembly.name}: side={assembly.side!r} -> {side!r}")
+		assembly.side = side
+
+	# Suffixes that used to be different limbs (.R, _R, .R.001) can now share a limb and side.
+	# Lookups find the first entry, so report any others instead of merging their collections.
+	seen = set()
+	duplicates = 0
+	for row in armature_data.rigtools_limb_collections:
+		side = get_side_letter(row.side)
+		print(f"  limb collections {row.limb!r}: side={row.side!r} -> {side!r}")
+		row.side = side
+		if (row.limb, side) in seen:
+			duplicates += 1
+			print(f"    WARNING: duplicate of an earlier {row.limb!r} {side!r} entry, not merged")
+		seen.add((row.limb, side))
+
+	print(f"migrate_8_to_9 done: duplicates={duplicates}")
+
+
 MIGRATIONS = {
 	3: migrate_3_to_4,
 	4: migrate_4_to_5,
 	5: migrate_5_to_6,
 	6: migrate_6_to_7,
 	7: migrate_7_to_8,
+	8: migrate_8_to_9,
 }
 
 def upgrade_rig(armature_data, context):

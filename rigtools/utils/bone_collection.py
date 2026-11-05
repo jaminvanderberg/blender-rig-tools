@@ -1,6 +1,5 @@
 import re
-from rigtools.preferences import get_preferences
-
+from rigtools.utils.naming import SEPARATORS
 
 def ensure_bone_collection(armature_data, collection_name, parent_collection_name=None, hidden=False):
 	if not collection_name:
@@ -54,12 +53,11 @@ def is_collection_visible(collection, armature_data):
 def replace_name_token(name, find, replace):
 	if not find or find == replace:
 		return name
-	separators = get_preferences().strip_separators.strip()
 
-	parts = re.split(f'([{re.escape(separators)}])', name)
+	parts = re.split(f'([{re.escape(SEPARATORS)}])', name)
 	out = []
 	for part in parts:
-		if part in separators:
+		if part in SEPARATORS:
 			out.append(part)
 		elif part == find:
 			out.append(replace)

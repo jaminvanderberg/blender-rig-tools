@@ -10,18 +10,6 @@ def get_preferences(context=None):
 		context = bpy.context
 	return context.preferences.addons[addon_name].preferences
 
-def get_separators(context=None):
-	pref = get_preferences(context)
-	return list(pref.strip_separators.strip())
-
-def get_separator_string(context=None):
-	pref = get_preferences(context)
-	return pref.strip_separators.strip()
-
-def get_strip_tags(context=None):
-	pref = get_preferences(context)
-	return [tag.strip() for tag in pref.strip_tags.split(",") if tag.strip()]
-
 class RigToolsPreferences(AddonPreferences):
 	bl_idname = addon_name
 
@@ -37,34 +25,6 @@ class RigToolsPreferences(AddonPreferences):
 		default=3,
 		min=1,
 		max=10
-	)
-	# Name Stripping
-	strip_tags: StringProperty(
-		name="Tags to Strip",
-		description="Comma-separated list of prefixes/suffixes to strip from bone names",
-		default="ORG, DEF, MCH, CTRL"
-	)
-	strip_separators: StringProperty(
-		name="Separators",
-		description="Separator characters used between tags and base names",
-		default="-._"
-	)
-
-	# User-facing naming boundaries
-	def_template: StringProperty(
-		name="DEF Bone",
-		description="Template for DEF (deform) bones on the copy tool.",
-		default="DEF-{name}"
-	)
-	org_template: StringProperty(
-		name="Target/ORG Bone",
-		description="Template for target/ORG bones on the copy tool.",
-		default="ORG-{name}"
-	)
-	fk_template: StringProperty(
-		name="FK Bone",
-		description="Default template for FK bones created by the FK/tweak tool.",
-		default="FK-{name}"
 	)
 
 	# Rig Structure Defaults
@@ -196,19 +156,6 @@ class RigToolsPreferences(AddonPreferences):
 			grid = preview_box.grid_flow(row_major = True, columns=self.selection_columns, even_columns=True, align=True)
 			for tag in tags:
 				grid.label(text=tag)
-
-		# Name Stripping
-		box = layout.box()
-		box.label(text="Name Stripping", icon='SYNTAX_OFF')
-		box.prop(self, "strip_tags")
-		box.prop(self, "strip_separators")
-
-		# Naming Templates
-		box = layout.box()
-		box.label(text="Naming", icon='OUTLINER_DATA_ARMATURE')
-		box.prop(self, "def_template")
-		box.prop(self, "org_template")
-		box.prop(self, "fk_template")
 
 		box = layout.box()
 		box.label(text="Rig Structure Defaults", icon='CON_ARMATURE')

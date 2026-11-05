@@ -2,16 +2,20 @@ import math
 import re
 import string
 from rigtools.armature_settings import get_widget_prefix
-from rigtools.preferences import get_preferences, get_separator_string, get_separators, get_strip_tags
-from rigtools.rig_ui.rig_ui import get_base_name, flip_side_name
+from rigtools.rig_ui.rig_ui import get_base_name
+
+SEPARATORS = "._-"
+
+STRIP_TAGS = ("ORG", "DEF", "MCH", "CTRL")
 
 SIDE_NAMES = {
 	"L": "Left",
 	"R": "Right"
 }
 
-# Tool-owned naming contract. User-facing boundaries (DEF/ORG/FK) stay in preferences.
 BONE = {
+	"def": "DEF-{name}",
+	"org": "ORG-{name}",
 	"ik": "{name}",
 	"fk": "FK-{name}",
 	"ik_pole": "{name}.pole",
@@ -113,8 +117,7 @@ def same_side_names(name_a, name_b):
 	return ('L' in side_a.upper()) == ('L' in side_b.upper())
 
 def does_match_def_name(bone_name):
-	prefs = get_preferences()
-	if bone_name_matches(bone_name, *get_affixes_from_template(prefs.def_template)):
+	if bone_name_matches(bone_name, *get_affixes_from_template(BONE["def"])):
 		return True
 	return False
 
@@ -123,7 +126,7 @@ def get_affixes_from_template(template):
 	if '{name}' in template:
 		fixes = template.split('{name}')
 		return fixes[0], fixes[1]
-	if template.startswith(tuple(get_separators())):
+	if template.startswith(tuple(SEPARATORS)):
 		# If it starts with a separator, we'll treat it as a suffix
 		return '', template
 	# Anything else, we'll treat as a prefix
@@ -136,40 +139,30 @@ def bone_name_matches(bone_name, prefix, suffix):
 	return base_name.startswith(prefix) and base_name.endswith(suffix)
 
 def strip_bone_numbers(base_name):
-	separators = get_separators()
-	if not separators:
-		return base_name
-
-	sep_class = re.escape("".join(separators))
-	parts = re.split(f"([{sep_class}])", base_name)
+	parts = re.split(f"([{SEPARATORS}])", base_name)
 
 	kept = []
 	for i, part in enumerate(parts):
 		if part.isdigit():
-			if kept and kept[-1] in separators:
+			if kept and kept[-1] in SEPARATORS:
 				kept.pop()
 			continue
 		kept.append(part)
 
-	if kept and kept[-1] in separators:
+	if kept and kept[-1] in SEPARATORS:
 		kept.pop()
 
 	return "".join(kept)
 
-def strip_bone_tags(base_name, context=None):
-	tags = get_strip_tags(context)
-	separators = get_separators(context)
-	if not tags or not separators:
-		return base_name
-
-	for tag in tags:
+def strip_bone_tags(base_name):
+	for tag in STRIP_TAGS:
 		tag_lower = tag.lower()
-		for sep in separators:
+		for sep in SEPARATORS:
 			prefix = tag_lower + sep
 			if base_name.lower().startswith(prefix):
 				base_name = base_name[len(prefix):]
 				break
-		for sep in separators:
+		for sep in SEPARATORS:
 			suffix = sep + tag_lower
 			if base_name.lower().endswith(suffix):
 				base_name = base_name[:-len(suffix)]
@@ -196,7 +189,7 @@ def generate_bone_name(org_name, template, strip_name=True, strip_numbers=False,
 	if "{name}" not in template:
 		# Gentle fallback behavior for when {name} is missing.
 		# If it starts with a separator, assume the used just mean a suffix
-		separators = tuple(get_separators())
+		separators = tuple(SEPARATORS)
 		if template.startswith(separators):
 			template = f"{{name}}{template}"
 		else:
@@ -227,7 +220,7 @@ def find_side(bone_names):
 	ret = None
 	first_bone_name = ""
 	for name in bone_names:
-		base_name, side = get_base_name(name)
+		side = get_side_letter(name)
 		if not first_bone_name:
 			first_bone_name = name
 			ret = side
@@ -235,13 +228,17 @@ def find_side(bone_names):
 			raise ValueError(f"Side mismatch: Bone {name} does not have the same side as {first_bone_name}")
 	return ret
 
+def get_side_suffix(side):
+	if not side or side == "C":
+		return ""
+	return f".{side.upper()}"
 
 def generate_property_name(template, base_name, side):
 	ret = template
 	if "{name}" in template:
 		ret = ret.replace("{name}", base_name)
 	if "{side}" in template:
-		ret = ret.replace("{side}", side)
+		ret = ret.replace("{side}", get_side_suffix(side))
 	return ret
 
 
@@ -252,25 +249,18 @@ def generate_bone_collection_name(template, base_name, side):
 	if "{name}" in template:
 		ret = ret.replace("{name}", base_name)
 	if "{side}" in template:
-		ret = ret.replace("{side}", side)
+		ret = ret.replace("{side}", get_side_suffix(side))
 	return ret
 
-def _tokens(name, context=None):
-	separators = re.escape(get_preferences(context).strip_separators.strip())
-	if not separators:
-		return [name] if name else []
+def _tokens(name):
+	return [t for t in re.split(rf"[{SEPARATORS}]", name) if t]
 
-	return [t for t in re.split(rf"[{separators}]", name) if t]
-
-def guess_limb_name(bone_name, context=None):
+def guess_limb_name(bone_name):
 	base, _extension = get_base_name(bone_name)
-	base = strip_bone_tags(base, context)
-	separators = re.escape(get_preferences(context).strip_separators.strip())
-	if not separators:
-		return base.lower()
+	base = strip_bone_tags(base)
 
 	# Even indices are tokens, odd indices are the separators between them
-	parts = re.split(rf"([{separators}])", base)
+	parts = re.split(rf"([{SEPARATORS}])", base)
 	kept = []
 	for i in range(0, len(parts), 2):
 		token = parts[i]
@@ -286,10 +276,10 @@ def capitalize_limb_name(name):
 	return re.sub(r"[A-Za-z0-9]+", lambda m: m.group(0).capitalize(), name)
 
 
-def guess_assembly_instance(bone_name, context=None):
+def guess_assembly_instance(bone_name):
 	base, _ = get_base_name(bone_name)
-	base = strip_bone_tags(base, context)
-	tokens = _tokens(base, context)
+	base = strip_bone_tags(base)
+	tokens = _tokens(base)
 	if len(tokens) < 2:
 		return ""
 
@@ -301,7 +291,6 @@ def guess_assembly_instance(bone_name, context=None):
 			return "." + token
 	return ""
 
-
 def unique_assembly_name(armature_data, name):
 	existing = {a.name for a in armature_data.rigtools_assemblies}
 	if name not in existing:
@@ -311,18 +300,8 @@ def unique_assembly_name(armature_data, name):
 		i += 1
 	return f"{name}.{i}"
 
-
 def side_display_name(side):
-	separators = get_separator_string()
-	short_side = re.match(
-		rf'[{re.escape(separators)}]([LR])(?:\.\d+)?$',
-		side or "",
-		re.IGNORECASE,
-	)
-	if not short_side:
-		return ""
-	return SIDE_NAMES.get(short_side.group(1).upper(), "")
-
+	return SIDE_NAMES.get(side, "")
 
 def limb_group_label(property_base, side=""):
 	base = (property_base or "").strip()
@@ -334,11 +313,10 @@ def limb_group_label(property_base, side=""):
 		return f"{side_name} {label}"
 	return label
 
-
-def guess_assembly_name(armature_data, chain, property_base, side="", context=None):
+def guess_assembly_name(armature_data, chain, property_base, side=""):
 	side_name = side_display_name(side)
 
-	instance = guess_assembly_instance(chain[0], context)
+	instance = guess_assembly_instance(chain[0])
 	base = capitalize_limb_name(property_base)
 	
 	if side_name:
@@ -348,10 +326,10 @@ def guess_assembly_name(armature_data, chain, property_base, side="", context=No
 	return unique_assembly_name(armature_data, name)
 
 
-def get_chain_order_key(bone_name, context=None):
+def get_chain_order_key(bone_name):
 	base, _ = get_base_name(bone_name)
-	base = strip_bone_tags(base, context)
-	tokens = _tokens(base, context)
+	base = strip_bone_tags(base)
+	tokens = _tokens(base)
 
 	letter = None
 	number = None

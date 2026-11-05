@@ -1,11 +1,9 @@
 import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty, IntProperty
 from rigtools.rig_data.heel_pivots import get_heel_pivot, set_heel_pivot
-from rigtools.rig_data.twist_chain import get_twist_bones, get_twist_parent, set_twist_parent
+from rigtools.rig_data.twist_chain import get_twist_parent, set_twist_parent
 from rigtools.utils.bone import is_bone_visible, duplicate_bone
 from rigtools.utils.naming import generate_bone_name, get_affixes_from_template, get_base_name, bone_name_matches
-from rigtools.utils.bone_collection import set_bone_collection
-from rigtools.preferences import get_preferences, get_separators
 from rigtools.utils.bone_collection import copy_collection_structure
 
 class RIG_OT_generate_org_bones(bpy.types.Operator):
@@ -242,17 +240,7 @@ class RIG_OT_generate_org_bones(bpy.types.Operator):
 		self.report({'INFO'}, f"Created {created} new target bones. {existing} pairs updated.")            
 		return {'FINISHED'}
 
-	def invoke(self, context, event):
-		prefs = get_preferences(context)
-		props = self.properties
-
-		if not props.is_property_set("def_bone_name"):
-			self.def_bone_name = prefs.def_template
-		if not props.is_property_set("target_bone_name"):
-			self.target_bone_name = prefs.org_template
-		#if not props.is_property_set("target_bone_collection"):
-		#    self.target_bone_collection = prefs.org_collection
-		
+	def invoke(self, context, event):		
 		return context.window_manager.invoke_props_dialog(self, width=350)
 
 	def draw(self, context):

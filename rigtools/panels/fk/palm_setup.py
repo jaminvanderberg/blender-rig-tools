@@ -6,17 +6,19 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, C
 from rigtools.assemblies.reconfigure_assembly import prepare_rebuild
 from rigtools.assemblies.assembly_data import find_assembly
 from rigtools.assemblies.assembly_transaction import AssemblyTransactionError, run_assembly_transaction
+from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.profiling import profile
 from rigtools.assemblies.palm_assembly import PalmAssemblyOptions, create_palm_assembly
 from rigtools.assemblies.palm_templates import get_palm_template, validate_palm_templates
 from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.template_draw import TemplateDraw
-from rigtools.tool.twist_bones import falloff_presets
 from rigtools.utils.bone import get_selected_bones, select_bones
 from rigtools.utils.bone_chain import sort_chains
-from rigtools.utils.naming import flip_side_name, get_chain_order_key, get_side_letter
+from rigtools.utils.naming import get_chain_order_key, get_side_letter
 from rigtools.utils.widget import fk_widget_types
+from rigtools.tool.twist_bones import falloff_presets
+
 
 class PalmOrderSlot(bpy.types.PropertyGroup):
 	left: StringProperty(default="")
@@ -407,7 +409,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			rebuild_chains = {}
 			for uid in assembly_uids:
 				assembly = find_assembly(context.object, uid)
-				if get_side_letter(assembly.side) == "R":
+				if assembly.side == "R":
 					rebuild_chains[uid] = right
 				else:
 					rebuild_chains[uid] = left
