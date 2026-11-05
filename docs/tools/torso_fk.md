@@ -20,9 +20,8 @@ The torso uses [twist bones](twist_bones.md) in a manner similar to the [IK asse
 
 - Lower Torso Bone Count: the number of bones at the start of the chain that belong to the lower torso, controlled by the **hips** controller.  Default: 2.
 - Neck Bone Count: the number of neck bones between the chest and the head.  Each neck bone gets its own FK controller.  Default: 1.
-- Use Twist Bones: use twist bones on the neck and chest.  See *[twist bones](twist_bones.md)*.  Default: on.
-    - Neck Twist Bone Count: the number of twist bones on each neck bone.  Default: 2.
-    - Chest Twist Bone Count: the number of twist bones on the chest.  Default: 2.
+- Neck Twist Bones: use twist bones on the neck, and the number of twist bones on each neck bone.  See *[twist bones](twist_bones.md)*.  Default: on, 2.  Minimum: 2.
+- Chest Twist Bones: use twist bones on the chest, and the number of twist bones on the chest.  Default: on, 2.  Minimum: 2.
 - Add Neck Rotation Isolation: add *[rotation isolation](rotation_isolation.md)* to the neck.  Default: on.
     - Neck Inherit Scale From Root: the neck takes its scale from the root bone instead of the chest.  Default: on.
 - Add Head Rotation Isolation: add *[rotation isolation](rotation_isolation.md)* to the head.  Default: on.

@@ -223,7 +223,8 @@ def migrate_7_to_8(armature_data, context):
 
 
 def migrate_8_to_9(armature_data, context):
-	"""Store side as one letter (L/R/C) instead of the raw bone suffix, and move the limb name from options onto the assembly."""
+	"""Store side as one letter (L/R/C) instead of the raw bone suffix, move the limb name from options onto the assembly,
+	and split the torso's use_twist_bones into neck and chest toggles."""
 	print(
 		f"migrate_8_to_9: {len(armature_data.rigtools_assemblies)} assemblies, "
 		f"{len(armature_data.rigtools_limb_collections)} limb collections"
@@ -240,8 +241,19 @@ def migrate_8_to_9(armature_data, context):
 			missing_limbs += 1
 			print("    WARNING: options have no limb name")
 		assembly.limb = (options.pop("limb_property_base_name", "") or "").strip()
-		assembly.options_json = json.dumps(options)
 		print(f"    limb={assembly.limb!r}")
+
+		if assembly.assembly_type == "TORSO":
+			# A count of 0 used to turn that twist off
+			use_twist_bones = options.pop("use_twist_bones", True)
+			for part in ("neck", "chest"):
+				count = options.get(f"{part}_twist_bone_count", 2)
+				use_part = bool(use_twist_bones and count > 0)
+				options[f"use_{part}_twist_bones"] = use_part
+				options[f"{part}_twist_bone_count"] = max(count, 2)
+				print(f"    {part}: use_twist_bones={use_twist_bones!r} count={count!r} -> use={use_part!r} count={max(count, 2)!r}")
+
+		assembly.options_json = json.dumps(options)
 
 	# Suffixes that used to be different limbs (.R, _R, .R.001) can now share a limb and side.
 	# Lookups find the first entry, so report any others instead of merging their collections.

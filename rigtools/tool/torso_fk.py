@@ -2,6 +2,7 @@ import math
 import bpy
 from mathutils import Vector
 from rigtools.assemblies.tool_data.mechanism_bones import MechanismBones
+from rigtools.assemblies.tool_data.reparent_rules import ReparentRules
 from rigtools.armature_settings import get_armature_settings
 from rigtools.tool.fk_tweak_chain import FKTweakChain
 from rigtools.tool.twist_bones import twist_influence
@@ -35,6 +36,7 @@ class TorsoFK:
 		self.fk_bone_names = []
 
 		self.mechanism_bones = MechanismBones()
+		self.reparent_rules = ReparentRules()
 
 		self.twist_bones = {}
 		self.twist_states = []
@@ -230,6 +232,7 @@ class TorsoFK:
 		
 		if self.tweak_chain:
 			self.mechanism_bones.append(self.tweak_chain.mechanism_bones)
+			self.reparent_rules = self.tweak_chain.reparent_rules
 
 		# Parent the twist ORG bones to the tweak bones
 		tweak_index = 0

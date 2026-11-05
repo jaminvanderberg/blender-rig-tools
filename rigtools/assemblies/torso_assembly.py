@@ -22,7 +22,8 @@ class TorsoAssemblyOptions:
 	add_head_rotation_isolation: bool = True
 	head_base_property_name: str = "head"
 	head_inherit_scale_from_root: bool = True
-	use_twist_bones: bool = True
+	use_neck_twist_bones: bool = True
+	use_chest_twist_bones: bool = True
 	tweak_relationship: str = "STRETCH_TO"
 	neck_falloff_type: str = "ROOT"
 
@@ -53,8 +54,8 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 		torso_fk_chain = TorsoFK(
 			lower_torso_bone_count = options.lower_torso_bone_count,
 			neck_bone_count = options.neck_bone_count,
-			neck_twist_bone_count = options.neck_twist_bone_count if options.use_twist_bones else 0,
-			chest_twist_bone_count = options.chest_twist_bone_count if options.use_twist_bones else 0,
+			neck_twist_bone_count = options.neck_twist_bone_count if options.use_neck_twist_bones else 0,
+			chest_twist_bone_count = options.chest_twist_bone_count if options.use_chest_twist_bones else 0,
 			tweak_relationship = options.tweak_relationship,
 			fk_widget = options.fk_widget,
 			add_neck_rotation_isolation = options.add_neck_rotation_isolation,

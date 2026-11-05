@@ -50,22 +50,30 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		default=1
 	)
 
-	use_twist_bones: BoolProperty(
-		name="Use Twist Bones",
-		description="Use twist bones for the neck and/or chest",
+	use_neck_twist_bones: BoolProperty(
+		name="Neck Twist Bones",
+		description="Use twist bones on the neck",
 		default=True
 	)
 
 	neck_twist_bone_count: IntProperty(
 		name="Neck Twist Bone Count",
 		description="Number of bones in the neck twist",
-		default=2
+		default=2,
+		min=2
+	)
+
+	use_chest_twist_bones: BoolProperty(
+		name="Chest Twist Bones",
+		description="Use twist bones on the chest",
+		default=True
 	)
 
 	chest_twist_bone_count: IntProperty(
 		name="Chest Twist Bone Count",
 		description="Number of bones in the chest twist",
-		default=2
+		default=2,
+		min=2
 	)
 
 	tweak_relationship: EnumProperty(
@@ -190,12 +198,10 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	def _torso_twist_expected(self, chains):
 		"""(parent, count) pairs matching TorsoFK neck/chest twist parents."""
 		expected = []
-		if not self.use_twist_bones:
-			return expected
 		neck, chest = self._torso_twist_parents(chains)
-		if self.neck_twist_bone_count > 0:
+		if self.use_neck_twist_bones:
 			expected.extend((name, self.neck_twist_bone_count) for name in neck)
-		if self.chest_twist_bone_count > 0:
+		if self.use_chest_twist_bones:
 			expected.extend((name, self.chest_twist_bone_count) for name in chest)
 		return expected
 
@@ -213,13 +219,12 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			require_chain=require_chain,
 		)
 		self.dialog_twist_json = json.dumps(snapshot)
-		# A count of 0 turns that twist off, so existing bones don't override it
 		neck, chest = self._torso_twist_parents(chains)
 		neck_count = existing_twist_count(snapshot, neck)
-		if neck_count and self.neck_twist_bone_count > 0:
+		if neck_count:
 			self.neck_twist_bone_count = neck_count
 		chest_count = existing_twist_count(snapshot, chest)
-		if chest_count and self.chest_twist_bone_count > 0:
+		if chest_count:
 			self.chest_twist_bone_count = chest_count
 
 	def _invoke_from_template(self, context):
@@ -297,8 +302,6 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				return self.add_neck_rotation_isolation
 			if field_name in ["head_base_property_name", "head_inherit_scale_from_root"]:
 				return self.add_head_rotation_isolation
-			if field_name in ["neck_twist_bone_count", "chest_twist_bone_count"]:
-				return self.use_twist_bones
 
 			return True
 
@@ -316,7 +319,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			)),
 		))
 		def draw_twist_status(col):
-			if not self.use_twist_bones:
+			if not self.use_neck_twist_bones and not self.use_chest_twist_bones:
 				return
 			chains = json.loads(self.dialog_chains_json or "[]")
 			if not chains:
@@ -328,21 +331,22 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				return
 			col.label(text=message, icon=icon(status_icon))
 
-		def draw_twist_count(col, label, prop, parents):
+		def draw_twist_row(col, toggle, label, prop, parents):
+			if not draw.do_show(toggle):
+				return
 			# Existing twist bones set the count when the dialog opens
 			snapshot = json.loads(self.dialog_twist_json or "{}")
-			sub = col.column()
-			sub.enabled = getattr(self, prop) == 0 or not any(name in snapshot for name in parents)
-			draw.full_field(sub, label, prop)
+			split = col.split(factor=split_size)
+			split.prop(self, toggle, text=label)
+			sub = split.row()
+			sub.enabled = getattr(self, toggle) and not any(name in snapshot for name in parents)
+			sub.prop(self, prop, text="")
 
 		neck_parents, chest_parents = self._torso_twist_parents(json.loads(self.dialog_chains_json or "[]"))
-		draw.draw_section(layout, ["use_twist_bones", "neck_twist_bone_count", "chest_twist_bone_count"], lambda: (
-			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
-			draw.box_section(layout, ["neck_twist_bone_count", "chest_twist_bone_count"], "Twist Bones:", 'MOD_SCREW', lambda col: (
-				draw_twist_status(col),
-				draw_twist_count(col, "Neck Twist Bone Count:", "neck_twist_bone_count", neck_parents),
-				draw_twist_count(col, "Chest Twist Bone Count:", "chest_twist_bone_count", chest_parents),
-			)),
+		draw.box_section(layout, ["use_neck_twist_bones", "use_chest_twist_bones"], "Twist Bones:", 'MOD_SCREW', lambda col: (
+			draw_twist_status(col),
+			draw_twist_row(col, "use_neck_twist_bones", "Neck Twist Bones", "neck_twist_bone_count", neck_parents),
+			draw_twist_row(col, "use_chest_twist_bones", "Chest Twist Bones", "chest_twist_bone_count", chest_parents),
 		))
 		draw.draw_section(layout, ["fk_widget", "tweak_relationship"], lambda: (
 			draw.split_field(layout, "FK Widget:", "fk_widget"),
@@ -403,8 +407,9 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			limb=self.limb.strip().lower(),
 			lower_torso_bone_count=self.lower_torso_bone_count,
 			neck_bone_count=self.neck_bone_count,
-			use_twist_bones=self.use_twist_bones,
+			use_neck_twist_bones=self.use_neck_twist_bones,
 			neck_twist_bone_count=self.neck_twist_bone_count,
+			use_chest_twist_bones=self.use_chest_twist_bones,
 			chest_twist_bone_count=self.chest_twist_bone_count,
 			tweak_relationship=self.tweak_relationship,
 			add_neck_rotation_isolation=self.add_neck_rotation_isolation,

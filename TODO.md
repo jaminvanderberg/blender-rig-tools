@@ -7,5 +7,3 @@ weight pain proxy on a single chain is a cylinder?
 improve template draw?
 
 Recapture for corrective bones? (deferred)
-
-Chest twist bones. Earrings references tweak tip
