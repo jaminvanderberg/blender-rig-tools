@@ -145,7 +145,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 	bl_label = "Generate Palm Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	limb_property_base_name: StringProperty(
+	limb: StringProperty(
 		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default="hand"
@@ -237,6 +237,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		options = assembly.get_options()
 		for key, value in options.items():
 			setattr(self, key, value)
+		self.limb = assembly.limb
 
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
@@ -317,11 +318,11 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 
 		draw = TemplateDraw(self, template, split_size=split_size)
 
-		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "index_falloff_type", "pinky_falloff_type"], 
+		draw.box_section(layout, ["limb", "fk_widget", "index_falloff_type", "pinky_falloff_type"], 
 			"Palm Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name"], lambda: (
-				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
+			draw.draw_section(col, ["limb"], lambda: (
+				draw.split_field(col, "Limb Name:", "limb"),
 			)),
 			draw.draw_section(col, ["fk_widget", "index_falloff_type", "pinky_falloff_type"], lambda: (
 				draw.split_field(col, "Index Falloff Type:", "index_falloff_type"),
@@ -381,7 +382,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 		return None
 
 	def execute(self, context):
-		if not self.limb_property_base_name:
+		if not self.limb:
 			self.report({'ERROR'}, "Limb name is required.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
@@ -393,7 +394,7 @@ class RIG_OT_advanced_palm_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		options = PalmAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name.strip().lower(),
+			limb=self.limb.strip().lower(),
 			fk_widget=self.fk_widget,
 			index_falloff_type=self.index_falloff_type,
 			pinky_falloff_type=self.pinky_falloff_type,

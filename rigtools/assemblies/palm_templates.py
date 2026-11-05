@@ -21,7 +21,7 @@ PALM_TEMPLATES = {
 		description="Palm template - defaults designed for humanoids",
 		icon="MESH_CAPSULE",
 		options={
-			"limb_property_base_name": "hand",
+			"limb": "hand",
 			"fk_widget": "PILL",
 			"index_falloff_type": "SHARP",
 			"pinky_falloff_type": "LINEAR",
@@ -37,7 +37,7 @@ PALM_TEMPLATES = {
 
 
 REDO_PROPERTIES = {
-	"limb_property_base_name",
+	"limb",
 	"fk_widget",
 	"index_falloff_type",
 	"pinky_falloff_type",

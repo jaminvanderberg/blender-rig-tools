@@ -21,7 +21,7 @@ TORSO_TEMPLATES = {
 		description="Torso template - defaults designed for humanoids",
 		icon="MOD_CLOTH",
 		options={
-			"limb_property_base_name": "torso",
+			"limb": "torso",
 			"lower_torso_bone_count": 2,
 			"neck_bone_count": 1,
 			"add_neck_rotation_isolation": True,
@@ -52,7 +52,7 @@ TORSO_TEMPLATES = {
 
 
 REDO_PROPERTIES = {
-	"limb_property_base_name",
+	"limb",
 	"lower_torso_bone_count",
 	"neck_bone_count",
 	"use_twist_bones",

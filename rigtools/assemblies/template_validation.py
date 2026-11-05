@@ -18,7 +18,7 @@ def validate_assembly_templates(
 	``extra_check(template_id, template)`` can enforce family-specific rules.
 	"""
 	if required_exclusions is None:
-		required_exclusions = {"limb_property_base_name"}
+		required_exclusions = {"limb"}
 
 	option_fields = {field.name for field in fields(options_class)}
 	required_fields = {

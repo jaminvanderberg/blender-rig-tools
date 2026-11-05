@@ -223,16 +223,25 @@ def migrate_7_to_8(armature_data, context):
 
 
 def migrate_8_to_9(armature_data, context):
-	"""Store side as one letter (L/R/C) instead of the raw bone suffix."""
+	"""Store side as one letter (L/R/C) instead of the raw bone suffix, and move the limb name from options onto the assembly."""
 	print(
 		f"migrate_8_to_9: {len(armature_data.rigtools_assemblies)} assemblies, "
 		f"{len(armature_data.rigtools_limb_collections)} limb collections"
 	)
 
+	missing_limbs = 0
 	for assembly in armature_data.rigtools_assemblies:
 		side = get_side_letter(assembly.side)
 		print(f"  assembly {assembly.name}: side={assembly.side!r} -> {side!r}")
 		assembly.side = side
+
+		options = assembly.get_options()
+		if "limb_property_base_name" not in options:
+			missing_limbs += 1
+			print("    WARNING: options have no limb name")
+		assembly.limb = (options.pop("limb_property_base_name", "") or "").strip()
+		assembly.options_json = json.dumps(options)
+		print(f"    limb={assembly.limb!r}")
 
 	# Suffixes that used to be different limbs (.R, _R, .R.001) can now share a limb and side.
 	# Lookups find the first entry, so report any others instead of merging their collections.
@@ -247,7 +256,7 @@ def migrate_8_to_9(armature_data, context):
 			print(f"    WARNING: duplicate of an earlier {row.limb!r} {side!r} entry, not merged")
 		seen.add((row.limb, side))
 
-	print(f"migrate_8_to_9 done: duplicates={duplicates}")
+	print(f"migrate_8_to_9 done: duplicates={duplicates} missing_limbs={missing_limbs}")
 
 
 MIGRATIONS = {

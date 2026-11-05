@@ -30,7 +30,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 	bl_label = "Generate FK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	limb_property_base_name: StringProperty(
+	limb: StringProperty(
 		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default=""
@@ -266,7 +266,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		for key, value in option_values.items():
 			setattr(self, key, value)
 
-		if not self.limb_property_base_name:
+		if not self.limb:
 			try:
 				chains = find_chains_from_selection(context)
 			except ChainBranchingError as error:
@@ -277,7 +277,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 				self.report({'ERROR'}, "No chains selected.")
 				return {'CANCELLED'}
 
-			self.limb_property_base_name = guess_limb_name(chains[0][0])
+			self.limb = guess_limb_name(chains[0][0])
 
 		self.template_name = template.label
 
@@ -292,6 +292,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			if not hasattr(self, key):
 				continue
 			setattr(self, key, value)
+		self.limb = assembly.limb
 
 		self.template_name = assembly.template_name
 		self.template_id = assembly.template_id
@@ -364,11 +365,11 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"],
+		draw.box_section(layout, ["limb", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets", "add_tweak_bones", "tweak_relationship", "skip_first_tweak"],
 			"FK Chain Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets"], lambda: (
-				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
+			draw.draw_section(col, ["limb", "control_mode", "fk_widget", "fk_widget_scale", "normalize_fk_widget_scale", "taper_fk_widgets"], lambda: (
+				draw.split_field(col, "Limb Name:", "limb"),
 				draw.split_field(col, "Control Mode:", "control_mode"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 				draw.split_field(col, "FK Widget Scale:", "fk_widget_scale"),
@@ -421,7 +422,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 		return None
 
 	def execute(self, context):
-		if not self.limb_property_base_name:
+		if not self.limb:
 			self.report({'ERROR'}, "Limb name is required.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
@@ -446,7 +447,7 @@ class RIG_OT_advanced_fk_tweak_setup(bpy.types.Operator):
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = FKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name.strip().lower(),
+			limb=self.limb.strip().lower(),
 			assembly_name_base=self.assembly_name_base.strip().lower(),
 			control_mode=self.control_mode,
 			fk_bone_template=bone_template('fk'),

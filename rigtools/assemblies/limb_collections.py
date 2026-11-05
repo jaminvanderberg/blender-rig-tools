@@ -10,10 +10,7 @@ _LAYOUT_ROLE_ORDER = ("control", "ik", "fk", "tweak")
 def find_bones_by_limb_role(armature_data, limb, side, role):
 	names = []
 	for assembly in armature_data.rigtools_assemblies:
-		options = assembly.get_options()
-		if "limb_property_base_name" not in options:
-			continue
-		if options["limb_property_base_name"] == limb and assembly.side == side:
+		if assembly.limb == limb and assembly.side == side:
 			names.extend(assembly.get_bones_by_role(role))
 	return names
 

@@ -22,7 +22,7 @@ from rigtools.tool.skirt_ride import SkirtLeg, SkirtRide
 
 @dataclass
 class IKAssemblyOptions:
-	limb_property_base_name: str
+	limb: str
 	add_tweak_bones: bool
 	limb_type: str = ""
 	add_rotation_isolation: bool = True
@@ -89,7 +89,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			chain_prior_configs = prior_configs[uid] if uid else {}
 
 			org_chain = chain
-			limb = options.limb_property_base_name
+			limb = options.limb
 			side = find_side(chain)
 
 			limb_collections = ensure_limb_collections(armature_data, limb, side, promote=True)
@@ -138,7 +138,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 				assembly_chain.tools.append(tip_fk)
 
 			# FK/IK SWITCH
-			switch_property_name = name_property("fk_ik_switch", options.limb_property_base_name, side)
+			switch_property_name = name_property("fk_ik_switch", options.limb, side)
 			fk_ik_switch = FKIKSwitch(
 				switch_property_name = switch_property_name,
 				ik_switch_default = options.ik_switch_default,
@@ -155,7 +155,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			# ROTATION ISOLATION
 			if options.add_rotation_isolation:
 				rotation_isolation = RotationIsolation(
-					property_name = name_property("rotation_isolation", options.limb_property_base_name, side),
+					property_name = name_property("rotation_isolation", options.limb, side),
 					inherit_scale_from_root = options.inherit_scale_from_root,
 
 					# Hard-coded options
@@ -181,7 +181,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 
 			# SKIRT COLLISION (FK mode only)
 			if options.add_skirt_collision and len(fk_bone_names) > 0:
-				property_name = name_property("skirt_collision", options.limb_property_base_name, side)
+				property_name = name_property("skirt_collision", options.limb, side)
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
@@ -192,7 +192,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 
 			# SKIRT RIDE (FK mode only)
 			if options.add_skirt_ride and len(fk_bone_names) > 0:
-				property_name = name_property("skirt_ride", options.limb_property_base_name, side)
+				property_name = name_property("skirt_ride", options.limb, side)
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,
@@ -214,7 +214,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 					twist_bones.edit_mode(context, limb_chain, fk_ik_switch.switch_bone_names)
 					assembly_chain.tools.append(twist_bones)
 
-				ik_stretch_property_name = name_property("ik_stretch", options.limb_property_base_name, side)
+				ik_stretch_property_name = name_property("ik_stretch", options.limb, side)
 				ik = StandardIK(
 					ik_stretch_property_name = ik_stretch_property_name,
 					pole_distance = options.pole_distance,
@@ -253,7 +253,7 @@ def create_ik_assembly(context, chains, template_id, template_name, options: IKA
 			# IK PARENT
 			if options.ik_parent:
 				ik_parent = IKParent(
-					property_name = name_property("ik_parent", options.limb_property_base_name, side),
+					property_name = name_property("ik_parent", options.limb, side),
 					parents = options.ik_parents,
 					self_parent_label = options.ik_parent_self_parent_label,
 					add_ik_control_as_pole_parent = options.add_ik_control_as_pole_parent if options.ik_type == 'IK' else False,

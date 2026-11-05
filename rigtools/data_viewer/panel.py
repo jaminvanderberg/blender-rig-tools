@@ -262,6 +262,8 @@ class RIG_PT_data_viewer_assemblies(bpy.types.Panel):
 		col.label(text=f"{assembly.name}  ·  {TYPE_LABELS[assembly.assembly_type]} {assembly.template_name}", icon=template_icon(assembly))
 		if assembly.side != "C":
 			col.label(text=f"Side: {side_display_name(assembly.side) or assembly.side}")
+		if assembly.limb:
+			col.label(text=f"Limb: {assembly.limb}")
 		if assembly.ui_label:
 			col.label(text=f"Rig UI label: {assembly.ui_label}")
 

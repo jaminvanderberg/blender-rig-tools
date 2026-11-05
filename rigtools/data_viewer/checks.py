@@ -71,8 +71,8 @@ def _check_assemblies(obj, bones):
 			options = None
 		if options is None:
 			issues.append(Issue('ERROR', f"{label}: options can't be read", assembly_uid=uid))
-		elif "limb_property_base_name" not in options:
-			issues.append(Issue('ERROR', f"{label}: options have no limb name", assembly_uid=uid))
+		if not assembly.limb:
+			issues.append(Issue('ERROR', f"{label}: has no limb name", assembly_uid=uid))
 
 		for state in assembly.org_states:
 			if state.name not in bones:
@@ -115,14 +115,10 @@ def _check_assemblies(obj, bones):
 	return issues
 
 def assemblies_by_limb(armature_data):
-	"""{(limb, side): [assembly, ...]}, matching how limb collection rows are looked up. Skips unreadable options."""
+	"""{(limb, side): [assembly, ...]}, matching how limb collection rows are looked up."""
 	limbs = {}
 	for assembly in armature_data.rigtools_assemblies:
-		try:
-			limb = json.loads(assembly.options_json or "{}").get("limb_property_base_name")
-		except ValueError:
-			continue
-		limbs.setdefault((limb, assembly.side), []).append(assembly)
+		limbs.setdefault((assembly.limb, assembly.side), []).append(assembly)
 	return limbs
 
 def limb_label(row):

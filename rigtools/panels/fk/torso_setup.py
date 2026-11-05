@@ -25,7 +25,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	bl_label = "Generate Torso Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	limb_property_base_name: StringProperty(
+	limb: StringProperty(
 		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default="torso"
@@ -227,8 +227,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 		self._store_dialog_chains(chains)
 		self._store_twist_snapshot(context, chains, require_chain=True)
-		if not self.limb_property_base_name:
-			self.limb_property_base_name = guess_limb_name(chains[0][0])
+		if not self.limb:
+			self.limb = guess_limb_name(chains[0][0])
 
 		self.template_name = template.label
 
@@ -241,6 +241,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		options = assembly.get_options()
 		for key, value in options.items():
 			setattr(self, key, value)
+		self.limb = assembly.limb
 
 		chains = [assembly.get_chain()]
 		self._store_dialog_chains(chains)
@@ -286,11 +287,11 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 		draw = TemplateDraw(self, template, split_size=split_size, visible_func=field_visible)
 
-		draw.box_section(layout, ["limb_property_base_name", "lower_torso_bone_count", "neck_bone_count"], 
+		draw.box_section(layout, ["limb", "lower_torso_bone_count", "neck_bone_count"], 
 			"Torso Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name"], lambda: (
-				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
+			draw.draw_section(col, ["limb"], lambda: (
+				draw.split_field(col, "Limb Name:", "limb"),
 			)),
 			draw.draw_section(col, ["lower_torso_bone_count", "neck_bone_count"], lambda: (
 				draw.split_field(col, "Lower Torso Bone Count:", "lower_torso_bone_count"),
@@ -359,7 +360,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 		return None
 
 	def execute(self, context):
-		if not self.limb_property_base_name:
+		if not self.limb:
 			self.report({'ERROR'}, "Limb name is required.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
@@ -374,7 +375,7 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		options = TorsoAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name.strip().lower(),
+			limb=self.limb.strip().lower(),
 			lower_torso_bone_count=self.lower_torso_bone_count,
 			neck_bone_count=self.neck_bone_count,
 			use_twist_bones=self.use_twist_bones,

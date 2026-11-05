@@ -7,7 +7,7 @@ from rigtools.utils.naming import guess_assembly_name, find_side
 
 @dataclass
 class PalmAssemblyOptions:
-	limb_property_base_name: str
+	limb: str
 	fk_widget : str = "PILL"
 	index_falloff_type: str = "SHARP"
 	pinky_falloff_type: str = "LINEAR"
@@ -25,7 +25,7 @@ def create_palm_assembly(context, chains: list[list[str]], template_id, template
 		uid = replacement_uids[i] if replacement_uids else None
 		chain_prior_configs = prior_configs[uid] if uid else {}
 
-		limb = options.limb_property_base_name
+		limb = options.limb
 		side = find_side(chain)
 
 		limb_collections = ensure_limb_collections(context.object.data, limb, side)

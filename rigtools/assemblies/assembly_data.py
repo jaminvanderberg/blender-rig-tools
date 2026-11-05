@@ -37,15 +37,14 @@ def find_similar_assemblies(armature_data, source, mode, include_mirror):
 	"""mode 'LIMB': same limb name. mode 'CONFIG': also the same options.
 	include_mirror matches any side, otherwise only the source's side. Yields the source assembly too."""
 	source_options = source.get_options()
-	limb = source_options["limb_property_base_name"]
 	source_config = {k: v for k, v in source_options.items() if k not in CONFIG_OPTION_KEYS}
 
 	for assembly in armature_data.rigtools_assemblies:
 		if not include_mirror and assembly.side != source.side:
 			continue
-		options = assembly.get_options()
-		if options["limb_property_base_name"] != limb:
+		if assembly.limb != source.limb:
 			continue
+		options = assembly.get_options()
 		if mode == 'CONFIG' and {k: v for k, v in options.items() if k not in CONFIG_OPTION_KEYS} != source_config:
 			continue
 		yield assembly
@@ -241,8 +240,9 @@ def create_assembly_data(obj, org_bones, name, assembly_type, template_id, templ
 	assembly_data.template_id = template_id
 	assembly_data.template_name = template_name
 
-	limb = getattr(options, 'limb_property_base_name', "") or ""
-	assembly_data.ui_label = limb_group_label(limb.strip(), side) or name
+	limb = getattr(options, 'limb', "") or ""
+	assembly_data.limb = limb.strip()
+	assembly_data.ui_label = limb_group_label(assembly_data.limb, side) or name
 
 	bones = obj.data.edit_bones if obj.mode == 'EDIT' else obj.data.bones
 
@@ -279,6 +279,7 @@ def styled_bone_refs(armature_data):
 def _options_to_json(options):
 	data = asdict(options) if is_dataclass(options) else dict(options)
 	data.pop('ik_parents', None) # store separately
+	data.pop('limb', None) # stored on the assembly
 	return json.dumps(data)
 
 @dataclass

@@ -10,7 +10,7 @@ from rigtools.tool.torso_fk import TorsoFK
 
 @dataclass
 class TorsoAssemblyOptions:
-	limb_property_base_name: str
+	limb: str
 	lower_torso_bone_count: int
 	neck_bone_count: int
 	neck_twist_bone_count: int = 2
@@ -39,7 +39,7 @@ def create_torso_assembly(context, chains: list[list[str]], template_id, templat
 		uid = replacement_uids[i] if replacement_uids else None
 		chain_prior_configs = prior_configs[uid] if uid else {}
 
-		limb = options.limb_property_base_name
+		limb = options.limb
 		side = find_side(chain)
 
 		limb_collections = ensure_limb_collections(context.object.data, limb, side, promote=True)

@@ -15,7 +15,7 @@ from rigtools.tool.rotation_isolation import RotationIsolation
 
 @dataclass
 class FKAssemblyOptions:
-	limb_property_base_name: str
+	limb: str
 	assembly_name_base: str= ""
 	control_mode: str = 'FK/TWEAK' # 'FK/TWEAK', 'FK', 'TWEAK'
 	fk_bone_template: str = "FK-{name}"
@@ -59,7 +59,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 			uid = replacement_uids[i] if replacement_uids else None
 			chain_prior_configs = prior_configs[uid] if uid else {}
 
-			limb = options.limb_property_base_name
+			limb = options.limb
 			side = find_side(chain)
 
 			promote = options.create_master_controllers and options.master_controllers_type == 'MASTER'
@@ -103,7 +103,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# ROTATION ISOLATION
 			if options.add_rotation_isolation and len(fk_names) > 0:
-				property_name = name_property("rotation_isolation", options.limb_property_base_name, side)
+				property_name = name_property("rotation_isolation", options.limb, side)
 				rotation_isolation = RotationIsolation(property_name=property_name)
 				rotation_isolation.edit_mode(context, [fk_names[0]])
 				assembly_chain.tools.append(rotation_isolation)
@@ -129,7 +129,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# SKIRT COLLISION
 			if options.add_skirt_collision and len(fk_names) > 0:
-				property_name = name_property("skirt_collision", options.limb_property_base_name, side)
+				property_name = name_property("skirt_collision", options.limb, side)
 				skirt_collision = SkirtCollision(
 					property_name=property_name,
 					target_bone_names=options.skirt_collision_target_bone_names,
@@ -140,7 +140,7 @@ def create_fk_assembly(context, chains: list[list[str]], template_id, template_n
 
 			# SKIRT RIDE
 			if options.add_skirt_ride and len(fk_names) > 0:
-				property_name = name_property("skirt_ride", options.limb_property_base_name, side)
+				property_name = name_property("skirt_ride", options.limb, side)
 				skirt_ride = SkirtRide(
 					property_name=property_name,
 					legs=options.skirt_ride_legs,

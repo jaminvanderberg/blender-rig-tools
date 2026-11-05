@@ -73,10 +73,10 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	bl_idname = "rig.advanced_ik_setup"
 	bl_label = "Generate IK Assembly"
 	bl_options = {'REGISTER', 'UNDO'}
-	bl_property = "limb_property_base_name"
+	bl_property = "limb"
 
 	# FK/Tweak Settings
-	limb_property_base_name: StringProperty(
+	limb: StringProperty(
 		name="Limb Name",
 		description="Base name of the property to store the limb. Example: 'arm', 'leg', 'tail', etc.",
 		default=""
@@ -442,8 +442,8 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		self._store_dialog_chains(chains)
-		if not self.limb_property_base_name:
-			self.limb_property_base_name = guess_limb_name(chains[0][0])
+		if not self.limb:
+			self.limb = guess_limb_name(chains[0][0])
 
 		wm = context.window_manager
 		wm.rig_ik_parents.clear()
@@ -476,6 +476,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		for key, value in options.items():
 			if hasattr(self, key):
 				setattr(self, key, value)
+		self.limb = assembly.limb
 
 		chain = assembly.get_chain()
 		self._store_dialog_chains([chain])
@@ -571,11 +572,11 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			}
 		)
 
-		draw.box_section(layout, ["limb_property_base_name", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget", "add_tweak_bones", "tweak_relationship"],
+		draw.box_section(layout, ["limb", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget", "add_tweak_bones", "tweak_relationship"],
 			"IK/FK Switch Settings:", "SETTINGS", lambda col: (
 
-			draw.draw_section(col, ["limb_property_base_name", "ik_switch_default", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget"], lambda: (
-				draw.split_field(col, "Limb Name:", "limb_property_base_name"),
+			draw.draw_section(col, ["limb", "ik_switch_default", "fk_widget", "normalize_fk_widget_scale", "taper_fk_widgets", "tip_widget"], lambda: (
+				draw.split_field(col, "Limb Name:", "limb"),
 				draw.split_field(col, "IK Switch Default:", "ik_switch_default"),
 				draw.split_field(col, "FK Widget:", "fk_widget"),
 				draw.split_row(col, [
@@ -755,7 +756,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 		return None
 	
 	def execute(self, context):
-		if not self.limb_property_base_name:
+		if not self.limb:
 			self.report({'ERROR'}, "Limb name is required.")
 			self.assembly_uid = ""
 			return {'CANCELLED'}
@@ -774,7 +775,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 
 		interval = 0 if self.master_controllers_spacing == 'SINGLE' else self.master_controllers_interval_UI
 		options = IKAssemblyOptions(
-			limb_property_base_name=self.limb_property_base_name.strip().lower(),
+			limb=self.limb.strip().lower(),
 			add_tweak_bones=self.add_tweak_bones,
 			limb_type=self.limb_type,
 			add_rotation_isolation=self.add_rotation_isolation,

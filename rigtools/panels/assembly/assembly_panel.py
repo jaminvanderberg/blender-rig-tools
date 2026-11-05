@@ -256,7 +256,7 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 			row.separator(factor=0.5)
 			
 			op = row.operator("rig.rename_limb_collections", text="", icon='OUTLINER_COLLECTION')
-			op.limb = assembly.get_options()["limb_property_base_name"]
+			op.limb = assembly.limb
 			op.side = assembly.side
 
 			col.separator(factor=0.5)

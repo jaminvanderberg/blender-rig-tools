@@ -26,7 +26,7 @@ IK_TEMPLATES = {
 		description="Humanoid arm. Works best with 3 bones.",
 		icon="CON_CHILDOF",
 		options={
-			"limb_property_base_name": "arm",
+			"limb": "arm",
 			"limb_type": "arm",
 			"add_tweak_bones": True,
 			"ik_bone_count": 3,
@@ -74,7 +74,7 @@ IK_TEMPLATES = {
 		description="Humanoid leg. Works best with 4 bones (thigh, shin, foot, toe).",
 		icon="CON_KINEMATIC",
 		options={
-			"limb_property_base_name": "leg",
+			"limb": "leg",
 			"limb_type": "leg",
 			"add_tweak_bones": True,
 			"add_rotation_isolation": True,
@@ -124,7 +124,7 @@ IK_TEMPLATES = {
 		description="Long skirt with a spline IK setup.",
 		icon="CURVE_DATA",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"add_tweak_bones": True,
 			"add_rotation_isolation": True,
 			"ik_parent": True,
@@ -147,7 +147,7 @@ IK_TEMPLATES = {
 			"master_controllers_widget": "RECTANGLE",
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -176,7 +176,7 @@ IK_TEMPLATES = {
 		description="Hair with spline IK setup. Intended for ponytails, etc.",
 		icon="OUTLINER_DATA_CURVES",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"add_tweak_bones": True,
 			"add_rotation_isolation": True,
 			"ik_parent": True,
@@ -198,7 +198,7 @@ IK_TEMPLATES = {
 			"master_controllers_type": "FK",
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -223,7 +223,7 @@ IK_TEMPLATES = {
 		description="Long skirt with a spline IK setup.",
 		icon="IPO_EASE_IN_OUT",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"add_tweak_bones": True,
 			"add_rotation_isolation": True,
 			"ik_parent": True,
@@ -247,7 +247,7 @@ IK_TEMPLATES = {
 			"master_controllers_widget": "CIRCLE",
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -280,7 +280,7 @@ IK_PARENT_SETTINGS = {
 
 # Fields the template redo panel / operator may expose.
 REDO_PROPERTIES = {
-	"limb_property_base_name",
+	"limb",
 	"add_tweak_bones",
 	"add_rotation_isolation",
 	"inherit_scale_from_root",

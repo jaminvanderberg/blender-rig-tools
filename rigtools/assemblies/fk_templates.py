@@ -23,7 +23,7 @@ FK_TEMPLATES = {
 		description="Simple FK with rotation follow along the chain.",
 		icon="BONE_DATA",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "CIRCLE",
@@ -34,7 +34,7 @@ FK_TEMPLATES = {
 			"add_rotation_isolation": False,
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -51,7 +51,7 @@ FK_TEMPLATES = {
 		description="FK only chain. No tweaks.",
 		icon="RESTRICT_SELECT_OFF",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"control_mode": "FK",
 			"fk_widget": "CIRCLE",
 			"create_master_controllers": True,
@@ -61,7 +61,7 @@ FK_TEMPLATES = {
 			"add_rotation_isolation": False,
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -75,7 +75,7 @@ FK_TEMPLATES = {
 		description="FK skirt with rotation follow along the chain.",
 		icon="CON_GEOMETRYATTRIBUTE",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "RECTANGLE",
@@ -113,7 +113,7 @@ FK_TEMPLATES = {
 		description="FK tail with rotation follow along the chain.",
 		icon="CURVE_PATH",
 		options={
-			"limb_property_base_name": "tail",
+			"limb": "tail",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "CIRCLE",
@@ -128,7 +128,7 @@ FK_TEMPLATES = {
 			"taper_fk_widgets": True,
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"normalize_fk_widget_scale",
 			"taper_fk_widgets",
@@ -148,7 +148,7 @@ FK_TEMPLATES = {
 		description="FK finger chain with curl controllers (Rigify style).",
 		icon="VIEW_PAN",
 		options={
-			"limb_property_base_name": "hand",
+			"limb": "hand",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",
@@ -172,7 +172,7 @@ FK_TEMPLATES = {
 		description="FK finger chain with master controller on second knuckle.",
 		icon="VIEW_PAN",
 		options={
-			"limb_property_base_name": "hand",
+			"limb": "hand",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",
@@ -200,7 +200,7 @@ FK_TEMPLATES = {
 		description="Humanoid shoulder. Single FK control..",
 		icon="IPO_EASE_OUT",
 		options={
-			"limb_property_base_name": "arm",
+			"limb": "arm",
 			"assembly_name_base": "shoulder",
 			"create_shoulder_vis": True,
 			"control_mode": "FK",
@@ -218,7 +218,7 @@ FK_TEMPLATES = {
 		description="Simple FK with rotation follow along the chain.",
 		icon="PARTICLEMODE",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": True,
 			"fk_widget": "CIRCLE",
@@ -232,7 +232,7 @@ FK_TEMPLATES = {
 			"add_rotation_isolation": False,
 		},
 		redo_fields=(
-			"limb_property_base_name",
+			"limb",
 			"fk_widget",
 			"fk_widget_scale",
 			"normalize_fk_widget_scale",
@@ -249,7 +249,7 @@ FK_TEMPLATES = {
 		description="FK skirt with rotation follow along the chain.",
 		icon="GP_MULTIFRAME_EDITING",
 		options={
-			"limb_property_base_name": "",
+			"limb": "",
 			"control_mode": "FK/TWEAK",
 			"skip_first_tweak": False,
 			"fk_widget": "RECTANGLE",
@@ -281,7 +281,7 @@ FK_TEMPLATES = {
 
 
 REDO_PROPERTIES = {
-	"limb_property_base_name",
+	"limb",
 	"skip_first_tweak",
 	"fk_widget",
 	"fk_widget_scale",
