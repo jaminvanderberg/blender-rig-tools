@@ -61,7 +61,7 @@ RigTools uses the bone names to tell DEF and ORG bones apart, and to name the bo
 ## Tips
 
 - Keep DEF and ORG naming consistent so Generate ORG Bones and the assemblies can find the right bones.
-- Create twist bones on the DEF bones and weight paint them before generating ORG bones.  The assemblies will use the existing twist bones, as long as the twist bone count matches.
+- Create twist bones on the DEF bones and weight paint them before generating ORG bones.  The assemblies will use the existing twist bones and their count.
 - Bone parenting is what makes a chain.  If your DEF chain isn't parented correctly, the ORG chain won't be either.  See *[Parent Along Chain](operators/parent_along_chain.md)*.
 
 ## Related

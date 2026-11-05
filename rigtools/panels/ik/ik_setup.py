@@ -15,7 +15,7 @@ from rigtools.assemblies.template_options import resolve_template_options
 from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.skirt_legs import draw_skirt_legs, fill_skirt_legs, iter_skirt_leg_slots
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
-from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
+from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, existing_twist_count, snapshot_twist_status
 from rigtools.utils.naming import guess_limb_name
 from rigtools.utils.icons import icon
 from rigtools.tool.spline_ik import spline_twist_type
@@ -383,22 +383,13 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 	
 	##################################################################################################
 	# invoke
-	def _twist_parent_names(self, chains, segments):
-		if segments:
-			names = []
-			for chain in chains:
-				for seg in segments:
-					if 0 <= seg.index < len(chain):
-						names.append(chain[seg.index])
-			return names
-		return [name for chain in chains for name in chain]
-
 	def _store_dialog_chains(self, chains):
 		self.dialog_chains_json = json.dumps(chains)
 
 	def _store_twist_snapshot(self, context, chains, *, require_chain):
 		use_edit = context.object.mode == 'EDIT'
-		parents = self._twist_parent_names(chains, context.window_manager.rig_twist_segments)
+		# The whole chain, because segments can change while the dialog is open
+		parents = [name for chain in chains for name in chain]
 		snapshot = snapshot_twist_status(
 			context.object.data,
 			parents,
@@ -406,6 +397,9 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			require_chain=require_chain,
 		)
 		self.dialog_twist_json = json.dumps(snapshot)
+		count = existing_twist_count(snapshot, parents)
+		if count:
+			self.twist_bone_count = count
 
 	def _invoke_from_template(self, context):
 		template = get_ik_template(self.template_id)
@@ -686,6 +680,12 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			row = layout.row()
 			row.label(text=message, icon=icon(status_icon))
 
+		def draw_twist_count(col):
+			# Existing twist bones set the count when the dialog opens
+			sub = col.column()
+			sub.enabled = not json.loads(self.dialog_twist_json or "{}")
+			draw.full_field(sub, "Twist Bone Count", "twist_bone_count")
+
 		def draw_twist_segments(context, box):
 			if not draw.do_show("twist_segments"):
 				return
@@ -719,7 +719,7 @@ class RIG_OT_advanced_ik_setup(bpy.types.Operator):
 			draw.box_section(layout, ["twist_segments"], "Twist Segments", 'BONE_DATA', lambda col: (
 				draw.draw_section(col, ["twist_bone_count"], lambda: (
 					draw_twist_status(context, col),
-					draw.full_field(col, "Twist Bone Count", "twist_bone_count"),
+					draw_twist_count(col),
 				)),
 				draw.draw_section(col, ["twist_segments"], lambda: (
 					draw_twist_segments(context, col),

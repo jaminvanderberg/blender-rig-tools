@@ -44,7 +44,7 @@ Twist bones can be created three ways:
 When an assembly is deleted or reconfigured, its twist bones are **kept**, so the weight painting isn't lost.  The next assembly will use the same twist bones.
 
 !!! warning "Twist bone count"
-    If twist bones already exist for a bone, the assembly's twist bone count must match.  Otherwise, the assembly fails with an error.  The redo panel shows the status of the twist bones before the assembly is created.
+    If twist bones already exist for a bone, the assembly uses their count, and the Twist Bone Count field is locked.  To change the count, delete the existing twist bones first.  If the existing chains have different counts, the assembly fails with an error.  The redo panel shows the status of the twist bones before the assembly is created.
 
 ## In assemblies
 

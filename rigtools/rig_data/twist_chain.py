@@ -184,6 +184,11 @@ def snapshot_twist_status(armature, parent_names, *, use_edit_bones=False, requi
 		out[parent_name] = {"count": count, "ok": ok}
 	return out
 
+def existing_twist_count(snapshot, parent_names):
+	"""The twist count these parents already use, or None if they have none or disagree."""
+	counts = {snapshot[name]["count"] for name in parent_names if name in snapshot}
+	return counts.pop() if len(counts) == 1 else None
+
 def evaluate_twist_snapshot(snapshot, expected):
 	"""Compare an invoke snapshot to current (parent, count) expectations.
 

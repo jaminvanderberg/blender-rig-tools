@@ -10,7 +10,7 @@ from rigtools.assemblies.torso_assembly import TorsoAssemblyOptions, create_tors
 from rigtools.assemblies.torso_templates import get_torso_template, validate_torso_templates
 from rigtools.panels.assembly_setup import begin_setup_edit, validate_setup_context
 from rigtools.panels.template_draw import SplitSection, TemplateDraw
-from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, snapshot_twist_status
+from rigtools.rig_data.twist_chain import TwistChainStatus, evaluate_twist_snapshot, existing_twist_count, snapshot_twist_status
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import guess_limb_name
@@ -174,21 +174,29 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 	##################################################################################################
 	# invoke
 
+	def _torso_twist_parents(self, chains):
+		"""(neck, chest) parent names matching TorsoFK neck/chest twist parents."""
+		neck = []
+		chest = []
+		for chain in chains:
+			n = len(chain)
+			first_neck = n - self.neck_bone_count - 1
+			chest_index = first_neck - 1
+			neck.extend(chain[i] for i in range(first_neck, n - 1) if 0 <= i < n)
+			if 0 <= chest_index < n:
+				chest.append(chain[chest_index])
+		return neck, chest
+
 	def _torso_twist_expected(self, chains):
 		"""(parent, count) pairs matching TorsoFK neck/chest twist parents."""
 		expected = []
 		if not self.use_twist_bones:
 			return expected
-		for chain in chains:
-			n = len(chain)
-			first_neck = n - self.neck_bone_count - 1
-			chest = first_neck - 1
-			if self.neck_twist_bone_count > 0:
-				for i in range(first_neck, n - 1):
-					if 0 <= i < n:
-						expected.append((chain[i], self.neck_twist_bone_count))
-			if self.chest_twist_bone_count > 0 and 0 <= chest < n:
-				expected.append((chain[chest], self.chest_twist_bone_count))
+		neck, chest = self._torso_twist_parents(chains)
+		if self.neck_twist_bone_count > 0:
+			expected.extend((name, self.neck_twist_bone_count) for name in neck)
+		if self.chest_twist_bone_count > 0:
+			expected.extend((name, self.chest_twist_bone_count) for name in chest)
 		return expected
 
 	def _store_dialog_chains(self, chains):
@@ -196,7 +204,8 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 
 	def _store_twist_snapshot(self, context, chains, *, require_chain):
 		use_edit = context.object.mode == 'EDIT'
-		parents = [parent for parent, _count in self._torso_twist_expected(chains)]
+		# The whole chain, because the neck bone count can change while the dialog is open
+		parents = [name for chain in chains for name in chain]
 		snapshot = snapshot_twist_status(
 			context.object.data,
 			parents,
@@ -204,6 +213,14 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 			require_chain=require_chain,
 		)
 		self.dialog_twist_json = json.dumps(snapshot)
+		# A count of 0 turns that twist off, so existing bones don't override it
+		neck, chest = self._torso_twist_parents(chains)
+		neck_count = existing_twist_count(snapshot, neck)
+		if neck_count and self.neck_twist_bone_count > 0:
+			self.neck_twist_bone_count = neck_count
+		chest_count = existing_twist_count(snapshot, chest)
+		if chest_count and self.chest_twist_bone_count > 0:
+			self.chest_twist_bone_count = chest_count
 
 	def _invoke_from_template(self, context):
 		template = get_torso_template(self.template_id)
@@ -311,12 +328,20 @@ class RIG_OT_advanced_torso_setup(bpy.types.Operator):
 				return
 			col.label(text=message, icon=icon(status_icon))
 
+		def draw_twist_count(col, label, prop, parents):
+			# Existing twist bones set the count when the dialog opens
+			snapshot = json.loads(self.dialog_twist_json or "{}")
+			sub = col.column()
+			sub.enabled = getattr(self, prop) == 0 or not any(name in snapshot for name in parents)
+			draw.full_field(sub, label, prop)
+
+		neck_parents, chest_parents = self._torso_twist_parents(json.loads(self.dialog_chains_json or "[]"))
 		draw.draw_section(layout, ["use_twist_bones", "neck_twist_bone_count", "chest_twist_bone_count"], lambda: (
 			draw.full_field(layout, "Use Twist Bones", "use_twist_bones"),
 			draw.box_section(layout, ["neck_twist_bone_count", "chest_twist_bone_count"], "Twist Bones:", 'MOD_SCREW', lambda col: (
 				draw_twist_status(col),
-				draw.full_field(col, "Neck Twist Bone Count:", "neck_twist_bone_count"),
-				draw.full_field(col, "Chest Twist Bone Count:", "chest_twist_bone_count"),
+				draw_twist_count(col, "Neck Twist Bone Count:", "neck_twist_bone_count", neck_parents),
+				draw_twist_count(col, "Chest Twist Bone Count:", "chest_twist_bone_count", chest_parents),
 			)),
 		))
 		draw.draw_section(layout, ["fk_widget", "tweak_relationship"], lambda: (

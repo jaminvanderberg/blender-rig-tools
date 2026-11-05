@@ -14,7 +14,7 @@ Each twist bone also gets a tweak control, the same as an *[FK Tweak Chain](fk_t
 For concepts, creating twist bones ahead of time, and what happens when an assembly is deleted, see the main *[Twist Bones](../twist_bones.md)* page.
 
 !!! warning
-    If twist bones already exist for a segment, the twist bone count must match.  Otherwise, the assembly will fail with an error.
+    If twist bones already exist on the chain, the assembly uses their count, and the Twist Bone Count field is locked.  If the existing chains have different counts, the assembly fails with an error.
 
 !!! screenshot "Image placeholder"
     `image/twist_segments.png` — The Twist Segments section of the Arm redo panel, showing the twist status message, Twist Bone Count, and the segment list (Name, Index, Source, Falloff).
