@@ -2,7 +2,7 @@
 
 Blender 4.0+ addon for armature setup and chain building.
 
-**Install:** Preferences > Add-ons > Install > select `rigtools.zip` 
+**Install:** download `rigtools.zip` from the [latest release](https://github.com/jaminvanderberg/blender-rig-tools/releases/latest), then Preferences > Add-ons > Install > select it
   
 **UI:** View3D > Sidebar > **Rig Tools** (armature selected).
 

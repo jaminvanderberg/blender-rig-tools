@@ -6,7 +6,7 @@ Version 1 is centered around humanoid characters.
 
 ## Getting started
 
-**Install:** Edit > Preferences > Add-ons > Install > select `rigtools.zip`
+**Install:** download `rigtools.zip` from the [latest release](https://github.com/jaminvanderberg/blender-rig-tools/releases/latest), then Edit > Preferences > Add-ons > Install > select it
 { .where }
 
 **Find it:** View3D > Sidebar (n-panel) > **Rig Tools**, with an armature selected.

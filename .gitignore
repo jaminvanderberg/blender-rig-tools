@@ -5,3 +5,5 @@ claude.md
 .venv/
 __pycache__/
 script.md
+*.pyc
+*.zip
