@@ -1,0 +1,265 @@
+# Face rig: shape key capture
+
+## Next steps (start here)
+Only the items under "Decided" are the user's decisions; everything under "Proposed" is still open. These are general add-on tools for anyone building a face rig; nothing here edits a specific rig. Kendra is only the test case: `Z:\Data\Blender\Kendra\Kendra-Character1.blend` (RigTools rig `Armature`, 1519 bones, no face controls).
+
+**Status (2026-11-07): step 1 started.** Scaffolding is in place (Claude wrote it; registers and runs on Kendra):
+- `rigtools/panels/shape_keys/shape_keys_panel.py`: `get_controlled_meshes` (meshes with shape keys and an armature modifier using this rig; finds `Kendra` and `Hair.Baked`, skips the normal cages). `RIG_UL_shape_keys` rows show name, value and a connect button. `RIG_PT_shape_keys` in the Rig Tools tab, pose mode only, one collapsible `layout.panel()` per mesh with a `template_list` bound to the mesh's `active_shape_key_index`. `layout.panel()` needs Blender 4.1; `bl_info` still says 4.0.
+- `rigtools/operators/connect_shape_key.py`: `rig.connect_shape_key` stub. Hidden `object_name` and `shape_key_name`, an `invert` option in the redo panel. `execute` looks up the mesh, key block and active pose bone, then only reports.
+- Both registered in `rigtools/__init__.py`.
+
+**Resume here:** the user writes the body of Connect (read the pose, build the driver, write the per-side Limit Location). Still to do in the panel: grey out driven keys (`row.enabled = not is_key_driven(...)`, look up via `Key.animation_data.drivers.find('key_blocks["name"].value')`, `animation_data` can be `None`), and a `filter_items` to hide Basis (`reference_key`) and split sources, keeping the search box with `UI_UL_list.filter_items_by_name`. Before testing on Kendra, the user deletes the dead shape key drivers in that file (see State of Kendra); the mappings are saved in Old driver reference below.
+
+How we'll work: Claude does the boring plumbing (panels, registration, boilerplate) and answers lookups; the user writes the logic. Claude reviews on request. The user is also improving Kendra's face rig alongside the tools, and may ask best-practice questions as we go.
+
+## Context
+Wiring shape keys to bones by hand is the tedious part of a face rig. FaceIt can make shape keys, but its control rig is a separate armature and joining its deform rig to the body is destructive. RigTools only handles the wiring, so it doesn't care where keys come from (sculpted, or baked with FaceIt).
+
+**The core mechanism:** pose a control at its extreme, pick a shape key or dial up a mix of them, click capture. Each key gets a driver reading that control. Same gesture as corrective bones. **All of this happens in pose mode.** The problem it solves is the old loop: pose mode to find the property, object mode to add the driver on the key, pose mode to test, object mode to tweak.
+
+Example: bone 1cm up on local Y, `Mouth.Smile.L` at 1.0, `Cheek.Puff.L` at 0.4:
+```
+Mouth.Smile.L: clamp(var / 0.01, 0, 1)
+Cheek.Puff.L:  clamp(0.4 * var / 0.01, 0, 0.4)
+```
+Moving the same bone the other way can capture different keys, so one control covers smile and frown.
+
+## Control placement
+- **On the face:** anything with a place on the face. Brows, lids, mouth corners, sneers, cheeks.
+- **Flat panel:** states and choices with no natural spot. Mouth shapes for speech, highlights, pupils, blush, emotes.
+
+Capture works the same for both. Face shapes are mostly keys, with small deform bones layered on top where keys don't give enough control (brows, lids). The jaw should be able to go either way: a key (Kendra's `Mouth.Open`) or a real bone.
+
+## State of Kendra (2026-11-06)
+- `Kendra` has 67 keys including Basis. Its 43 drivers have no live targets, and the `SK` bones they name are gone. They should be deleted: a driven key can't be dialled by hand, and capture skips driven keys.
+- Ignore the normal cage meshes. Their shape keys are only there because they were duplicated from the body.
+- `Pupil.L` and `Pupil.R` have a slider range of -1 to 1. Everything else is 0 to 1.
+- **Many of her keys lost their sides.** Measured on all four files: `Kendra.blend` (8880 verts) has correct one-sided keys. `Kendra-Character.blend` (4534 verts) is a half mesh, where `.L` keys are intact and `.R` keys are empty. In `Kendra-Character2.blend` and `Kendra-Character1.blend` the mesh is whole again, so `.L` keys move **both** sides, and `.R` keys are empty or nearly so. This looks like the result of cutting the mesh in half and mirroring it back. Good shape data for both sides still exists in `Kendra.blend`.
+- **L/R keys can't be assumed correct.** The user relied on vertex groups in places instead of making true mirrored keys, because applying a shape to a new key is annoying. They'll repair the keys with the tool, which makes this its first real use.
+- Current `.L` keys are effectively whole-face keys, so they can be the source for that repair. The `Left Face` and `Right Face` vertex groups still exist in `Kendra-Character1.blend`.
+- Splitting direction keys needs care: the mirrored half of `Eye.Left.L` is really the shape for `Eye.Right.R`, not `Eye.Left.R`.
+- The non-side keys of a set (`Mouth.Smile`) were never whole-face keys. In `Kendra.blend` they hold one side only, with a `Right Face` vertex group. In `Kendra-Character1.blend` most of them are empty.
+
+## Decided
+- **Everything works from pose mode.** Pick one key or mix several, without leaving pose mode. Baseline requirement.
+- **Symmetric key management is core.** Editing the full face and updating the sides quickly is one of the most tedious jobs, so it needs to be fast. Making a true one-sided key has to be easier than leaning on a vertex group, or the shortcut wins again.
+- **Emotes, blush and similar are core**, not later. See Emotes and sliders.
+- **Add-on tools only.** Nothing is written for one specific rig.
+- **The panel lists every object the rig controls.** A pose mode panel shows the shape keys for each object with shape keys and an armature modifier pointing at this rig. An armature modifier is required, no exceptions. Objects can collapse when there are several. Kendra has two: the main model and the hair. The normal cages have no armature modifier, so they're left out automatically.
+- **The full-face key is the source for the sides.** Build it with mirror on, then split it. Update overwrites the sides, and that's accepted.
+- **The side weight is calculated.** No vertex group needed: the same tiny falloff at the center the user normally paints.
+- **Jump to edit.** One click into editing a key on its mesh, one click back to pose mode.
+- **Emote sliders support both** bones and Rig UI custom properties, chosen per emote.
+- **Emotes are reversed.** Rest is out and visible, and off is the captured extreme, in the head and scaled down. An MCH bone takes the driving, so the control stays free. See Emotes and sliders.
+- **Emote off poses are location and scale only.** No rotation.
+- **Capture writes bone limits.** A checkbox on the operator, on by default.
+- **Corrective bones get an Extrapolate setting** in their tweak panel. See Limits and extrapolation.
+- **Capture connects, it doesn't mix.** Pose a bone to an extreme, pick one shape key, click to connect them. The extreme sets that key to 1, or to 0 if inverted. An Invert option is the only setting. Driving another key from the same bone is another click. No dialed values.
+- **Easing is optional,** hidden, linear by default. The jaw needs it: it should spend more time barely open.
+- **Extra play past the extreme isn't critical.** The old mouth controls' 1.25 at the limit was either rough manual math or deliberate play. Worth trying later.
+
+## Proposed (open)
+- **The panel.** Each key row has a Connect button and shows what already drives it. Rows are drawn from the mesh's data, so the mesh doesn't need to be active.
+- **Location only.** The user has never rotated a shape key control. A Transform Channel variable can read rotation later without changing the format.
+- **Leave the control posed after capture.** Correctives clear the pose so the correction isn't applied twice. Here the bone is the input, so staying posed means the result is visible and testable at once, with no jump.
+- **Control names.** Drop the `SK-` prefix. It means nothing to Blender or RigTools, and RigTools controls have no prefix (`BONE["control"]` is `{name}`). Capture works on any bone name and recognizes its drivers by variable name, so it doesn't depend on this.
+- **ORG bones.** Controls that only drive keys get no ORG or DEF bone; Generate ORG Bones works from DEF bones, so it won't touch them. A face bone that actually deforms is a normal DEF + ORG bone, and the pinning rules still apply to it.
+- **Driver format:** a Transform Channel variable in `LOCAL_SPACE`, which handles rotation modes. The old drivers read `location[n]` as a Single Property; don't copy that.
+- **Clamp in the expression:** `clamp(var / E, 0, 1)`, or `1 - clamp(var / E, 0, 1)` inverted. (Superseded the mix formula `clamp(V * var / E, -V * reverse, V * limit)`; `limit` and `reverse` in Limits and extrapolation are now open questions under the connect model.) The slider range isn't enough: it doesn't stop at `V` for partial values, and doesn't stop at 0 on keys like `Pupil.L`. `clamp` and `min`/`max` are simple expressions, so they don't need Python auto-run (tested, see Tested behaviour).
+- **Reading the control:** `matrix_basis`, as in `capture_corrective_pose`, and largest channel wins. Open: if a control has both location and rotation posed, either report an error or prefer location. Start with the error.
+- **No stored records.** Same as correctives; the drivers hold everything. Recognize our drivers by variable name (`capture_0`, `capture_1`, ...).
+- **Custom drivers are left alone.** A driver with any other variable name is hand-written: skip it and report it. Kendra's old rig had 8 of these, such as the lower lid follow and `Eye.Smile`'s `min(a, b)`.
+- **Second bone adds a term.** Capturing a key we already drive from a *different* bone adds a variable: `clamp(capture_0 / E0 + capture_1 / E1, 0, V)`. This covers the old master + individual setups. The same bone and channel replaces its term.
+- **Mirroring:** same rules as correctives, location X flips, rotation Y and Z flip, assuming symmetric rest rolls. `flip_side_name` works on key names as well as bones, since `.L` and `.R` match its pattern. Old rig agrees: `Mouth.Wide.R` is `-var`, `Mouth.Smile.R` is `+var`.
+
+### Easing (decided: optional, hidden, linear by default)
+The jaw has always felt too snappy; it should spend more time barely open. Easing goes on the driver's own F-curve: the expression still normalizes and clamps, and the curve's keyframes reshape 0 to 1. No keyframes means linear, as now. Tested: an ease-in curve on `Mouth.Open` gave 0.03 at a quarter open, 0.16 at half and 1.0 at full, with constant extrapolation holding it at 1.0 past the extreme. The expression stays simple. Editing the curve can be left to the Graph Editor; the panel only needs a way to add one and jump to it.
+
+### Channel layer (trial, not decided)
+Controls drive named channels (custom properties on the property bone), and channels drive keys: `control > channel > key`. Every input (face bone, slider, Rig UI property, emote, later mocap) writes to a channel the same way. The user wants to try it in practice on a real rig before deciding; a toy demo didn't settle anything.
+- Tested: both layers are simple expressions and evaluate in one update.
+- **A driven channel can't be keyframed.** Keying `smile.L` at 0.8 gave 0, because the driver overwrites it. If channels must also take animation or mocap, the channel driver needs a separate animatable input added to it (untested).
+
+### Limits and extrapolation
+Same concept in both tools (what happens past the captured extreme), but different mechanisms.
+
+**Shape keys, proposed:** one `limit` custom property on each control, default 1.0. It's set after creation, and tweaks live because the drivers read it:
+- The driver caps at `V * limit`, so 1.2 allows a little overshoot and a large value acts like extrapolate. No separate extrapolate setting.
+- The key's `slider_max` has to rise with it, or Blender stops the key at 1.0. The tool sets this.
+- Bone limits follow through a driver on the Limit Location's max or min, `E * limit`.
+
+Tested: at 1.5x past the extreme, the key stopped at 1.0 with `slider_max` 1, and at 1.2 with `slider_max` 1.5. Changing `limit` updated the key and the constraint's `max_y`. No cycles, and the expression stays simple.
+
+**Locking (user's example).** The mouth corner connects three keys: side out to `Mouth.Wide`, up to `Mouth.Smile`, down to `Mouth.Frown`. Side in and towards/away have no key, so they should be locked. "Locked" means per side, not per axis: X is free outward and stopped at rest inward. User's two options: a final "lock all unused axes" button, or lock by default with a quick button to disable the limit while setting up a new connection, after which it locks again including the new side. Proposed: the second. Every side is always either at its connected extreme or at 0, so the rig is never left half set up, and the toggle replaces Lift Limits. Mechanism: one Limit Location per control, rewritten on each connect; the toggle mutes it.
+
+**Negative is a post-connection tweak (user),** like the limits, not part of connecting. `Mouth.Smile` could go negative when the corner moves down. It stacks with `Mouth.Frown` on the same side rather than conflicting.
+
+Earlier proposal (before connect): a key can run negative when the control moves the other way. The common case is an eyelid key run in reverse to widen the eye; Kendra's `Pupil` keys have a -1 to 1 range too. `reverse` sets how far, and defaults to 0.
+- **It has to be per key, not per control.** The same control can use up for smile and down for frown, and smile must not go negative. So `reverse` is written as a number in that key's expression and edited from the key's row in the panel, not stored as a bone property.
+- The key's `slider_min` has to go down with it. The tool sets this. Tested: with `slider_min` 0 the key stopped at 0, and with -1 it went to the -0.3 set in the expression, and the mesh moved past its rest shape.
+- The bone limit on that side becomes `E * reverse`.
+- **One key can use both.** An eyelid key with `reverse` 0.3 and `limit` 1.2 runs from -0.3 (wide) to 1.2 (overshoot), with the tool setting both slider ends. Each end was tested on its own, not yet both on one key.
+- **A side with nothing captured stays unlimited.** Otherwise capturing smile would stop the bone at rest, and it could never be posed down to capture frown.
+- **Open: recapturing further out.** A limit stops the user posing past the old extreme. Capture may need a way to lift the limits on the control while posing.
+
+**Correctives, decided:** add `use_motion_extrapolate` to the panel. Tested: it removes the clamp in **both** directions. With a correction of 0.1 at rotation 1.0, a rotation of 1.5 gives 0.15, but a rotation of -0.5 gives -0.05. So a corrective moves the wrong way when the joint bends backward, and the tooltip should say so.
+
+**Correctives at 1.2, open:** multiply the From and Move values by the same number. The slope stays the same, the cap rises, and the negative side stays clamped. This already works by hand in the panel, so it may not need a tool.
+
+### Open design questions (side topics)
+- **Eyelids only open and close.** Kendra's lids had no tilt and it felt off. Options: a lid deform bone rotating around the eye's center, layered on the blink key (no new tool needed, can be tried on Kendra now); or inner and outer lid keys connected to a second axis of the lid control.
+- **Mouth scale.** Possibly right with four directions: X down/up, Z down/up. Alternative: a flat control in a frame where X is narrow/wide and Z squash/stretch, which is plain location connects. Or sliders.
+
+### Symmetric key sets
+A set is a source key plus its sides: `Mouth.Smile`, `Mouth.Smile.L`, `Mouth.Smile.R`.
+
+**Decided flow:** build the full-face key with mirror on, then split it. To change a shape, edit the full-face key and click Update. This replaces about six manual steps each time. Both sides regenerate as real shape data: `side = Basis + (source - Basis) * side weight`. The result doesn't depend on any vertex group, so deleting one can't break a key.
+
+**Proposed details:**
+- **The weight:** a smooth ramp across X with a small width, where the left and right weights always add up to 1, so `.L` + `.R` at full strength equals the full-face key exactly.
+- **Falloff width:** a setting with a tiny default, in case a shape creases at the center.
+- **Update keeps drivers.** It only writes coordinates, so captured drivers on the sides survive. If `.L` or `.R` doesn't exist yet, it creates them.
+- **Mirror Side:** leave it out for now. The mirror-then-split workflow doesn't need it. Add it only if one-sided shapes come up.
+- **Test first:** writing key coordinates from pose mode, without entering the mesh.
+
+Things Kendra's keys show the tool has to handle:
+- **Direction keys mirror to a different name.** `Eye.Left.L` (22.6mm) mirrors to `Eye.Right.R` (22.6mm), and `Eye.Left.R` to `Eye.Right.L`, not to `Eye.Left.R`. The same goes for `Mouth.Left`/`Mouth.Right` and `Jaw.Left`/`Jaw.Right`.
+- **Some keys cross the center.** `Mouth.Wide.L` moves 9.4mm on its own side and 5.4mm on the other, and `Lip.Lower.Down.L` 4.0mm and 0.3mm. These can't be regenerated with a hard split.
+- Her mesh is exactly symmetrical: every vertex has a mirror at distance 0 after rounding to 5 decimals. Other users' meshes may not be, so report vertices with no match.
+
+### Emotes and sliders
+Two independent choices: what reads the input, and what gets driven.
+
+| Input | Output: shape key | Output: bone moves |
+|---|---|---|
+| Bone location (control, slider bone) | Capture, step 1 | New; correctives only read rotation |
+| Bone rotation | Capture, step 1 | Correctives today |
+| Custom property (Rig UI) | New | New |
+
+- **Blush:** shape key only, driven by a slider.
+- **Emotes:** live inside the head and move out with a slider. May also have a bone so they can be moved around once out. The slider can be a Rig UI custom property or a bone on the rig, chosen per emote; the user expects to favor the Rig UI for these.
+
+**Emote setup: reversed (the user's idea, decided).** The emote's rest position is out and visible, where it's easy to place, and "off" is the captured extreme:
+```
+parent bone
+|-- MCH-EMOTE-name    channels driven by the slider; the user never touches it
+    |-- emote control    free for the animator to move; stays clean
+```
+1. Place the emote outside the head and weight it. That's its rest position, and "on".
+2. Set the slider to its "on" extreme.
+3. Pose the emote control into the head and scale it down. That's "off".
+4. Capture. The tool inserts the MCH, moves the control's pose onto it as driven channels, and clears the control.
+
+Every channel uses the same reversed amount, with `on = clamp(var / E, 0, 1)`:
+```
+location: (1 - on) * L
+scale:    1 + (1 - on) * (S - 1)
+```
+The slider at rest gives `on = 0`, so **emotes are hidden by default in the pose, but visible in Rest Position** for placing and weighting. The Transformation constraint that correctives use can't read a custom property, which is why this uses drivers.
+
+Tested in a throwaway scene, with both a bone slider and a custom property:
+- No cycles. Each driver is a simple expression.
+- On leaves the emote exactly at its rest position.
+- **If the animator moves the emote, off still pulls it back in**, because the MCH's scale collapses the control's offset. On brings it back to where the animator left it.
+- Scaling to exactly 0 and to 0.001 gave the same result. Not tested: constraints on bones under the emote, where a zero scale could misbehave.
+
+**Shape keys reverse the same way.** Sculpt the key as the off state, and capture with an invert option: `V * (1 - on)`. Kendra's `Blush.Off` (`1 - var * 6.67`) already works like this.
+
+Open questions:
+- **Rig UI placement.** The Rig Properties panel groups properties by the assemblies of the selected bones. Emotes have no assembly, and shouldn't depend on selection, so they need their own always-visible section. It has to work in the embedded script too, without RigTools.
+
+### Pinned controls
+A control that follows the mesh is two bones plus a vertex group:
+```
+face.root (non-deform, child of the bone the user picks, e.g. ORG-head)
+|-- VIS-brow.L   Copy Location from mesh group ANCHOR-brow.L
+|-- brow.L       the control; custom shape override points at VIS-brow.L
+```
+The operator can't assume any bone names, so the user chooses the parent. The control sits at rest and only its widget follows the mesh. Two rules keep this free of cycles:
+1. **The anchor group never shares a bone's name.** An armature modifier depends on every bone with a matching vertex group, even non-deforming ones. This was the source of all 14 cycles on the old rig.
+2. **Nothing depends on a VIS bone.** No children, and no other bone reads it. Parenting the control under VIS is a real cycle and the follow breaks.
+
+Bone envelopes on the armature modifier must stay off, since they make the modifier depend on the whole pose.
+
+Check while testing: VIS reads the mesh's final evaluated geometry, after Kendra's `_Mask` modifiers. Make sure anchor vertices aren't masked away.
+
+### Tested behaviour (Blender 5.2, throwaway scenes)
+| Setup | Cycle? | Follow works? |
+|---|---|---|
+| Anchor group shares VIS bone name | Yes | Yes |
+| Renamed group, control under head | No | Yes |
+| Renamed group, widget override to VIS | No | Yes |
+| Renamed group, control child of VIS | **Yes** | **No** |
+| Renamed group, envelopes on | Yes | Yes |
+| Renamed group, control also deforms the mesh | No | Yes |
+
+- Renaming groups and constraint targets on an in-memory load of old `Kendra.blend` took it from 14 cycles to 0.
+- `var*100` / `-var*100` on 0-to-1 keys: each direction drives only its own key.
+- `clamp(0.4*var/0.02, 0, 0.4)`: 0.2 at half, 0.4 at full, 0.4 past the extreme, 0 the other way. Reported as a simple expression.
+
+## Build steps
+Proposed order, not decided:
+1. **Capture.** Pose mode key panel (per object, collapsible, pick or mix), jump to edit, the operator, mirroring, and adding a second bone as a term.
+2. **Symmetric key sets.** Split and Update from a full-face source, the calculated weight, and the name swaps for direction keys.
+3. **Editing.** Adjust and delete in the panel. Data Viewer sub-panel and checks: dead drivers, and anchor name collisions.
+4. **Sliders, properties and emotes.** Custom property as an input, a location-driven bone as an output (also a real jaw bone), and the Rig UI section.
+5. **Pinned control creator.** Select vertices on the mesh, run it, and it makes the anchor group, VIS bone, control, widget and collection.
+6. **Frames and the matrix.** A frame is a bone with the rectangle widget, sized from captured extremes using custom shape scale so no new mesh is needed.
+7. **Corner capture.** A pose using two axes writes `min(a, b)`.
+
+## Code locations
+- Corrective bones to model this on: `rigtools/operators/corrective_bones.py`. Capture at `capture_corrective_pose` (line 89), mirroring at `mirror_from` (line 146), rotation-only input at line 190.
+- Corrective Extrapolate: the panel row goes in `draw_constraint` in `rigtools/panels/assembly/corrective_subpanel.py`. The Mirror operator rebuilds the constraint and copies influence (`corrective_bones.py` line 375), so it has to copy this too.
+- Read-back helpers pattern: `rigtools/rig_data/correctives.py`.
+- Side names: `flip_side_name` in `rigtools/rig_ui/rig_ui.py` (line 92).
+- Bone templates: `BONE` in `rigtools/utils/naming.py`. `"vis"` is at line 27. Add the anchor group template here.
+- Widgets: `apply_widget` (line 213) and `widget_scale_xyz` (line 53) in `rigtools/utils/widget.py`.
+- Tools panel, "Pose Tools:" section: `rigtools/panels/main/main_panel.py` (line 29).
+- Rig UI properties: `RIG_PT_properties_ui` in `rigtools/rig_ui/rig_ui.py` (line 322). Properties live on the property bone; see `ToolProperty` in `rigtools/assemblies/tool_data/tool_properties.py` (line 5).
+- Registration: `rigtools/__init__.py` (lines 28, 77, 98).
+- Data Viewer: `rigtools/data_viewer/checks.py`, and the Correctives sub-panel at `rigtools/data_viewer/panel.py` (line 471).
+
+## Old driver reference
+All 50 from the old `Kendra.blend` rig, kept as test cases and for travel distances. `n` in `bone[n]` is the location channel unless noted. A multiplier of 100 means full strength at 1cm. The old bones no longer exist, so names are only a guide.
+
+**Single control (32).** Capture should reproduce these directly.
+| Keys | Bone and channel | Expression |
+|---|---|---|
+| `Mouth.Open` | `SK-jaw[2]` | `var * -100` |
+| `Jaw.Left` / `Jaw.Right` | `SK-jaw[0]` | `var * -100` / `var * 100` |
+| `Mouth.Wide.L` / `.R` | `SK-mouth_corner.L[0]` / `.R[0]` | `var * 100` / `-var * 100` |
+| `Mouth.Smile.L` / `.R` | `SK-mouth_corner.L[1]` / `.R[1]` | `var * 100` |
+| `Mouth.Frown.L` / `.R` | `SK-mouth_corner.L[1]` / `.R[1]` | `-var * 100` |
+| `Lip.Upper.Up.L` / `.R` | `SK-upper_lip_up.L[1]` / `.R[1]` | `var * 200` |
+| `Lip.Lower.Down.L` / `.R` | `SK-lower_lip_down.L[1]` / `.R[1]` | `var * 200` |
+| `Lip.Upper.In` | `SK-upper_lip_in[2]` | `-var * 200` |
+| `Lip.Lower.In` | `SK-lower_lip_in[2]` | `var * 200` |
+| `Mouth.Left` / `Mouth.Right` | `SK-mouth[0]` | `-var * 50` / `var * 50` |
+| `Mouth.Up` / `Mouth.Down` | `SK-mouth[1]` | `var * 50` / `-var * 50` |
+| `Cheek.Puff.L` / `.R` | `SK-cheek_puff.L[1]` / `.R[1]` | `var * 100` |
+| `Brow.Up.L` / `.R` | `SK_brow.L[1]` / `.R[1]` | `var * 100` |
+| `Brow.Down.L` / `.R` | `SK_brow.L[1]` / `.R[1]` | `-var * 100` |
+| `Brow.Inner.Up.L` / `.R` | `SK-inner_brow.L[1]` / `.R[1]` | `var * 100` |
+| `Brow.Inner.Down.L` / `.R` | `SK-inner_brow.L[1]` / `.R[1]` | `-var * 100` |
+| `Brow.Squeeze` | `SK-brow_squeeze[1]` | `var * -50` |
+| `Eyelid.Upper.L` / `.R` | `SK_eyelid.L[1]` / `.R[1]` | `var * -30` |
+
+**Additive (10).** Captured from two bones, as a second term.
+| Keys | Bones and channel | Expression |
+|---|---|---|
+| `Eye.Left.L` / `.R` | `eye.L[0]` / `eye.R[0]` + `eye.master[0]` | `(master + location) * 20` |
+| `Eye.Right.L` / `.R` | `eye.L[0]` / `eye.R[0]` + `eye.master[0]` | `-(master + location) * 20` |
+| `Eye.Up.L` / `.R` | `eye.L[2]` / `eye.R[2]` + `eye.master[2]` | `-(master + location) * 20` |
+| `Eye.Down.L` / `.R` | `eye.L[2]` / `eye.R[2]` + `eye.master[2]` | `(master + location) * 20` |
+| `Pupil.L` / `.R` | `CTRL_Dilate.L[0]` / `.R[0]` + `CTRL_Dilate[0]` | `master * 13.4 + location * 20` |
+
+**Custom (8).** Hand-written; the tool has to leave these alone.
+| Keys | Bones and channel | Expression |
+|---|---|---|
+| `Eye.Highlight.L` / `.R` | `CTRL_Highlight.L[0]` / `.R[0]` + `CTRL_Highlight[0]` | `-pow(master * 6.7, 3) - pow(location * 10, 3)` |
+| `Eyelid.Lower.L` / `.R` | `SK_eyelid.L[1]` / `.R[1]`, `SK_squint.L[1]` / `.R[1]` | `var * -30 + lower * 40` |
+| `Eye.Smile.L` / `.R` | `SK_eyelid.L[1]` / `.R[1]`, `SK_squint.L[1]` / `.R[1]` | `min(var * -30, lower * 40)` |
+| `Mouth.Narrow` | `SK-mouth` scale[0] | `2 - abs(var * 2)` |
+| `Blush.Off` | `CTRL_Blush[0]` | `1 - var * 6.67` |
+
+Replace `Mouth.Narrow`'s scale gesture rather than rebuilding it: thinning the mouth by scaling didn't feel right. Use a direction on the mouth control or the matrix's wide/pucker axis.
