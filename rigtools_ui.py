@@ -514,7 +514,7 @@ def _mask_modifiers(obj):
 def _solidify_modifiers(obj):
 	return [mod for mod in obj.modifiers if mod.type == 'SOLIDIFY' and not mod.name.startswith('_')]
 
-def _related_meshes(armature_obj, view_layer):
+def get_related_meshes(armature_obj, view_layer):
 	seen = set()
 	meshes = []
 	def consider(obj):
@@ -598,7 +598,7 @@ class RIG_OT_toggle_solidify(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		if obj.type == 'ARMATURE':
-			meshes = _related_meshes(obj, context.view_layer)
+			meshes = get_related_meshes(obj, context.view_layer)
 			for mesh in meshes:
 				solidify = _solidify_modifiers(mesh)
 				if solidify:
@@ -623,7 +623,7 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 		if not context.object:
 			return False
 		if context.object.type == 'ARMATURE':
-			return bool(_related_meshes(context.object, context.view_layer))
+			return bool(get_related_meshes(context.object, context.view_layer))
 		return bool(_mask_modifiers(context.object)) or bool(_solidify_modifiers(context.object))
 
 	def draw(self, context):
@@ -632,7 +632,7 @@ class RIG_PT_visibility_ui(bpy.types.Panel):
 		all_solidify_enabled = True
 		if obj.type == 'ARMATURE':
 			masked_count = 0
-			related = _related_meshes(obj, context.view_layer)
+			related = get_related_meshes(obj, context.view_layer)
 
 			for mesh in related:
 				solidify = _solidify_modifiers(mesh)

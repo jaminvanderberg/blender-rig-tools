@@ -3,5 +3,6 @@
   "files.exclude": {
     "**/__pycache__": true
   },
-  "blender.addonFolders": ["rigtools"]
+  "blender.addonFolders": ["rigtools"],
+  "blender.addon.reloadOnSave": true
 }

@@ -53,7 +53,7 @@ nav:
     - Workflow: workflow.md
     - ORG & DEF: org_def.md
     - Armature Settings: armature_settings.md
-    - Selection: selection.md
+    - Armature Panel: selection.md
   - Assemblies:
     - Assemblies: assemblies.md
     - IK Assemblies: ik_assemblies.md

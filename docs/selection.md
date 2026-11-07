@@ -1,26 +1,31 @@
-# Selection
+# Armature Panel
 
 !!! info
     This is AI-generated documentation that has not yet been human reviewed.
 
-Tools for selecting bones and chains.  Every assembly starts with a selection, so these come up a lot.
+Quick switches for the rig and the meshes it deforms, plus tools for selecting bones and chains.  Every assembly starts with a selection, so these come up a lot.
 
-**Where:** n-Panel > RigTools > Selection (Edit or Pose mode)
+**Where:** n-Panel > RigTools > Armature (the rig, or any mesh it deforms, is active)
 { .where }
 
 !!! screenshot "Image placeholder"
-    `image/selection_panel.png` — The Selection panel showing the quick select buttons, the search field, and the Select Connected / Select Mirror buttons.
+    `image/armature_panel.png` — The Armature panel with the Pose/Rest toggle, the mode buttons, and the Select Connected / Select Mirror buttons.
 
-## Quick select buttons
+## Pose and Rest Position
 
-A grid of buttons that select every visible bone whose name contains the button's text.  For example, **FK** selects all visible bones with "FK" in the name.  Matching is not case sensitive, and the buttons add to the current selection.
+The **Pose** / **Rest** toggle switches the rig between its posed and rest positions.  It's the same setting as the armature's Pose Position / Rest Position, always one click away.
 
-The buttons can be changed in the *[addon preferences](armature_settings.md#quick-bone-selection)*.  The default buttons are `FK, IK-, Tweak, DEF, ORG, MCH`.
+## Mode buttons
 
-Below the buttons is a search field.  Type part of a bone name and click the select button next to it to select all visible bones that contain that text.
+With the rig active, the buttons switch the rig between Object, Edit and Pose mode.
 
-!!! tip
-    Hide the bone collections you don't want, then use a quick select button.  For example, show only the ORG collections and click **ORG** to select all of the ORG bones.
+With the rig active, the **Meshes** list shows each mesh the rig deforms.  Click a mesh's name to select it, or use its buttons to jump straight to Edit mode or Weight Paint, or to hide or show it.  The list is alphabetical until you change it: click the sort button in the Meshes header to show up and down arrows.  The order is saved with each mesh, and the Shape Keys panel uses it too.
+
+With a mesh active, the panel works from the rig that deforms it:
+
+- **Pose** and **Edit** make the rig active and switch it to that mode, from any mode on the mesh.
+- **Weight Paint** selects the rig too, so its bones can be clicked to pick a vertex group while painting.
+- The **eye** hides or shows the rig, for when the bones are in the way.
 
 ## Select Connected
 
@@ -41,7 +46,10 @@ Blender's built-in hierarchy selection is also useful for chains, particularly w
 
 Extend Child adds the next bone down the chain to the selection.  Repeat it to walk down the chain one bone at a time.
 
+## Select by name
+
+Blender's **Select > Select Pattern** selects bones by name, for example `*FK*` for every bone with FK in its name.
+
 ## Related
 
 - [Assemblies](assemblies.md#selection)
-- [Armature Settings](armature_settings.md#quick-bone-selection)

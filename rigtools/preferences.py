@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import AddonPreferences
-from bpy.props import StringProperty, IntProperty, EnumProperty, BoolProperty
+from bpy.props import StringProperty, EnumProperty, BoolProperty
 from rigtools.utils.bone_colors import BONE_COLOR_ITEMS
 
 addon_name = __package__.split('.')[0] if __package__ else "rigtools"
@@ -12,20 +12,6 @@ def get_preferences(context=None):
 
 class RigToolsPreferences(AddonPreferences):
 	bl_idname = addon_name
-
-	# Quick Bone Selection
-	selection_buttons: StringProperty(
-		name="Selection Buttons",
-		description="Comma-separated list of button labels and search terms",
-		default="FK, IK-, Tweak, DEF, ORG, MCH"
-	)
-	selection_columns: IntProperty(
-		name="Columns",
-		description="Number of columns for selection buttons in the panel",
-		default=3,
-		min=1,
-		max=10
-	)
 
 	# Rig Structure Defaults
 	root_bone_name: StringProperty(
@@ -140,22 +126,6 @@ class RigToolsPreferences(AddonPreferences):
 		row = layout.row(align=True)
 		row.operator("rig.export_preferences", text="Export Settings...", icon='EXPORT')
 		row.operator("rig.import_preferences", text="Import Settings...", icon='IMPORT')
-
-		# Quick Bone Selection
-		box = layout.box()
-		box.label(text="Quick Bone Selection", icon='RESTRICT_SELECT_OFF')
-		box.prop(self, "selection_buttons")
-		box.prop(self, "selection_columns")
-
-		# Preview of selection buttons
-		preview_box = box.box()
-		preview_box.use_property_split = False
-		preview_box.label(text="Button Layout Preview:")
-		tags = [t.strip() for t in self.selection_buttons.split(",") if t.strip()]
-		if tags:
-			grid = preview_box.grid_flow(row_major = True, columns=self.selection_columns, even_columns=True, align=True)
-			for tag in tags:
-				grid.label(text=tag)
 
 		box = layout.box()
 		box.label(text="Rig Structure Defaults", icon='CON_ARMATURE')

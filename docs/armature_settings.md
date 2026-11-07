@@ -52,11 +52,6 @@ The addon preferences set the defaults for new rigs.  Changing the preferences d
 
 **Export Settings...** and **Import Settings...** save and load the preferences as a JSON file.  This is useful for sharing settings between machines or Blender versions.
 
-### Quick Bone Selection
-
-- Selection Buttons: comma-separated list of the *[quick selection](selection.md#quick-select-buttons)* buttons.  Default: `FK, IK-, Tweak, DEF, ORG, MCH`.
-- Columns: the number of columns for the selection buttons.  Default: 3.
-
 ### Rig Structure Defaults
 
 - Root Bone, Torso Bone, Hips Bone, Chest Bone, Head Bone, Property Bone: the defaults for the *[armature settings](#settings)* above.

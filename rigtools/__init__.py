@@ -1,8 +1,8 @@
 bl_info = {
 	"name": "RigTools",
 	"author": "Jamin VanderBerg",
-	"version": (0, 97),
-	"blender": (4, 0, 0),
+	"version": (0, 9, 0),
+	"blender": (4, 1, 0),
 	"location": "View3D > Sidebar > Rig Tools",
 	"description": "Helper functions for rig building",
 	"category": "Rigging"
@@ -12,7 +12,7 @@ import bpy
 
 from rigtools.operators import generate_org_bones
 from rigtools.panels.main import main_panel
-from rigtools.panels.selection import selection_panel
+from rigtools.panels.armature import armature_panel
 from rigtools import preferences
 from rigtools import preferences_io
 from rigtools import armature_settings
@@ -57,10 +57,11 @@ def register():
 			f"CURRENT_RIG_DATA_VERSION ({armature_settings.CURRENT_RIG_DATA_VERSION})"
 		)
 
+	# Registered first so the Armature panel sits at the top of the tab
+	armature_panel.register()
 	armature_settings.register()
 	migrate_rig.register()
 	twist_chain.register()
-	selection_panel.register()
 
 	assembly_data.register()
 	config_registry.register()
@@ -108,7 +109,6 @@ def unregister():
 	root_widget.unregister()
 	weight_paint_proxy.unregister()
 	rename_chain.unregister()
-	selection_panel.unregister()
 	twist_chain.unregister()
 
 	data_viewer_panel.unregister()
@@ -120,6 +120,7 @@ def unregister():
 	assembly_data.unregister()
 	migrate_rig.unregister()
 	armature_settings.unregister()
+	armature_panel.unregister()
 
 if __name__ == "__main__":
 	register()
