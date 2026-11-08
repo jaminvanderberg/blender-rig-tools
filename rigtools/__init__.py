@@ -1,7 +1,7 @@
 bl_info = {
 	"name": "RigTools",
 	"author": "Jamin VanderBerg",
-	"version": (0, 9, 0),
+	"version": (0, 9, 1),
 	"blender": (4, 1, 0),
 	"location": "View3D > Sidebar > Rig Tools",
 	"description": "Helper functions for rig building",
@@ -26,7 +26,6 @@ from rigtools.operators import human_skeleton
 from rigtools.operators import create_twist_bones
 from rigtools.operators import bone_colors
 from rigtools.operators import corrective_bones
-from rigtools.operators import connect_shape_key
 from rigtools.assemblies import assembly_data
 from rigtools.assemblies import config_registry
 from rigtools.panels import skirt_legs as skirt_legs_panel
@@ -34,7 +33,7 @@ from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
 from rigtools.panels.bone_style import bone_style_panel
-from rigtools.panels.shape_keys import shape_keys_panel
+from rigtools.panels.shape_keys import connect, split, reverse, key_actions, shape_keys_panel
 from rigtools.data_viewer import panel as data_viewer_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import snapping_data
@@ -78,8 +77,11 @@ def register():
 	create_twist_bones.register()
 	bone_colors.register()
 	corrective_bones.register()
-	connect_shape_key.register()
 	bone_style_panel.register()
+	connect.register()
+	split.register()
+	reverse.register()
+	key_actions.register()
 	shape_keys_panel.register()
 
 	snapping_data.register()
@@ -100,8 +102,11 @@ def unregister():
 	snapping_data.unregister()
 
 	shape_keys_panel.unregister()
+	key_actions.unregister()
+	reverse.unregister()
+	split.unregister()
+	connect.unregister()
 	bone_style_panel.unregister()
-	connect_shape_key.unregister()
 	corrective_bones.unregister()
 	bone_colors.unregister()
 	create_twist_bones.unregister()

@@ -1,6 +1,6 @@
 # Rig Tools
 
-RigTools is a Blender 4.0+ add-on for building character rigs one piece at a time.  Instead of generating a whole rig from a metarig, you select a chain of bones and build an **assembly** on it: an arm, a leg, a torso, a skirt, a tail.  Assemblies can be reconfigured or deleted later, so the rig never gets locked into an uneditable state.
+RigTools is a Blender 4.1+ add-on for building character rigs one piece at a time.  Instead of generating a whole rig from a metarig, you select a chain of bones and build an **assembly** on it: an arm, a leg, a torso, a skirt, a tail.  Assemblies can be reconfigured or deleted later, so the rig never gets locked into an uneditable state.
 
 Version 1 is centered around humanoid characters.
 

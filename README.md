@@ -1,6 +1,6 @@
 # Rig Tools
 
-Blender 4.0+ addon for armature setup and chain building.
+Blender 4.1+ addon for armature setup and chain building.
 
 **Install:** download `rigtools.zip` from the [latest release](https://github.com/jaminvanderberg/blender-rig-tools/releases/latest), then Preferences > Add-ons > Install > select it
   

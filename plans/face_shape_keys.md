@@ -3,14 +3,37 @@
 ## Next steps (start here)
 Only the items under "Decided" are the user's decisions; everything under "Proposed" is still open. These are general add-on tools for anyone building a face rig; nothing here edits a specific rig. Kendra is only the test case: `Z:\Data\Blender\Kendra\Kendra-Character1.blend` (RigTools rig `Armature`, 1519 bones, no face controls).
 
-**Status (2026-11-07): step 1 started.** Scaffolding is in place (Claude wrote it; registers and runs on Kendra):
-- `rigtools/panels/shape_keys/shape_keys_panel.py`: `get_controlled_meshes` (meshes with shape keys and an armature modifier using this rig; finds `Kendra` and `Hair.Baked`, skips the normal cages). `RIG_UL_shape_keys` rows show name, value and a connect button. `RIG_PT_shape_keys` in the Rig Tools tab, pose mode only, one collapsible `layout.panel()` per mesh with a `template_list` bound to the mesh's `active_shape_key_index`. `layout.panel()` needs Blender 4.1; `bl_info` still says 4.0.
-- `rigtools/operators/connect_shape_key.py`: `rig.connect_shape_key` stub. Hidden `object_name` and `shape_key_name`, an `invert` option in the redo panel. `execute` looks up the mesh, key block and active pose bone, then only reports.
-- Both registered in `rigtools/__init__.py`.
+**Status (2026-11-07): step 1's core is built and working on Kendra** (the user reports Connect works well). Claude wrote all of it at the user's request; tested headless on Kendra in Blender 5.2, then by the user in the UI. Next: mirroring, then bone limits.
 
-**Resume here:** the user writes the body of Connect (read the pose, build the driver, write the per-side Limit Location). Still to do in the panel: grey out driven keys (`row.enabled = not is_key_driven(...)`, look up via `Key.animation_data.drivers.find('key_blocks["name"].value')`, `animation_data` can be `None`), and a `filter_items` to hide Basis (`reference_key`) and split sources, keeping the search box with `UI_UL_list.filter_items_by_name`. Before testing on Kendra, the user deletes the dead shape key drivers in that file (see State of Kendra); the mappings are saved in Old driver reference below.
+Built, all in `rigtools/panels/shape_keys/`:
+- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Connect button (hidden on split sources). Basis is shown, locked. Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, and a Connections heading with one row per bone driving the key (bone name selects it, direction like `-X`, ⇄ when inverted, ✕ disconnects).
+- `connect.py`: Connect, Disconnect and Select Control (details below).
+- `split.py`: Create/Update L/R Shape Keys. Smoothstep falloff across X = 0, stored per source as `split_falloff:<name>` on the Key. Respects the source's vertex group. New sides go right under the source, .L then .R, in one block move. Refuses driven keys.
+- `reverse.py`: Reverse Shape Key, in the ▾ menu. Folds the key into the Basis and makes the key take it back out; the mesh looks the same at every value, value and slider range flip. Refuses driven or keyframed keys, split sources and sides, muted keys, keys not relative to the Basis.
+- `key_actions.py`: our own Remove and Move (Blender 5's act on every *selected* key, which deleted Kendra's Basis), and Apply Vertex Group (bake the key's group in and clear it). Built because the user often fixes stray edits with a vertex group.
+- `shape_key_utils.py`: shared helpers (side names, `has_sides`, `can_split`, `is_key_driven`, key data, vertex group weights, moving keys).
+- The Armature panel (`panels/armature/armature_panel.py`) replaced Selection: Pose/Rest, mode buttons, rig hide, a Meshes list with Edit, Weight Paint, select, hide and manual order.
 
-How we'll work: Claude does the boring plumbing (panels, registration, boilerplate) and answers lookups; the user writes the logic. Claude reviews on request. The user is also improving Kendra's face rig alongside the tools, and may ask best-practice questions as we go.
+Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey.select`, 5.0+); every move call re-evaluates the mesh and its modifiers (~0.1s on Kendra, mostly the Data Transfer), so moves are done as one block. Bone selection is `PoseBone.select` (was `Bone.select`). `Operator.check` is reserved; don't name a method `check`.
+
+**Connect as built** (`connect.py`):
+- **Channels:** `SK-<key name>` custom properties (0 to 1) on the property bone. Same-named keys on any mesh share one channel. No property bone means refuse.
+- **Channel driver:** one Transform Channel variable per bone (`capture_0`, `capture_1`, ...; `LOCAL_SPACE`, location axis), expression `clamp(capture_0 / E0 + capture_1 / E1, 0, 1)`, inverted terms `(1 - capture_n / E)`. The expression is the only record; terms are parsed back from it.
+- **Key driver:** one Single Property variable `channel` reading the channel; expression `channel`. Both drivers are created clean (no mapping curve, no modifiers).
+- **Capture:** `matrix_basis` location, largest axis; rotated, scaled or unposed is refused. The bone stays posed.
+- **Existing drivers:** same bone and axis replaces its term, another bone adds one, any driver with other variable names is hand-written and refused.
+- **Checks:** not the Basis, not a split source, mesh deformed by the rig, property bone exists and isn't the control, control not an assembly mechanism bone (`find_assemblies(..., include_org_states=False)`) and not DEF-named (`does_match_def_name`). Any bone the user names is fine otherwise, ORG or not. Nothing was worth extracting from correctives: the pose read is two lines, and the shared checks already live in utils.
+- **Disconnect:** ✕ on a Connections row removes that bone's term. Removing the last term removes the channel driver, the `SK-` property, and every key driver reading that channel (on all meshes), resetting those keys to 0.
+- **Split sources can't be connected, and driven keys can't be split.** The source is a sculpting template that stays at 0; driving it would add the whole shape on top of the sides. A master control drives the sides with a second term instead.
+
+**Still to do for Connect:**
+- **Mirroring:** `.L` key and bone to `.R` with `flip_side_name`, location X flipped. The flipped bone and key must both exist and pass the same checks; otherwise connect one side and say so.
+- **Bone limits:** one Limit Location per control, rewritten on each connect (see Limits and extrapolation; locking design still open). Range stays 0 to 1 for now; the user wants to play with limits after.
+- **Invert with several terms** flips each term separately and then adds them. Fine for one bone; revisit if mixed inverted and normal terms come up.
+- **Later, not yet:** the Connections rows may become their own list box once connections get settings (limits, reverse, easing): a list plus the selected item's settings, like the shape key list. The user finds a list dependent on another list a little odd.
+- Deferred: leftover split falloff settings (see Open design questions).
+
+How we'll work: Claude does the plumbing (panels, registration, boilerplate) and answers lookups; the user writes the logic unless they ask Claude to (they did for Connect, Split, Reverse). Claude reviews on request. The user is also improving Kendra's face rig alongside the tools, and may ask best-practice questions as we go.
 
 ## Context
 Wiring shape keys to bones by hand is the tedious part of a face rig. FaceIt can make shape keys, but its control rig is a separate armature and joining its deform rig to the body is destructive. RigTools only handles the wiring, so it doesn't care where keys come from (sculpted, or baked with FaceIt).
@@ -75,7 +98,7 @@ Capture works the same for both. Face shapes are mostly keys, with small deform 
 ### Easing (decided: optional, hidden, linear by default)
 The jaw has always felt too snappy; it should spend more time barely open. Easing goes on the driver's own F-curve: the expression still normalizes and clamps, and the curve's keyframes reshape 0 to 1. No keyframes means linear, as now. Tested: an ease-in curve on `Mouth.Open` gave 0.03 at a quarter open, 0.16 at half and 1.0 at full, with constant extrapolation holding it at 1.0 past the extreme. The expression stays simple. Editing the curve can be left to the Graph Editor; the panel only needs a way to add one and jump to it.
 
-### Channel layer (trial, not decided)
+### Channel layer (trial: Connect uses it, decided 2026-11-07)
 Controls drive named channels (custom properties on the property bone), and channels drive keys: `control > channel > key`. Every input (face bone, slider, Rig UI property, emote, later mocap) writes to a channel the same way. The user wants to try it in practice on a real rig before deciding; a toy demo didn't settle anything.
 - Tested: both layers are simple expressions and evaluate in one update.
 - **A driven channel can't be keyframed.** Keying `smile.L` at 0.8 gave 0, because the driver overwrites it. If channels must also take animation or mocap, the channel driver needs a separate animatable input added to it (untested).
@@ -109,6 +132,9 @@ Earlier proposal (before connect): a key can run negative when the control moves
 ### Open design questions (side topics)
 - **Eyelids only open and close.** Kendra's lids had no tilt and it felt off. Options: a lid deform bone rotating around the eye's center, layered on the blink key (no new tool needed, can be tried on Kendra now); or inner and outer lid keys connected to a second axis of the lid control.
 - **Mouth scale.** Possibly right with four directions: X down/up, Z down/up. Alternative: a flat control in a frame where X is narrow/wide and Z squash/stretch, which is plain location connects. Or sliders.
+- **Leftover split falloff settings (deferred).** Split stores each source's falloff as an ID property `split_falloff:<name>` on the Key (shape keys can't hold custom properties). It's keyed by name, so renaming or deleting the source leaves it behind, and a renamed source silently goes back to the default 0.002. Options, either or both:
+  - Carry the property over when a key is renamed from our list, and delete it in our Remove. Blender's own delete in the ▾ menu would still leave one behind.
+  - A data check over the rig's meshes: INFO "falloff setting for missing key", with a fix that deletes it. It fits the `Issue` / `fix_id` pattern in `data_viewer/checks.py`, about 25 lines.
 
 ### Symmetric key sets
 A set is a source key plus its sides: `Mouth.Smile`, `Mouth.Smile.L`, `Mouth.Smile.R`.

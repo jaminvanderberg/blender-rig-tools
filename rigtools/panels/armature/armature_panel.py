@@ -36,9 +36,14 @@ _SWITCH_TARGETS = [
 	('MESH_OBJECT', "Select Mesh", "Make the mesh active, in object mode"),
 	('MESH_EDIT', "Mesh Edit", "Edit mode on the mesh"),
 	('MESH_WEIGHT', "Weight Paint", "Weight paint the mesh, with the rig's bones selectable"),
+	('KEY_EDIT', "Edit Shape Key", "Edit the mesh's active shape key in edit mode"),
+	('KEY_SCULPT', "Sculpt Shape Key", "Sculpt the mesh's active shape key"),
 ]
 
-_MESH_MODES = {'MESH_OBJECT': 'OBJECT', 'MESH_EDIT': 'EDIT', 'MESH_WEIGHT': 'WEIGHT_PAINT'}
+_MESH_MODES = {
+	'MESH_OBJECT': 'OBJECT', 'MESH_EDIT': 'EDIT', 'MESH_WEIGHT': 'WEIGHT_PAINT',
+	'KEY_EDIT': 'EDIT', 'KEY_SCULPT': 'SCULPT',
+}
 
 class RIG_OT_switch_mode(bpy.types.Operator):
 	bl_idname = "rig.switch_mode"
@@ -49,8 +54,18 @@ class RIG_OT_switch_mode(bpy.types.Operator):
 	target: bpy.props.EnumProperty(items=_SWITCH_TARGETS, options={'HIDDEN'})
 	mesh_name: bpy.props.StringProperty(options={'HIDDEN'})
 
+	@staticmethod
+	def _is_toggle_off(context, target, mesh_name):
+		"""Clicking a mesh mode button you're already in goes back to the rig's pose mode."""
+		obj = context.object
+		mode = _MESH_MODES.get(target)
+		return (mode not in (None, 'OBJECT')
+			and obj is not None and obj.name == mesh_name and obj.mode == mode)
+
 	@classmethod
 	def description(cls, context, properties):
+		if cls._is_toggle_off(context, properties.target, properties.mesh_name):
+			return "Back to pose mode on the rig"
 		for identifier, _, desc in _SWITCH_TARGETS:
 			if identifier == properties.target:
 				return desc
@@ -61,7 +76,10 @@ class RIG_OT_switch_mode(bpy.types.Operator):
 		return get_rig(context) is not None
 
 	def execute(self, context):
-		rig = get_rig(context) 
+		rig = get_rig(context)
+
+		if self._is_toggle_off(context, self.target, self.mesh_name):
+			self.target = 'RIG_POSE'
 
 		if self.target in _MESH_MODES:
 			mesh = bpy.data.objects.get(self.mesh_name)
