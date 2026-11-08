@@ -18,6 +18,7 @@ from rigtools import preferences_io
 from rigtools import armature_settings
 from rigtools.operators import migrate_rig
 from rigtools.rig_data import twist_chain
+from rigtools.rig_data import shape_key_connections
 from rigtools.operators import rename_chain
 from rigtools.operators import parent_along_chain
 from rigtools.operators import weight_paint_proxy
@@ -61,6 +62,7 @@ def register():
 	armature_settings.register()
 	migrate_rig.register()
 	twist_chain.register()
+	shape_key_connections.register()
 
 	assembly_data.register()
 	config_registry.register()
@@ -114,6 +116,7 @@ def unregister():
 	root_widget.unregister()
 	weight_paint_proxy.unregister()
 	rename_chain.unregister()
+	shape_key_connections.unregister()
 	twist_chain.unregister()
 
 	data_viewer_panel.unregister()

@@ -1,7 +1,31 @@
 import bpy
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import can_split, falloff_prop, has_sides, is_key_driven
-from rigtools.panels.shape_keys.connect import connections
+from rigtools.panels.shape_keys.connect import drive_slider, limit_constraint, side_name
+from rigtools.rig_data.shape_key_connections import find_bone_connections_for_shape_key
+
+class RIG_UL_active_bone_connections(bpy.types.UIList):
+	"""The active bone's connection records: one row per shape key it drives, and from which side."""
+
+	def draw_item(self, context, layout, connections, connection, icon, active_data,
+			active_propname, index):
+		armature_obj = connection.id_data
+		pose_bone = context.active_pose_bone
+		row = layout.row(align=True)
+		row.label(text=connection.key_name, icon='SHAPEKEY_DATA', translate=False)
+		right = row.row(align=True)
+		right.alignment = 'RIGHT'
+		# Which mesh, since the same key name can be on several
+		right.label(text=connection.mesh.name if connection.mesh else "(no mesh)", translate=False)
+		right.label(text=f"{'+' if connection.positive else '-'}{connection.axis}")
+		right.separator()
+		op = right.operator("rig.disconnect_shape_key", text="", icon='X', emboss=True)
+		op.armature_name = armature_obj.name
+		op.bone_name = pose_bone.name
+		op.object_name = connection.mesh.name if connection.mesh else ""
+		op.shape_key_name = connection.key_name
+		op.axis = connection.axis
+		op.positive = connection.positive
 
 class RIG_UL_shape_keys(bpy.types.UIList):
 	
@@ -29,7 +53,6 @@ class RIG_UL_shape_keys(bpy.types.UIList):
 		op = row.operator("rig.connect_shape_key", text="", icon='DRIVER')
 		op.object_name = active_data.name
 		op.shape_key_name = shape_key.name
-
 
 def draw_key_buttons(layout, obj):
 	"""Pin, Edit Key and Sculpt Key for the mesh's active shape key."""
@@ -116,27 +139,79 @@ def draw_active_key(layout, obj):
 		if prop in key:
 			col.prop(key, f'["{bpy.utils.escape_identifier(prop)}"]', text="Falloff")
 
-	# The bones driving this key, each with a button to disconnect it
-	rig = obj.find_armature()
-	found = connections(rig, key_block.name) if rig else []
+	# The bones recorded as driving this key, each with a button to disconnect it
+	armature_obj = obj.find_armature()
+	found = find_bone_connections_for_shape_key(armature_obj, obj, key_block.name) if armature_obj else []
 	if not found:
 		return
 	layout.separator()
 	layout.label(text="Connections")
 	col = layout.column(align=True)
-	for variable, bone, axis, extreme, inverted in found:
+	for pose_bone, connection in found:
 		row = col.row()
-		op = row.operator("rig.select_control", text=bone, icon='BONE_DATA', emboss=False, translate=False)
-		op.rig_name = rig.name
-		op.bone_name = bone
+		op = row.operator("rig.select_control", text=pose_bone.name, icon='BONE_DATA',
+			emboss=False, translate=False)
+		op.armature_name = armature_obj.name
+		op.bone_name = pose_bone.name
 		right = row.row()
 		right.alignment = 'RIGHT'
 		# The direction the bone moves to reach the shape, e.g. -Z
-		right.label(text=f"{'+' if extreme > 0 else '-'}{axis}", icon='ARROW_LEFTRIGHT' if inverted else 'NONE')
+		right.label(text=f"{'+' if connection.positive else '-'}{connection.axis}")
 		op = right.operator("rig.disconnect_shape_key", text="", icon='X', emboss=False)
-		op.rig_name = rig.name
+		op.armature_name = armature_obj.name
+		op.bone_name = pose_bone.name
+		op.object_name = obj.name
 		op.shape_key_name = key_block.name
-		op.variable = variable
+		op.axis = connection.axis
+		op.positive = connection.positive
+
+def draw_active_bone(layout, armature_obj, pose_bone):
+	"""What the active control drives, as a list of its connection records, with the selected
+	connection's settings underneath."""
+	sk_connections = pose_bone.rigtools_shape_keys
+	if not sk_connections.items:
+		return
+	row = layout.row()
+	row.label(text=pose_bone.name, icon='BONE_DATA', translate=False)
+	# Limits are per bone: unlock to pose past them, Connect locks them again
+	constraint = limit_constraint(pose_bone)
+	if constraint:
+		right = row.row()
+		right.alignment = 'RIGHT'
+		# A toggle shows the icon after the given one when on: UNLOCKED, then LOCKED
+		right.prop(constraint, "enabled", text="Limited" if constraint.enabled else "Unlocked",
+			icon='UNLOCKED', emboss=False)
+
+	layout.template_list(
+		"RIG_UL_active_bone_connections", "",
+		sk_connections, "items",
+		sk_connections, "active_index",
+		rows=3,
+	)
+
+	# The selected connection's settings. The extent belongs to the side, shared by every
+	# key connected on it
+	index = sk_connections.active_index
+	if not 0 <= index < len(sk_connections.items):
+		return
+	connection = sk_connections.items[index]
+	axis = "XYZ".index(connection.axis)
+	col = layout.column()
+	col.use_property_split = True
+	col.use_property_decorate = False
+	prop = side_name(axis, connection.positive)
+	if prop in pose_bone:
+		col.prop(pose_bone, drive_slider(axis, connection.positive), text="Extent")
+
+	# The shape key's own Range. Its max sets how far the bone travels: extent x max, so 1.2
+	# lets the key reach 1.2. It belongs to the key, so every bone driving it follows it
+	key = connection.mesh.data.shape_keys if connection.mesh else None
+	key_block = key.key_blocks.get(connection.key_name) if key else None
+	if key_block:
+		row = col.row(align=True)
+		row.prop(key_block, "slider_min", text="Range")
+		row.prop(key_block, "slider_max", text="")
+	layout.separator()
 
 class RIG_PT_shape_keys(bpy.types.Panel):
 	bl_label = "Shape Keys"
@@ -147,10 +222,10 @@ class RIG_PT_shape_keys(bpy.types.Panel):
 
 	@classmethod
 	def poll(cls, context):
-		rig = get_rig(context)
-		if rig is None:
+		armature_obj = get_rig(context)
+		if armature_obj is None:
 			return False
-		meshes = get_controlled_meshes(rig, context.view_layer)
+		meshes = get_controlled_meshes(armature_obj, context.view_layer)
 		if context.object.type == 'MESH':
 			return context.object in meshes
 		return bool(meshes)
@@ -169,6 +244,11 @@ class RIG_PT_shape_keys(bpy.types.Panel):
 			draw_key_buttons(row, context.object)
 			self.draw_list(layout, context.object)
 			return
+
+		# Posing: what the active control drives, above the meshes
+		armature_obj = context.object
+		if armature_obj.mode == 'POSE' and context.active_pose_bone is not None:
+			draw_active_bone(layout, armature_obj, context.active_pose_bone)
 
 		# The rig is active: one collapsible sub-panel per mesh
 		if not meshes:
@@ -196,6 +276,7 @@ class RIG_PT_shape_keys(bpy.types.Panel):
 		draw_active_key(layout, obj)
 
 classes = (
+	RIG_UL_active_bone_connections,
 	RIG_UL_shape_keys,
 	RIG_PT_shape_keys,
 )

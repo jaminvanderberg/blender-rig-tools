@@ -1,40 +1,39 @@
-"""Connect: drive a shape key from the active bone's current pose, through a channel.
+"""Connect: drive a shape key from the active bone's current pose.
 
-	control bone --(channel driver)--> SK-<key> property on the property bone --(key driver)--> key
+Each connection is recorded on the control bone (rig_data/shape_key_connections.py): which
+mesh's shape key it drives, and from which side (axis and direction). The shape key's driver
+is built from those records and never read back. Per bone driving the key, it has a
+location variable (capture_n) and a variable reading that side's extent property on the bone
+(extent_n), combined as `max(capture_0 / extent_0, capture_1 / extent_1, 0)`. The key's own
+slider range caps the top.
 
-The channel driver holds the capture: one Transform Channel variable per bone, named
-capture_0, capture_1, ..., and the expression `clamp(capture_0 / E0 + capture_1 / E1, 0, 1)`,
-where E is the bone's location at the extreme. Inverted terms are `(1 - capture_n / E)`.
-The key's driver only reads the channel, so every key with the same name, on any mesh,
-can share it. Nothing else is stored: the drivers are the record.
+Each side's extent is an `SK ±Axis` custom property on the control, e.g. `SK +Z`: how far
+the bone moves on that side to reach 1. Each control also gets one Limit Location whose
+connected sides are driven by those same extent properties.
 """
-import re
 import bpy
 from bpy.props import BoolProperty, StringProperty
 
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
 from rigtools.panels.shape_keys.shape_key_utils import has_sides
+from rigtools.rig_data.shape_key_connections import (
+	add_shape_key_connection, find_bone_connections_for_shape_key, find_shape_key_connection,
+	get_shape_key_connections, remove_shape_key_connection)
 from rigtools.utils.naming import does_match_def_name
+from rigtools.utils.object import get_controlled_meshes
 
-CHANNEL_PREFIX = "SK-"
-CAPTURE_PREFIX = "capture_"
-CHANNEL_VARIABLE = "channel"
 AXES = ('LOC_X', 'LOC_Y', 'LOC_Z')
-# One term of the channel expression: capture_0 / 0.02, or (1 - capture_0 / 0.02)
-TERM = re.compile(r"(\(1 - )?(" + CAPTURE_PREFIX + r"\d+) / (-?[0-9.e+-]+)\)?")
+LIMIT_NAME = "Shape Key Limits"
 
-def channel_name(key_block_name):
-	return CHANNEL_PREFIX + key_block_name
-
-def _quoted(name):
+def _quote(name):
 	return f'["{bpy.utils.escape_identifier(name)}"]'
 
-def _driver(anim_owner, path):
+def _find_driver(anim_owner, path):
 	anim = anim_owner.animation_data
 	return anim.drivers.find(path) if anim else None
 
-def _new_driver(owner, path):
+def _create_new_driver(owner, path):
 	"""A clean scripted driver: no mapping curve or modifiers, so it outputs its expression."""
 	fcurve = owner.driver_add(path)
 	fcurve.keyframe_points.clear()
@@ -59,18 +58,139 @@ def read_capture(pose_bone):
 	axis = max(range(3), key=lambda i: abs(location[i]))
 	return (axis, location[axis]), None
 
-def _parse_terms(driver):
-	"""{variable name: (extreme, inverted)} for the terms of one of our channel drivers."""
-	return {name: (float(extreme), bool(inverted))
-		for inverted, name, extreme in TERM.findall(driver.expression)}
+def limit_constraint(pose_bone):
+	return pose_bone.constraints.get(LIMIT_NAME)
 
-def _expression(terms):
-	parts = []
-	for name in sorted(terms, key=lambda n: int(n[len(CAPTURE_PREFIX):])):
-		extreme, inverted = terms[name]
-		term = f"{name} / {extreme:.6g}"
-		parts.append(f"(1 - {term})" if inverted else term)
-	return f"clamp({' + '.join(parts)}, 0, 1)"
+def side_name(axis, positive):
+	"""The control's extent property for one side, e.g. 'SK +Z'."""
+	return f"SK {'+' if positive else '-'}{'XYZ'[axis]}"
+
+def limit_field(axis, positive):
+	"""The Limit Location field for one side, e.g. 'max_z' for +Z."""
+	return f"{'max' if positive else 'min'}_{'xyz'[axis]}"
+
+def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, side_connections):
+	"""Drive one side's limit field: the extent times the largest Range Max among the shape
+	keys connected on that side. A Range Max of 1 stops the bone at the extent; 1.2 lets it
+	travel 20% further, so the key reaches 1.2 (overshoot)."""
+	field = limit_field(axis, positive)
+	fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
+	if fcurve is None:
+		fcurve = _create_new_driver(constraint, field)
+	driver = fcurve.driver
+	for variable in list(driver.variables):
+		driver.variables.remove(variable)
+
+	extent = driver.variables.new()
+	extent.name = "extent"
+	extent.type = 'SINGLE_PROP'
+	extent.targets[0].id_type = 'OBJECT'
+	extent.targets[0].id = armature_obj
+	extent.targets[0].data_path = f'pose.bones{_quote(pose_bone.name)}{_quote(side_name(axis, positive))}'
+
+	range_maxes = []
+	for connection in side_connections:
+		key = connection.mesh.data.shape_keys if connection.mesh else None
+		key_block = key.key_blocks.get(connection.key_name) if key else None
+		if key_block is None:
+			continue
+		range_max = driver.variables.new()
+		range_max.name = f"range_max_{len(range_maxes)}"
+		range_max.type = 'SINGLE_PROP'
+		range_max.targets[0].id_type = 'KEY'
+		range_max.targets[0].id = key
+		range_max.targets[0].data_path = key_block.path_from_id("slider_max")
+		range_maxes.append(range_max.name)
+
+	sign = '' if positive else '-'
+	driver.expression = f"{sign}extent * max({', '.join(range_maxes + ['1'])})"
+
+def update_limits(armature_obj, pose_bone):
+	"""Rebuild the bone's Limit Location from its connection records. Each connected side's
+	field is driven by its extent and its shape keys' Range Max. Sides with no connection
+	stay free, and lose their extent property."""
+	connections = get_shape_key_connections(pose_bone)
+	sides = {("XYZ".index(connection.axis), connection.positive) for connection in connections}
+
+	constraint = limit_constraint(pose_bone)
+	if sides and constraint is None:
+		constraint = pose_bone.constraints.new('LIMIT_LOCATION')
+		constraint.name = LIMIT_NAME
+	for axis in range(3):
+		for positive in (True, False):
+			prop = side_name(axis, positive)
+			connected = (axis, positive) in sides
+			if not connected and prop in pose_bone:
+				del pose_bone[prop]
+			if constraint is None:
+				continue
+			field = limit_field(axis, positive)
+			setattr(constraint, f"use_{field}", connected)
+			if connected:
+				side_connections = [connection for connection in connections
+					if connection.axis == "XYZ"[axis] and connection.positive == positive]
+				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, side_connections)
+				continue
+			fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
+			if fcurve:
+				armature_obj.animation_data.drivers.remove(fcurve)
+			setattr(constraint, field, 0.0)
+
+	if constraint is None:
+		return
+	if not sides:
+		# Its field drivers are gone above; now the constraint itself
+		pose_bone.constraints.remove(constraint)
+		return
+	# Local space matches what the drivers read; Affect Transform stops the bone while dragging
+	constraint.owner_space = 'LOCAL'
+	constraint.use_transform_limit = True
+
+def _build_driver(armature_obj, mesh, key_block):
+	"""Writes or overwrites the shape key's driver from the connection records, or removes
+	it when no bone is recorded as driving the key. Returns whether a driver remains."""
+	key = mesh.data.shape_keys
+	path = key_block.path_from_id("value")
+	fcurve = _find_driver(key, path)
+	found = find_bone_connections_for_shape_key(armature_obj, mesh, key_block.name)
+	if not found:
+		if fcurve:
+			key.animation_data.drivers.remove(fcurve)
+		return False
+
+	if fcurve is None:
+		fcurve = _create_new_driver(key, path)
+	driver = fcurve.driver
+	for variable in list(driver.variables):
+		driver.variables.remove(variable)
+
+	terms = []
+	for n, (pose_bone, sk_connection) in enumerate(found):
+		axis = "XYZ".index(sk_connection.axis)
+		capture = driver.variables.new()
+		capture.name = f"capture_{n}"
+		capture.type = 'TRANSFORMS'
+		ctarget = capture.targets[0]
+		ctarget.id = armature_obj
+		ctarget.bone_target = pose_bone.name
+		ctarget.transform_type = AXES[axis]
+		ctarget.transform_space = 'LOCAL_SPACE'
+
+		extent = driver.variables.new()
+		extent.name = f"extent_{n}"
+		extent.type = 'SINGLE_PROP'
+		etarget = extent.targets[0]
+		etarget.id_type = 'OBJECT'
+		etarget.id = armature_obj
+		etarget.data_path = (
+			f'pose.bones{_quote(pose_bone.name)}{_quote(side_name(axis, sk_connection.positive))}'
+		)
+
+		sign = '' if sk_connection.positive else '-'
+		terms.append(f"{sign}capture_{n} / extent_{n}")
+
+	driver.expression = f"max({', '.join(terms)}, 0)"
+	return True
 
 class RIG_OT_connect_shape_key(bpy.types.Operator):
 	bl_idname = "rig.connect_shape_key"
@@ -82,25 +202,19 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 	object_name: StringProperty(options={'HIDDEN'})
 	shape_key_name: StringProperty(options={'HIDDEN'})
 
-	invert: BoolProperty(
-		name="Invert",
-		description="The key is 1 at rest and 0 at the extreme",
-		default=False,
-	)
-
 	@classmethod
 	def poll(cls, context):
 		return (context.mode == 'POSE'
 			and context.active_pose_bone is not None)
 
 	def execute(self, context):
-		rig = context.object
+		armature_obj = context.object
 		pose_bone = context.active_pose_bone
 		mesh = bpy.data.objects.get(self.object_name)
 		key = mesh.data.shape_keys if mesh and mesh.type == 'MESH' else None
 		key_block = key.key_blocks.get(self.shape_key_name) if key else None
 
-		error = self.problem(context, rig, pose_bone, mesh, key, key_block)
+		error = self.problem(context, armature_obj, pose_bone, mesh, key, key_block)
 		if error:
 			self.report({'ERROR'}, error)
 			return {'CANCELLED'}
@@ -110,72 +224,39 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 			return {'CANCELLED'}
 		axis, extreme = capture
 
-		prop_bone = rig.pose.bones[get_armature_settings(rig.data, context).property_bone_name]
-		channel = channel_name(key_block.name)
-		channel_path = f'pose.bones{_quoted(prop_bone.name)}{_quoted(channel)}'
-
-		# Check both drivers before changing anything
-		channel_fcurve = _driver(rig, channel_path)
-		if channel_fcurve and not self.is_ours(channel_fcurve.driver, CAPTURE_PREFIX):
-			self.report({'ERROR'}, f"'{channel}' has a hand-written driver. Left alone")
-			return {'CANCELLED'}
-		key_fcurve = _driver(key, key_block.path_from_id("value"))
-		if key_fcurve and not self.is_ours(key_fcurve.driver, CHANNEL_VARIABLE):
-			self.report({'ERROR'}, f"'{key_block.name}' has a hand-written driver. Left alone")
+		# A driver with no connection records behind it was made by someone else: leave it alone
+		key_fcurve = _find_driver(key, key_block.path_from_id("value"))
+		if key_fcurve and not find_bone_connections_for_shape_key(armature_obj, mesh, key_block.name):
+			self.report({'ERROR'}, f"'{key_block.name}' has a driver RigTools didn't make. Left alone")
 			return {'CANCELLED'}
 
-		# The channel: a 0-1 property on the property bone
-		if channel not in prop_bone:
-			prop_bone[channel] = 0.0
-			prop_bone.id_properties_ui(channel).update(
-				min=0.0, max=1.0, soft_min=0.0, soft_max=1.0,
-				description=f"Shape key channel for {key_block.name}")
+		# Connect captures: the pose sets the side's extent, new side or not
+		side = side_name(axis, extreme > 0)
+		pose_bone[side] = abs(extreme)
+		# Fine steps for small distances; shown in scene units (cm/mm)
+		pose_bone.id_properties_ui(side).update(
+			subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
+			step=0.01, precision=4,
+			description=f"How far the bone moves {side[3:]} for its shape keys to reach 1")
 
-		# Its driver: same bone and axis replaces that term, anything else adds one
-		if channel_fcurve is None:
-			channel_fcurve = _new_driver(prop_bone, _quoted(channel))
-		driver = channel_fcurve.driver
-		terms = _parse_terms(driver)
-		variable = next((v for v in driver.variables if v.name in terms
-			and v.targets[0].bone_target == pose_bone.name
-			and v.targets[0].transform_type == AXES[axis]), None)
-		if variable is None:
-			used = {v.name for v in driver.variables}
-			index = next(i for i in range(len(used) + 1) if f"{CAPTURE_PREFIX}{i}" not in used)
-			variable = driver.variables.new()
-			variable.name = f"{CAPTURE_PREFIX}{index}"
-			variable.type = 'TRANSFORMS'
-			target = variable.targets[0]
-			target.id = rig
-			target.bone_target = pose_bone.name
-			target.transform_type = AXES[axis]
-			target.transform_space = 'LOCAL_SPACE'
-			replaced = False
-		else:
-			replaced = True
-		terms[variable.name] = (extreme, self.invert)
-		driver.expression = _expression(terms)
-
-		# The key just reads the channel
-		if key_fcurve is None:
-			key_fcurve = _new_driver(key, key_block.path_from_id("value"))
-			reader = key_fcurve.driver.variables.new()
-			reader.name = CHANNEL_VARIABLE
-			reader.type = 'SINGLE_PROP'
-			reader.targets[0].id_type = 'OBJECT'
-			reader.targets[0].id = rig
-			reader.targets[0].data_path = channel_path
-			key_fcurve.driver.expression = CHANNEL_VARIABLE
-
+		# Record the connection on this bone, then build the shape key's driver from the records
 		axis_name = "XYZ"[axis]
+		replaced = find_shape_key_connection(
+			pose_bone, mesh, key_block.name, axis_name, extreme > 0) is not None
+		add_shape_key_connection(pose_bone, mesh, key_block.name, axis_name, extreme > 0)
+
+		# Turn the limits back on if they were off for posing
+		update_limits(armature_obj, pose_bone)
+		limit_constraint(pose_bone).mute = False
+		_build_driver(armature_obj, mesh, key_block)
+
 		action = "Updated" if replaced else "Connected"
-		self.report({'INFO'}, f"{action} {key_block.name} to {pose_bone.name} "
-			f"{axis_name} {extreme:+.4g}{' (inverted)' if self.invert else ''}")
+		self.report({'INFO'}, f"{action} {key_block.name} to {pose_bone.name} {axis_name} {extreme:+.4g}")
 		return {'FINISHED'}
 
-	def problem(self, context, rig, pose_bone, mesh, key, key_block):
+	def problem(self, context, armature_obj, pose_bone, mesh, key, key_block):
 		"""An error message, or None if this can be connected."""
-		if rig is None or rig.type != 'ARMATURE':
+		if armature_obj is None or armature_obj.type != 'ARMATURE':
 			return "Select the rig's control bone in pose mode"
 		if key_block is None:
 			return f"No shape key '{self.shape_key_name}' on '{self.object_name}'"
@@ -183,97 +264,51 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 			return "The Basis can't be connected"
 		if has_sides(key, key_block.name):
 			return (f"'{key_block.name}' is split: connect its .L or .R instead")
-		if not any(m.type == 'ARMATURE' and m.object == rig for m in mesh.modifiers):
-			return f"'{mesh.name}' isn't deformed by '{rig.name}'"
+		if not any(m.type == 'ARMATURE' and m.object == armature_obj for m in mesh.modifiers):
+			return f"'{mesh.name}' isn't deformed by '{armature_obj.name}'"
 
-		prop_bone_name = get_armature_settings(rig.data, context).property_bone_name
-		if prop_bone_name not in rig.pose.bones:
-			return f"The rig has no property bone ('{prop_bone_name}'). Set one in Armature Settings"
+		prop_bone_name = get_armature_settings(armature_obj.data, context).property_bone_name
 		name = pose_bone.name
 		if name == prop_bone_name:
 			return "The property bone can't be a control"
-		owners = find_assemblies(rig.data, [name], include_org_states=False)
+		owners = find_assemblies(armature_obj.data, [name], include_org_states=False)
 		if owners:
 			return f"'{name}' belongs to assembly '{owners[0].name}'. Use a bone of your own"
 		if does_match_def_name(name):
 			return f"'{name}' is named like a DEF bone. Use a bone of your own"
 		return None
 
-	@staticmethod
-	def is_ours(driver, prefix):
-		"""Our drivers only use our variable names: capture_n on channels, channel on keys."""
-		return driver.type == 'SCRIPTED' and all(
-			v.name.startswith(prefix) if prefix == CAPTURE_PREFIX else v.name == prefix
-			for v in driver.variables)
-
-def find_channel(rig, key_block_name):
-	"""(data path, driver F-curve or None) of a key's channel. Read-only, so safe in draw."""
-	prop_bone_name = rig.data.rigtools.property_bone_name
-	path = f'pose.bones{_quoted(prop_bone_name)}{_quoted(channel_name(key_block_name))}'
-	return path, _driver(rig, path)
-
-def connections(rig, key_block_name):
-	"""[(variable, bone, axis letter, extreme, inverted)] for each bone driving this key."""
-	_, fcurve = find_channel(rig, key_block_name)
-	if fcurve is None:
-		return []
-	terms = _parse_terms(fcurve.driver)
-	found = []
-	for variable in fcurve.driver.variables:
-		if variable.name in terms:
-			target = variable.targets[0]
-			extreme, inverted = terms[variable.name]
-			found.append((variable.name, target.bone_target, target.transform_type[-1], extreme, inverted))
-	return found
-
 class RIG_OT_disconnect_shape_key(bpy.types.Operator):
 	bl_idname = "rig.disconnect_shape_key"
 	bl_label = "Disconnect"
-	bl_description = ("Stop this bone driving the key. Removing the last bone also removes the "
-		"channel, and the key's driver on every mesh that shares it")
+	bl_description = "Stop this bone driving this shape key from this side"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	rig_name: StringProperty(options={'HIDDEN'})
+	armature_name: StringProperty(options={'HIDDEN'})
+	bone_name: StringProperty(options={'HIDDEN'})
+	object_name: StringProperty(options={'HIDDEN'})
 	shape_key_name: StringProperty(options={'HIDDEN'})
-	variable: StringProperty(options={'HIDDEN'})
+	axis: StringProperty(options={'HIDDEN'})
+	positive: BoolProperty(options={'HIDDEN'})
 
 	def execute(self, context):
-		rig = bpy.data.objects.get(self.rig_name)
-		path, fcurve = find_channel(rig, self.shape_key_name) if rig else (None, None)
-		variable = fcurve.driver.variables.get(self.variable) if fcurve else None
-		if variable is None:
+		armature_obj = bpy.data.objects.get(self.armature_name)
+		pose_bone = armature_obj.pose.bones.get(self.bone_name) if armature_obj else None
+		mesh = bpy.data.objects.get(self.object_name)
+		connection = find_shape_key_connection(
+			pose_bone, mesh, self.shape_key_name, self.axis, self.positive) if pose_bone else None
+		if connection is None:
 			self.report({'ERROR'}, f"'{self.shape_key_name}' isn't connected to that bone")
 			return {'CANCELLED'}
-		bone = variable.targets[0].bone_target
+		remove_shape_key_connection(pose_bone, connection)
+		update_limits(armature_obj, pose_bone)
 
-		driver = fcurve.driver
-		terms = _parse_terms(driver)
-		terms.pop(variable.name, None)
-		driver.variables.remove(variable)
-		if terms:
-			driver.expression = _expression(terms)
-			self.report({'INFO'}, f"Disconnected {bone} from {self.shape_key_name}")
-			return {'FINISHED'}
-
-		# That was the last bone: remove the channel and everything reading it
-		rig.animation_data.drivers.remove(fcurve)
-		prop_bone = rig.pose.bones.get(rig.data.rigtools.property_bone_name)
-		channel = channel_name(self.shape_key_name)
-		if prop_bone and channel in prop_bone:
-			del prop_bone[channel]
-		keys = 0
-		for obj in bpy.data.objects:
-			key = obj.data.shape_keys if obj.type == 'MESH' else None
-			if key is None or key.animation_data is None:
-				continue
-			for key_fcurve in list(key.animation_data.drivers):
-				if any(v.targets[0].id == rig and v.targets[0].data_path == path
-						for v in key_fcurve.driver.variables):
-					key_block = key.path_resolve(key_fcurve.data_path.rsplit(".", 1)[0])
-					key.animation_data.drivers.remove(key_fcurve)
-					key_block.value = 0.0
-					keys += 1
-		self.report({'INFO'}, f"Disconnected {self.shape_key_name} ({keys} key{'s' if keys != 1 else ''})")
+		# The shape key's driver is rebuilt from the bones still driving it, or removed
+		key = mesh.data.shape_keys if mesh and mesh.type == 'MESH' else None
+		key_block = key.key_blocks.get(self.shape_key_name) if key else None
+		if key_block and not _build_driver(armature_obj, mesh, key_block):
+			key_block.value = 0.0
+		self.report({'INFO'}, f"Disconnected {self.bone_name} from {self.shape_key_name}")
 		return {'FINISHED'}
 
 class RIG_OT_select_control(bpy.types.Operator):
@@ -282,35 +317,90 @@ class RIG_OT_select_control(bpy.types.Operator):
 	bl_description = "Select this control bone"
 	bl_options = {'REGISTER', 'UNDO'}
 
-	rig_name: StringProperty(options={'HIDDEN'})
+	armature_name: StringProperty(options={'HIDDEN'})
 	bone_name: StringProperty(options={'HIDDEN'})
 
 	def execute(self, context):
-		rig = context.object
-		if rig is None or rig.name != self.rig_name or rig.mode != 'POSE':
-			self.report({'INFO'}, f"Enter pose mode on '{self.rig_name}' to select its bones")
+		armature_obj = context.object
+		if armature_obj is None or armature_obj.name != self.armature_name or armature_obj.mode != 'POSE':
+			self.report({'INFO'}, f"Enter pose mode on '{self.armature_name}' to select its bones")
 			return {'CANCELLED'}
-		pose_bone = rig.pose.bones.get(self.bone_name)
+		pose_bone = armature_obj.pose.bones.get(self.bone_name)
 		if pose_bone is None:
 			self.report({'ERROR'}, f"No bone '{self.bone_name}'")
 			return {'CANCELLED'}
 		# Selection is on the pose bone since Blender 5.0, on the bone before
-		for other in rig.pose.bones:
+		for other in armature_obj.pose.bones:
 			(other if hasattr(other, "select") else other.bone).select = False
 		(pose_bone if hasattr(pose_bone, "select") else pose_bone.bone).select = True
-		rig.data.bones.active = pose_bone.bone
+		armature_obj.data.bones.active = pose_bone.bone
+		return {'FINISHED'}
+
+class RIG_OT_select_connected_key(bpy.types.Operator):
+	bl_idname = "rig.select_connected_key"
+	bl_label = "Select Shape Key"
+	bl_description = "Make this the active shape key on every mesh of the rig that has it"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	armature_name: StringProperty(options={'HIDDEN'})
+	shape_key_name: StringProperty(options={'HIDDEN'})
+
+	def execute(self, context):
+		armature_obj = bpy.data.objects.get(self.armature_name)
+		if armature_obj is None:
+			self.report({'ERROR'}, f"No armature '{self.armature_name}'")
+			return {'CANCELLED'}
+		found = 0
+		for obj in get_controlled_meshes(armature_obj, context.view_layer):
+			index = obj.data.shape_keys.key_blocks.find(self.shape_key_name)
+			if index >= 0:
+				obj.active_shape_key_index = index
+				found += 1
+		if not found:
+			self.report({'ERROR'}, f"No mesh of '{armature_obj.name}' has '{self.shape_key_name}'")
+			return {'CANCELLED'}
 		return {'FINISHED'}
 
 classes = (
 	RIG_OT_connect_shape_key,
 	RIG_OT_disconnect_shape_key,
 	RIG_OT_select_control,
+	RIG_OT_select_connected_key,
 )
+
+# The bone view's extent sliders. Each edits a side's SK property and moves the bone to
+# that extent, so you see where it is. Get/set only: nothing is saved to the file.
+# PROTOTYPE: the user wants this complexity scaled back later (see the plan).
+def drive_slider(axis, positive):
+	return f"rigtools_drive_{'pos' if positive else 'neg'}_{'xyz'[axis]}"
+
+def _drive_property(axis, positive):
+	prop = side_name(axis, positive)
+	sign = 1 if positive else -1
+
+	def get(pose_bone):
+		return pose_bone.get(prop, 0.0)
+
+	def set(pose_bone, value):
+		pose_bone[prop] = value
+		pose_bone.location[axis] = sign * value
+
+	return bpy.props.FloatProperty(
+		name=f"Extent {prop[3:]}",
+		description=f"How far {prop[3:]} travels to reach 1. Moves the bone there",
+		get=get, set=set, subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
+		step=0.01, precision=4)
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	for axis in range(3):
+		for positive in (True, False):
+			setattr(bpy.types.PoseBone, drive_slider(axis, positive), _drive_property(axis, positive))
 
 def unregister():
+	for axis in range(3):
+		for positive in (True, False):
+			delattr(bpy.types.PoseBone, drive_slider(axis, positive))
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)

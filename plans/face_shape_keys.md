@@ -3,11 +3,12 @@
 ## Next steps (start here)
 Only the items under "Decided" are the user's decisions; everything under "Proposed" is still open. These are general add-on tools for anyone building a face rig; nothing here edits a specific rig. Kendra is only the test case: `Z:\Data\Blender\Kendra\Kendra-Character1.blend` (RigTools rig `Armature`, 1519 bones, no face controls).
 
-**Status (2026-11-07): step 1's core is built and working on Kendra** (the user reports Connect works well). Claude wrote all of it at the user's request; tested headless on Kendra in Blender 5.2, then by the user in the UI. Next: mirroring, then bone limits.
+**Status (2026-11-08): the Connect redesign is built** (direct drivers, connection records, extent, range) and tested headless on Kendra in Blender 5.2; the user has tried the bone view's list and Extent in the UI, not yet Range. Claude wrote it at the user's request. Nothing is committed. **Open question the user is thinking about: how symmetric keys should be sculpted** (see Symmetric key sets, "Sculpting one side"). Then the remaining Connect work below; mirroring after.
 
 Built, all in `rigtools/panels/shape_keys/`:
-- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Connect button (hidden on split sources). Basis is shown, locked. Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, and a Connections heading with one row per bone driving the key (bone name selects it, direction like `-X`, ⇄ when inverted, ✕ disconnects).
-- `connect.py`: Connect, Disconnect and Select Control (details below).
+- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Connect button (hidden on split sources). Basis is shown, locked. Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
+- `connect.py`: Connect, Disconnect, Select Control, Select Connected Key, the limits, and the Extent slider properties (details below).
+- `rig_data/shape_key_connections.py`: the connection records (PropertyGroup on `PoseBone`) and the only functions that touch them.
 - `split.py`: Create/Update L/R Shape Keys. Smoothstep falloff across X = 0, stored per source as `split_falloff:<name>` on the Key. Respects the source's vertex group. New sides go right under the source, .L then .R, in one block move. Refuses driven keys.
 - `reverse.py`: Reverse Shape Key, in the ▾ menu. Folds the key into the Basis and makes the key take it back out; the mesh looks the same at every value, value and slider range flip. Refuses driven or keyframed keys, split sources and sides, muted keys, keys not relative to the Basis.
 - `key_actions.py`: our own Remove and Move (Blender 5's act on every *selected* key, which deleted Kendra's Basis), and Apply Vertex Group (bake the key's group in and clear it). Built because the user often fixes stray edits with a vertex group.
@@ -16,22 +17,49 @@ Built, all in `rigtools/panels/shape_keys/`:
 
 Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey.select`, 5.0+); every move call re-evaluates the mesh and its modifiers (~0.1s on Kendra, mostly the Data Transfer), so moves are done as one block. Bone selection is `PoseBone.select` (was `Bone.select`). `Operator.check` is reserved; don't name a method `check`.
 
-**Connect as built** (`connect.py`):
-- **Channels:** `SK-<key name>` custom properties (0 to 1) on the property bone. Same-named keys on any mesh share one channel. No property bone means refuse.
-- **Channel driver:** one Transform Channel variable per bone (`capture_0`, `capture_1`, ...; `LOCAL_SPACE`, location axis), expression `clamp(capture_0 / E0 + capture_1 / E1, 0, 1)`, inverted terms `(1 - capture_n / E)`. The expression is the only record; terms are parsed back from it.
-- **Key driver:** one Single Property variable `channel` reading the channel; expression `channel`. Both drivers are created clean (no mapping curve, no modifiers).
-- **Capture:** `matrix_basis` location, largest axis; rotated, scaled or unposed is refused. The bone stays posed.
-- **Existing drivers:** same bone and axis replaces its term, another bone adds one, any driver with other variable names is hand-written and refused.
-- **Checks:** not the Basis, not a split source, mesh deformed by the rig, property bone exists and isn't the control, control not an assembly mechanism bone (`find_assemblies(..., include_org_states=False)`) and not DEF-named (`does_match_def_name`). Any bone the user names is fine otherwise, ORG or not. Nothing was worth extracting from correctives: the pose read is two lines, and the shared checks already live in utils.
-- **Disconnect:** ✕ on a Connections row removes that bone's term. Removing the last term removes the channel driver, the `SK-` property, and every key driver reading that channel (on all meshes), resetting those keys to 0.
-- **Split sources can't be connected, and driven keys can't be split.** The source is a sculpting template that stays at 0; driving it would add the whole shape on top of the sides. A master control drives the sides with a second term instead.
+**Connect as built (2026-11-08)** (`connect.py`, `rig_data/shape_key_connections.py`):
+- **Connection records:** `pose_bone.rigtools_shape_keys.items`, one per key the bone drives: `mesh` (Object pointer), `key_name`, `axis` ('X'/'Y'/'Z'), `positive`; plus `active_index` for the list. Functions: `get_`, `find_`, `add_`, `remove_shape_key_connection`, and `find_bone_connections_for_shape_key(armature_obj, mesh, key_name)` (every bone recorded as driving a key). The records are the source; drivers are output, built from them and never read back. No expression parsing anywhere.
+- **Extent:** `SK ±Axis` custom property on the control per connected side (e.g. `SK +Z`), a positive distance. Connect sets it from the pose every time. Shared by every key on that side. Removed when the side's last connection goes.
+- **Key driver** (`_build_driver`), rewritten from the records on every Connect and Disconnect: per bone, `capture_n` (Transform Channel, `LOCAL_SPACE`, location axis) and `extent_n` (the side's `SK` property); expression `max(capture_0 / extent_0, capture_1 / extent_1, 0)`, `-capture_n` on a negative side. No upper clamp: the key's own Range Max caps it. Removed (key set to 0) when no records are left.
+- **Limits** (`update_limits`, `_build_limit_driver`): one "Shape Key Limits" Limit Location per control (local space, Affect Transform). Each connected side's field is driven by `extent * max(range_max_0, ..., 1)`, the Range Max (`slider_max`) of every key connected on that side. A key's Range Max of 1.2 lets the bone travel 20% past the extent and the key reach 1.2 (overshoot), with no lag. Unconnected sides are free; no connections removes the constraint. The Limited/Unlocked toggle mutes it; Connect turns it back on.
+- **Extent slider:** a get/set `FloatProperty` on `PoseBone` (`rigtools_drive_pos_z` etc.) that writes `SK ±Axis` and moves the bone to that extent. Nothing saved. **The user dislikes this complexity and wants it scaled back later.**
+- **Capture:** `matrix_basis` location, largest axis; rotated, scaled or unposed is refused.
+- **Checks:** not the Basis, not a split source, mesh deformed by the armature, control isn't the property bone, not an assembly mechanism bone, not DEF-named. A key driver with no records behind it is someone else's: refused.
+- **Disconnect:** takes bone, mesh, key and side; removes the record, updates the limits, rebuilds the key's driver.
+- **Split sources can't be connected, and driven keys can't be split.**
+- **Naming:** `armature_obj`, never `rig`; operator properties are `armature_name`.
 
 **Still to do for Connect:**
-- **Mirroring:** `.L` key and bone to `.R` with `flip_side_name`, location X flipped. The flipped bone and key must both exist and pass the same checks; otherwise connect one side and say so.
-- **Bone limits:** one Limit Location per control, rewritten on each connect (see Limits and extrapolation; locking design still open). Range stays 0 to 1 for now; the user wants to play with limits after.
-- **Invert with several terms** flips each term separately and then adds them. Fine for one bone; revisit if mixed inverted and normal terms come up.
-- **Later, not yet:** the Connections rows may become their own list box once connections get settings (limits, reverse, easing): a list plus the selected item's settings, like the shape key list. The user finds a list dependent on another list a little odd.
+- **Remove button:** the ✕ in each list row reads as text unembossed and looks poor embossed. Proposed: a − button in a column beside the list (Blender's convention), acting on the selected row; room there later for "select this key".
+- **Repair** stale records (see Connect redesign).
+- **MIN** per key; **interpolation** on the key driver's F-curve.
+- **Range Min below 0** does nothing yet (the driver floors at 0). Making it work means the bone's opposite side drives the key negative, and that side may already belong to another key (eyelid). Later.
+- **Limited/Unlocked toggle:** may be redundant now that Extent moves the bone and Range sets overshoot.
+- **Old channel-layer leftovers** on Kendra (`SK-` properties and channel drivers on the property bone, key drivers reading them) are invisible to the new code and block reconnecting those keys: delete by hand or a one-off script.
+- **Mirroring:** `.L` key and bone to `.R` with `flip_side_name`, location X flipped.
 - Deferred: leftover split falloff settings (see Open design questions).
+
+### Connect redesign (decided and built 2026-11-08)
+Started from the user's request for an **extent slider**: change how far a side must move to reach 1 without re-posing. The slider is the critical feature.
+
+**Decisions:**
+- **Direct drivers; the channel layer is dropped.** Sharing keys by matching name is an implicit coupling and a *cost* (the teeth's `Mouth.Open` following the face's should be a deliberate connection); a renamed key left a stale `SK-` channel; clutter on the property bone. A direct driver survives a key rename.
+- **A real UIList, backed by stored records.** Hand-drawn rows posing as a list are out of the question; listing the rig's drivers through a filter was rejected. The user accepted stored add-on data here as necessary, in its own file (protected-members rule).
+- **Repair against the drivers (not built).** Keys are stored by name, so a rename makes a record stale while the rig keeps working. Repair: when a record's key is missing on its mesh, find the key on that mesh whose driver reads this bone, axis and side, skipping keys claimed by another record, and take its name. No match: remove or flag. Ambiguous: flag. Draw can only show stale records; operators fix them.
+- **Range instead of a separate Limit.** The user found "Range 0 to 1.2" far more natural than a limit distance with a link toggle. The key's own Range Max (Blender's field, no new data) drives the bone's limit, rather than the limit driving the key's slider max (tested: that lagged one update). Per key, not per key and bone: every bone driving a key lets it reach its Range Max; the user can't think of a case wanting otherwise.
+- **No invert, anywhere.** Keys that are on at rest are fixed at the source with Reverse Shape Key.
+- **MAX/MIN is per key.** MAX is the default and stores nothing. MIN (not built) would be a custom property on the mesh's Key, like `split_falloff:<name>`.
+
+**Two separate relationships** (don't conflate them):
+1. **One side, several keys.** A side is a bone plus a direction (upper lid −Z). It owns one extent; its limit is the extent times the largest Range Max among its keys. No combining.
+2. **One key, several bones.** The key's driver combines its bones with MAX (default) or MIN.
+
+**The eyelid case (why both are needed, no MCH bones).** Upper lid −Z drives `Eyelid.Upper`, `Eyelid.Lower` and `Eyelid.Smile`, all at the same distance. `Eyelid.Lower` is MAX(upper lid −Z, lower lid +Z): closing the upper lid pulls the lower one up, but the lower lid also moves on its own. `Eyelid.Smile` is MIN(upper lid −Z, lower lid +Z): it only shapes when both are applied (curved anime eye smile). The user rejected MCH follow bones for this, and a one-key-per-side rule was dropped because of it.
+
+**Ground rules:**
+- Keep blend data minimal: Blender's own fields first; visible custom properties only where a driver must read a value; add-on data only where necessary, owned by one module.
+- Simple expressions only: no Python, no auto-run. Check `driver.is_simple_expression`.
+- Old-format connections vanished from the panel when the expression format changed: the reason drivers are never the thing we read.
 
 How we'll work: Claude does the plumbing (panels, registration, boilerplate) and answers lookups; the user writes the logic unless they ask Claude to (they did for Connect, Split, Reverse). Claude reviews on request. The user is also improving Kendra's face rig alongside the tools, and may ask best-practice questions as we go.
 
@@ -98,7 +126,7 @@ Capture works the same for both. Face shapes are mostly keys, with small deform 
 ### Easing (decided: optional, hidden, linear by default)
 The jaw has always felt too snappy; it should spend more time barely open. Easing goes on the driver's own F-curve: the expression still normalizes and clamps, and the curve's keyframes reshape 0 to 1. No keyframes means linear, as now. Tested: an ease-in curve on `Mouth.Open` gave 0.03 at a quarter open, 0.16 at half and 1.0 at full, with constant extrapolation holding it at 1.0 past the extreme. The expression stays simple. Editing the curve can be left to the Graph Editor; the panel only needs a way to add one and jump to it.
 
-### Channel layer (trial: Connect uses it, decided 2026-11-07)
+### Channel layer (dropped and removed 2026-11-08: see Connect redesign)
 Controls drive named channels (custom properties on the property bone), and channels drive keys: `control > channel > key`. Every input (face bone, slider, Rig UI property, emote, later mocap) writes to a channel the same way. The user wants to try it in practice on a real rig before deciding; a toy demo didn't settle anything.
 - Tested: both layers are simple expressions and evaluate in one update.
 - **A driven channel can't be keyframed.** Keying `smile.L` at 0.8 gave 0, because the driver overwrites it. If channels must also take animation or mocap, the channel driver needs a separate animatable input added to it (untested).
@@ -123,7 +151,7 @@ Earlier proposal (before connect): a key can run negative when the control moves
 - The bone limit on that side becomes `E * reverse`.
 - **One key can use both.** An eyelid key with `reverse` 0.3 and `limit` 1.2 runs from -0.3 (wide) to 1.2 (overshoot), with the tool setting both slider ends. Each end was tested on its own, not yet both on one key.
 - **A side with nothing captured stays unlimited.** Otherwise capturing smile would stop the bone at rest, and it could never be posed down to capture frown.
-- **Open: recapturing further out.** A limit stops the user posing past the old extreme. Capture may need a way to lift the limits on the control while posing.
+- **Recapturing further out:** solved by the mute toggle on the Connections row (built).
 
 **Correctives, decided:** add `use_motion_extrapolate` to the panel. Tested: it removes the clamp in **both** directions. With a correction of 0.1 at rotation 1.0, a rotation of 1.5 gives 0.15, but a rotation of -0.5 gives -0.05. So a corrective moves the wrong way when the joint bends backward, and the tooltip should say so.
 
@@ -152,6 +180,12 @@ Things Kendra's keys show the tool has to handle:
 - **Direction keys mirror to a different name.** `Eye.Left.L` (22.6mm) mirrors to `Eye.Right.R` (22.6mm), and `Eye.Left.R` to `Eye.Right.L`, not to `Eye.Left.R`. The same goes for `Mouth.Left`/`Mouth.Right` and `Jaw.Left`/`Jaw.Right`.
 - **Some keys cross the center.** `Mouth.Wide.L` moves 9.4mm on its own side and 5.4mm on the other, and `Lip.Lower.Down.L` 4.0mm and 0.3mm. These can't be regenerated with a hard split.
 - Her mesh is exactly symmetrical: every vertex has a mirror at distance 0 after rounding to 5 decimals. Other users' meshes may not be, so report vertices with no match.
+
+**Sculpting one side (open, 2026-11-08; the user isn't sure yet).** The full-face-then-split flow is indirect in practice: sculpting on the posed (deformed) mesh doesn't work with symmetry, so the user keeps switching to rest pose, turning on the full-face key and copying it to view it. They also edited a `.L` key directly by accident, and Update from the full-face key would now overwrite that. They question whether full-face keys are worth it: their only real benefit is symmetry; otherwise two side keys would do.
+- **Why the full-face key exists:** the center line. A smile moves the middle of the lips too; split gives each side half of that, so `.L` + `.R` equals the full shape. Plain mirroring `.L` to make `.R` would double the center motion with both on.
+- **Proposed: "Mirror from .L" (and from .R).** Build the full-face key from the side (left half as sculpted, right half its mirror, center line as the side's own), then split it with the usual falloff into both sides. Sculpt one side in pose, with no symmetry; the full-face key becomes generated. Also recovers the user's accidental `.L` edit. Cost: `.L` is re-split, so its falloff zone near the center is slightly reshaped; needs a symmetric mesh.
+- **Both directions would exist:** Update L/R (full face to sides) and Mirror from a side (side to full face to both sides). Whichever was edited last is the one to push from; don't edit both first.
+- **Undecided:** whether to keep full-face keys at all, or drop them and only mirror sides.
 
 ### Emotes and sliders
 Two independent choices: what reads the input, and what gets driven.
