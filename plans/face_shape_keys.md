@@ -3,16 +3,17 @@
 ## Next steps (start here)
 Only the items under "Decided" are the user's decisions; everything under "Proposed" is still open. These are general add-on tools for anyone building a face rig; nothing here edits a specific rig. Kendra is only the test case: `Z:\Data\Blender\Kendra\Kendra-Character1.blend` (RigTools rig `Armature`, 1519 bones, no face controls).
 
-**Status (2026-11-08): the Connect redesign is built** (direct drivers, connection records, extent, range) and tested headless on Kendra in Blender 5.2; the user has tried the bone view's list and Extent in the UI, not yet Range. Claude wrote it at the user's request. Nothing is committed. **Open question the user is thinking about: how symmetric keys should be sculpted** (see Symmetric key sets, "Sculpting one side"). Then the remaining Connect work below; mirroring after.
+**Status (2026-11-09): the Connect redesign is built and committed** (`2b21dba`: direct drivers, connection records, extent, range) and tested headless on Kendra in Blender 5.2; the user has tried the bone view's list and Extent in the UI, not yet Range. Claude wrote it at the user's request. **Mirror Shape Key and lock support are built and working (2026-11-09)** (`mirror.py`, the user wrote most of it and Claude finished it; lock checks and the lock toggle by Claude): tested headless, and the user confirmed everything works in the UI. Not committed yet. **Next:** the remaining Connect work below; mirroring connections after.
 
 Built, all in `rigtools/panels/shape_keys/`:
-- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Connect button (hidden on split sources). Basis is shown, locked. Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
+- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Blender's lock toggle (`lock_shape`, Basis included), Connect button (hidden on split sources and the Basis). Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, Mirror to <name>, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
 - `connect.py`: Connect, Disconnect, Select Control, Select Connected Key, the limits, and the Extent slider properties (details below).
 - `rig_data/shape_key_connections.py`: the connection records (PropertyGroup on `PoseBone`) and the only functions that touch them.
 - `split.py`: Create/Update L/R Shape Keys. Smoothstep falloff across X = 0, stored per source as `split_falloff:<name>` on the Key. Respects the source's vertex group. New sides go right under the source, .L then .R, in one block move. Refuses driven keys.
+- `mirror.py`: Mirror Shape Key, a "Mirror to <name>" button under the active key (greyed when the target is locked). Copies the key's shape mirrored across X onto its mirror key (`mirror_shape_key_name`), creating it under the source if missing; writes coordinates only. Mirror pairs from the Basis with a KD-tree (0.1mm); unmatched vertices are left alone and reported.
 - `reverse.py`: Reverse Shape Key, in the ▾ menu. Folds the key into the Basis and makes the key take it back out; the mesh looks the same at every value, value and slider range flip. Refuses driven or keyframed keys, split sources and sides, muted keys, keys not relative to the Basis.
 - `key_actions.py`: our own Remove and Move (Blender 5's act on every *selected* key, which deleted Kendra's Basis), and Apply Vertex Group (bake the key's group in and clear it). Built because the user often fixes stray edits with a vertex group.
-- `shape_key_utils.py`: shared helpers (side names, `has_sides`, `can_split`, `is_key_driven`, key data, vertex group weights, moving keys).
+- `shape_key_utils.py`: shared helpers (side names, `mirror_shape_key_name`, `has_sides`, `can_split`, `can_mirror`, `is_key_driven`, `is_locked`, key data, vertex group weights, moving keys).
 - The Armature panel (`panels/armature/armature_panel.py`) replaced Selection: Pose/Rest, mode buttons, rig hide, a Meshes list with Edit, Weight Paint, select, hide and manual order.
 
 Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey.select`, 5.0+); every move call re-evaluates the mesh and its modifiers (~0.1s on Kendra, mostly the Data Transfer), so moves are done as one block. Bone selection is `PoseBone.select` (was `Bone.select`). `Operator.check` is reserved; don't name a method `check`.
@@ -29,6 +30,8 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 - **Split sources can't be connected, and driven keys can't be split.**
 - **Naming:** `armature_obj`, never `rig`; operator properties are `armature_name`.
 
+**Lock checks built (2026-11-09)** with `is_locked` in `shape_key_utils.py`: Mirror refuses a locked target; Split skips a locked side and updates the other (user's choice), refusing only when both are locked; Reverse refuses if the key or the Basis is locked (other keys' locks don't matter, what they do is unchanged); Apply Vertex Group refuses a locked key.
+
 **Still to do for Connect:**
 - **Remove button:** the ✕ in each list row reads as text unembossed and looks poor embossed. Proposed: a − button in a column beside the list (Blender's convention), acting on the selected row; room there later for "select this key".
 - **Repair** stale records (see Connect redesign).
@@ -36,7 +39,7 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 - **Range Min below 0** does nothing yet (the driver floors at 0). Making it work means the bone's opposite side drives the key negative, and that side may already belong to another key (eyelid). Later.
 - **Limited/Unlocked toggle:** may be redundant now that Extent moves the bone and Range sets overshoot.
 - **Old channel-layer leftovers** on Kendra (`SK-` properties and channel drivers on the property bone, key drivers reading them) are invisible to the new code and block reconnecting those keys: delete by hand or a one-off script.
-- **Mirroring:** `.L` key and bone to `.R` with `flip_side_name`, location X flipped.
+- **Mirroring connections:** `.L` bone to `.R` with `flip_side_name`, the key with `mirror_shape_key_name` (so `Eye.Left.L` goes to `Eye.Right.R`), location X flipped.
 - Deferred: leftover split falloff settings (see Open design questions).
 
 ### Connect redesign (decided and built 2026-11-08)
@@ -98,6 +101,9 @@ Capture works the same for both. Face shapes are mostly keys, with small deform 
 - **Add-on tools only.** Nothing is written for one specific rig.
 - **The panel lists every object the rig controls.** A pose mode panel shows the shape keys for each object with shape keys and an armature modifier pointing at this rig. An armature modifier is required, no exceptions. Objects can collapse when there are several. Kendra has two: the main model and the hair. The normal cages have no armature modifier, so they're left out automatically.
 - **The full-face key is the source for the sides.** Build it with mirror on, then split it. Update overwrites the sides, and that's accepted.
+- **A key's vertex group counts as applied (2026-11-09).** Any tool that reads a key's shape uses its delta multiplied by its vertex group, as Split already does. No tool refuses because a key has a group.
+- **Locked keys are respected (2026-11-09).** Blender's `lock_shape` is shown in the list, and no tool writes to a locked key.
+- **Mirror Shape Key (2026-11-09).** Copies a key onto its mirror key, side to side, and never writes back to the full-face key. Split stays as it is. Full-face keys become optional once you mirror, but the tool never deletes them; it only offers tools that help. Direction words flip with the side: `Eye.Left.L` mirrors to `Eye.Right.R`. See "Sculpting one side".
 - **The side weight is calculated.** No vertex group needed: the same tiny falloff at the center the user normally paints.
 - **Jump to edit.** One click into editing a key on its mesh, one click back to pose mode.
 - **Emote sliders support both** bones and Rig UI custom properties, chosen per emote.
@@ -173,7 +179,7 @@ A set is a source key plus its sides: `Mouth.Smile`, `Mouth.Smile.L`, `Mouth.Smi
 - **The weight:** a smooth ramp across X with a small width, where the left and right weights always add up to 1, so `.L` + `.R` at full strength equals the full-face key exactly.
 - **Falloff width:** a setting with a tiny default, in case a shape creases at the center.
 - **Update keeps drivers.** It only writes coordinates, so captured drivers on the sides survive. If `.L` or `.R` doesn't exist yet, it creates them.
-- **Mirror Side:** leave it out for now. The mirror-then-split workflow doesn't need it. Add it only if one-sided shapes come up.
+- **Mirror Side:** superseded by Mirror Shape Key (built 2026-11-09, see "Sculpting one side").
 - **Test first:** writing key coordinates from pose mode, without entering the mesh.
 
 Things Kendra's keys show the tool has to handle:
@@ -181,11 +187,21 @@ Things Kendra's keys show the tool has to handle:
 - **Some keys cross the center.** `Mouth.Wide.L` moves 9.4mm on its own side and 5.4mm on the other, and `Lip.Lower.Down.L` 4.0mm and 0.3mm. These can't be regenerated with a hard split.
 - Her mesh is exactly symmetrical: every vertex has a mirror at distance 0 after rounding to 5 decimals. Other users' meshes may not be, so report vertices with no match.
 
-**Sculpting one side (open, 2026-11-08; the user isn't sure yet).** The full-face-then-split flow is indirect in practice: sculpting on the posed (deformed) mesh doesn't work with symmetry, so the user keeps switching to rest pose, turning on the full-face key and copying it to view it. They also edited a `.L` key directly by accident, and Update from the full-face key would now overwrite that. They question whether full-face keys are worth it: their only real benefit is symmetry; otherwise two side keys would do.
-- **Why the full-face key exists:** the center line. A smile moves the middle of the lips too; split gives each side half of that, so `.L` + `.R` equals the full shape. Plain mirroring `.L` to make `.R` would double the center motion with both on.
-- **Proposed: "Mirror from .L" (and from .R).** Build the full-face key from the side (left half as sculpted, right half its mirror, center line as the side's own), then split it with the usual falloff into both sides. Sculpt one side in pose, with no symmetry; the full-face key becomes generated. Also recovers the user's accidental `.L` edit. Cost: `.L` is re-split, so its falloff zone near the center is slightly reshaped; needs a symmetric mesh.
-- **Both directions would exist:** Update L/R (full face to sides) and Mirror from a side (side to full face to both sides). Whichever was edited last is the one to push from; don't edit both first.
-- **Undecided:** whether to keep full-face keys at all, or drop them and only mirror sides.
+**Sculpting one side (decided 2026-11-09: Mirror).** The full-face-then-split flow is indirect in practice: sculpting on the posed (deformed) mesh doesn't work with symmetry, so the user kept switching to rest pose, turning on the full-face key and copying it to view it. They also edited a `.L` key directly by accident, which Update from the full-face key would overwrite.
+
+**Mirror Shape Key:** sculpt one side in pose with no symmetry, then copy it onto the mirror key. For each vertex `v` of the target: `target(v) = basis(v) + flip_x(source(m) - basis(m))`, where `m` is `v`'s mirror vertex.
+- **Doesn't touch the full-face key**, so nothing is re-split. (Rejected: "Mirror from .L", which rebuilt the full-face key and re-split, reshaping the falloff zone a little every time.)
+- **The center line holds.** Split's smoothstep is symmetric (`1 - s(x) = s(-x)`), so mirroring a split `.L` gives exactly the `.R` that Update would. Center vertices edited directly on a side double up with both sides on; the user doesn't see that as a problem (they see the result with both on), so no warning and no re-weighting.
+- **Target name:** flip the side suffix and any `Left`/`Right` word: `Eye.Left.L` to `Eye.Right.R`, and keys with no side too, `Mouth.Left` to `Mouth.Right` (whole-mesh mirror). A key with no mirror name (`Mouth.Smile`) has no Mirror.
+- **Either direction:** acts on the active key and writes its mirror. Created if missing (relative key, slider range copied, placed beside the source); if it exists, only coordinates are written, so its drivers and settings survive.
+- **Mirror pairs** from the Basis with a KD-tree and a small tolerance. Vertices with no match are left alone and reported.
+- **Vertex group:** the source's group is treated as applied (see Decided).
+- **Full-face keys stay optional.** The tool never deletes them. Once sides are mirrored, the full-face key is stale; Update L/R would overwrite the sides.
+
+- **Locking is Blender's own `lock_shape` (decided 2026-11-09),** exposed as a toggle in each list row; users manage their own protection. Every tool that writes key coordinates (Split, Mirror, Reverse, Apply Vertex Group) refuses a locked target. Rejected: an Update guard comparing `.L + .R` to the full-face key.
+
+Proposed, not decided:
+- **Refusals (built):** the Basis, no mirror name, a locked target. Allowed: driven source or target (only coordinates change), split sources (`Eye.Left` to `Eye.Right` is a valid full-face mirror), whole-word Left/Right names without a side suffix.
 
 ### Emotes and sliders
 Two independent choices: what reads the input, and what gets driven.

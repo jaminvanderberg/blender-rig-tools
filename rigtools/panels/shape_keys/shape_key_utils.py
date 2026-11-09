@@ -1,9 +1,60 @@
 """Shared helpers for the shape key tools: side naming, key data, and moving keys."""
+import re
+
 import bpy
 import numpy as np
 
+from rigtools.rig_ui.rig_ui import flip_side_name, get_base_name
+from rigtools.utils.naming import SEPARATORS, SIDE_NAMES
+
 def side_names(name):
 	return f"{name}.L", f"{name}.R"
+
+# Direction words flip with the side: the mirror of the left eye looking left is the
+# right eye looking right. Lower case: chunks are matched ignoring case
+_LEFT, _RIGHT = SIDE_NAMES["L"].lower(), SIDE_NAMES["R"].lower()
+_MIRROR_WORDS = {_LEFT: _RIGHT, _RIGHT: _LEFT}
+
+def _match_case(word, like):
+	"""word in like's case: all lower, all upper, or proper case for anything mixed."""
+	if like.islower():
+		return word.lower()
+	if like.isupper():
+		return word.upper()
+	return word.capitalize()
+
+def mirror_shape_key_name(name):
+	"""The name of this key's mirror, or None if it has none. Flips the side suffix
+	(Mouth.Smile.L to Mouth.Smile.R, keeping any .001) and any whole Left/Right chunk
+	(Eye.Left.L to Eye.Right.R, Mouth.Left to Mouth.Right)."""
+	base_name, side = get_base_name(name)
+	# The capture group keeps the separators, so joining gives back the exact name
+	chunks = re.split(f"([{re.escape(SEPARATORS)}])", base_name)
+	for i, chunk in enumerate(chunks):
+		mirrored = _MIRROR_WORDS.get(chunk.lower())
+		if mirrored:
+			chunks[i] = _match_case(mirrored, chunk)
+	mirrored_side = flip_side_name(side) if side else ""
+	mirrored_name = "".join(chunks) + mirrored_side
+	return mirrored_name if mirrored_name != name else None
+
+def can_mirror(key, key_block):
+	"""A key can be mirrored when it has a mirror name and that key, if it already
+	exists, isn't locked. The Basis is the rest shape: there's nothing to mirror."""
+	if key_block is None or key_block == key.reference_key:
+		return False
+	target_name = mirror_shape_key_name(key_block.name)
+	if target_name is None:
+		return False
+	target = key.key_blocks.get(target_name)
+	return target is None or not is_locked(target)
+
+# Blender's own lock against accidental edits. It only stops edit and sculpt mode, not
+# Python, so every tool that writes a key's coordinates checks it. Older Blenders lack it
+HAS_KEY_LOCK = "lock_shape" in bpy.types.ShapeKey.bl_rna.properties
+
+def is_locked(key_block):
+	return HAS_KEY_LOCK and key_block.lock_shape
 
 def is_side_key(name):
 	return name.endswith((".L", ".R"))

@@ -13,7 +13,9 @@ Keys that are driven or keyframed are refused rather than flipped: connect them 
 import bpy
 from bpy.props import StringProperty
 
-from rigtools.panels.shape_keys.shape_key_utils import group_weights, has_sides, is_side_key, read_co
+from rigtools.panels.shape_keys.shape_key_utils import (
+	group_weights, has_sides, is_locked, is_side_key, read_co,
+)
 
 def reverse_problems(obj, key_block):
 	"""Reasons this key can't be reversed exactly. Empty when it can."""
@@ -21,6 +23,12 @@ def reverse_problems(obj, key_block):
 	if key_block == key.reference_key:
 		return ["The Basis can't be reversed"]
 	problems = []
+	# Reverse rewrites the key and the Basis. Other keys' coordinates shift with the Basis,
+	# but what they do is unchanged, so their locks don't matter
+	if is_locked(key_block):
+		problems.append("it's locked")
+	if is_locked(key.reference_key):
+		problems.append(f"the Basis '{key.reference_key.name}' is locked")
 	if obj.library or obj.data.library:
 		problems.append("the mesh is linked from another file")
 	if not key.use_relative:

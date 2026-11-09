@@ -4,7 +4,7 @@ Basis included."""
 import bpy
 from bpy.props import EnumProperty, StringProperty
 
-from rigtools.panels.shape_keys.shape_key_utils import group_weights, key_index, move_key, read_co
+from rigtools.panels.shape_keys.shape_key_utils import group_weights, is_locked, key_index, move_key, read_co
 
 class RIG_OT_remove_shape_key(bpy.types.Operator):
 	bl_idname = "rig.remove_shape_key"
@@ -83,6 +83,9 @@ class RIG_OT_apply_shape_key_vertex_group(bpy.types.Operator):
 			return {'CANCELLED'}
 		if key_block.vertex_group not in obj.vertex_groups:
 			self.report({'ERROR'}, f"'{key_block.name}' has no vertex group to apply")
+			return {'CANCELLED'}
+		if is_locked(key_block):
+			self.report({'ERROR'}, f"'{key_block.name}' is locked")
 			return {'CANCELLED'}
 
 		# Edits made in edit mode only reach the keys once edit mode is left

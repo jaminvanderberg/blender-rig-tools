@@ -4,7 +4,8 @@ import numpy as np
 from bpy.props import FloatProperty, StringProperty
 
 from rigtools.panels.shape_keys.shape_key_utils import (
-	can_split, falloff_prop, group_weights, is_key_driven, key_index, place_after, read_co, side_names,
+	can_split, falloff_prop, group_weights, is_key_driven, is_locked, key_index, place_after, read_co,
+	side_names,
 )
 
 DEFAULT_FALLOFF = 0.002
@@ -50,6 +51,14 @@ class RIG_OT_split_shape_key(bpy.types.Operator):
 				self.report({'ERROR'}, f"'{self.shape_key_name}' can't be split")
 			return {'CANCELLED'}
 
+		# A locked side is skipped and the other still updated: the lock says which one to keep
+		left_name, right_name = side_names(source.name)
+		locked = [name for name in (left_name, right_name)
+			if name in key.key_blocks and is_locked(key.key_blocks[name])]
+		if len(locked) == 2:
+			self.report({'ERROR'}, f"{left_name} and {right_name} are both locked")
+			return {'CANCELLED'}
+
 		# Edits made in edit mode only reach the key once edit mode is left
 		was_editing = obj == context.object and obj.mode == 'EDIT'
 		if was_editing:
@@ -65,9 +74,11 @@ class RIG_OT_split_shape_key(bpy.types.Operator):
 			delta *= group_weights(obj, source.vertex_group)[:, None]
 		weight_l = left_weights(basis_x, self.falloff)[:, None]
 
-		left_name, right_name = side_names(source.name)
 		created = []
+		updated = []
 		for name, weight in ((left_name, weight_l), (right_name, 1 - weight_l)):
+			if name in locked:
+				continue
 			side = key.key_blocks.get(name)
 			if side is None:
 				side = obj.shape_key_add(name=name, from_mix=False)
@@ -75,6 +86,8 @@ class RIG_OT_split_shape_key(bpy.types.Operator):
 				side.slider_min = source.slider_min
 				side.slider_max = source.slider_max
 				created.append(name)
+			else:
+				updated.append(name)
 			side.data.foreach_set("co", (relative + delta * weight).ravel())
 
 		key[falloff_prop(source.name)] = self.falloff
@@ -90,10 +103,15 @@ class RIG_OT_split_shape_key(bpy.types.Operator):
 		if was_editing:
 			bpy.ops.object.mode_set(mode='EDIT')
 
+		parts = []
 		if created:
-			self.report({'INFO'}, f"Split {source.name} into {', '.join(created)}")
-		else:
-			self.report({'INFO'}, f"Updated {left_name} and {right_name}")
+			parts.append(f"created {', '.join(created)}")
+		if updated:
+			parts.append(f"updated {', '.join(updated)}")
+		if locked:
+			parts.append(f"skipped {locked[0]} (locked)")
+		message = f"{source.name}: {'; '.join(parts)}"
+		self.report({'WARNING'} if locked else {'INFO'}, message)
 		return {'FINISHED'}
 
 classes = (

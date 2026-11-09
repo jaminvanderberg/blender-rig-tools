@@ -1,6 +1,8 @@
 import bpy
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
-from rigtools.panels.shape_keys.shape_key_utils import can_split, falloff_prop, has_sides, is_key_driven
+from rigtools.panels.shape_keys.shape_key_utils import (
+	HAS_KEY_LOCK, can_mirror, can_split, falloff_prop, has_sides, is_key_driven, mirror_shape_key_name,
+)
 from rigtools.panels.shape_keys.connect import drive_slider, limit_constraint, side_name
 from rigtools.rig_data.shape_key_connections import find_bone_connections_for_shape_key
 
@@ -38,12 +40,14 @@ class RIG_UL_shape_keys(bpy.types.UIList):
 		# Basis is the rest shape: its value does nothing and it can't be connected
 		if shape_key == shape_keys.reference_key:
 			split.label(text="")
-			row.label(text="", icon='LOCKED')
+			self.draw_lock(row, shape_key)
+			row.label(text="", icon='BLANK1')
 			return
 		# Only the slider is disabled; Connect still works on driven keys
 		value_row = split.row()
 		value_row.enabled = not is_key_driven(shape_keys, shape_key)
 		value_row.prop(shape_key, "value", text="", emboss=False)
+		self.draw_lock(row, shape_key)
 		# A split source is a sculpting template that stays at 0: its sides get connected.
 		# A blank keeps the rows lined up
 		if has_sides(shape_keys, shape_key.name):
@@ -53,6 +57,13 @@ class RIG_UL_shape_keys(bpy.types.UIList):
 		op = row.operator("rig.connect_shape_key", text="", icon='DRIVER')
 		op.object_name = active_data.name
 		op.shape_key_name = shape_key.name
+
+	@staticmethod
+	def draw_lock(row, shape_key):
+		"""Blender's own lock: protects the key from editing, sculpting and our tools.
+		Its property defines the locked/unlocked icons, as in Blender's own list"""
+		if HAS_KEY_LOCK:
+			row.prop(shape_key, "lock_shape", text="", emboss=False)
 
 def draw_key_buttons(layout, obj):
 	"""Pin, Edit Key and Sculpt Key for the mesh's active shape key."""
@@ -138,6 +149,17 @@ def draw_active_key(layout, obj):
 		prop = falloff_prop(key_block.name)
 		if prop in key:
 			col.prop(key, f'["{bpy.utils.escape_identifier(prop)}"]', text="Falloff")
+
+	# Shown whenever the key has a mirror; greyed out while that key is locked
+	mirror_name = mirror_shape_key_name(key_block.name)
+	if mirror_name:
+		col.separator()
+		row = col.row()
+		row.enabled = can_mirror(key, key_block)
+		op = row.operator("rig.mirror_shape_key", text=f"Mirror to {mirror_name}",
+			icon='MOD_MIRROR', translate=False)
+		op.object_name = obj.name
+		op.shape_key_name = key_block.name
 
 	# The bones recorded as driving this key, each with a button to disconnect it
 	armature_obj = obj.find_armature()
