@@ -34,7 +34,7 @@ from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
 from rigtools.panels.bone_style import bone_style_panel
-from rigtools.panels.shape_keys import connect, split, mirror, reverse, key_actions, shape_keys_panel
+from rigtools.panels.shape_keys import connect, symmetrize, split, mirror, reverse, key_actions, shape_keys_panel
 from rigtools.data_viewer import panel as data_viewer_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import snapping_data
@@ -81,6 +81,7 @@ def register():
 	corrective_bones.register()
 	bone_style_panel.register()
 	connect.register()
+	symmetrize.register()
 	split.register()
 	mirror.register()
 	reverse.register()
@@ -109,6 +110,7 @@ def unregister():
 	reverse.unregister()
 	mirror.unregister()
 	split.unregister()
+	symmetrize.unregister()
 	connect.unregister()
 	bone_style_panel.unregister()
 	corrective_bones.unregister()

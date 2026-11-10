@@ -3,7 +3,8 @@ from bpy.props import BoolProperty, CollectionProperty, EnumProperty, IntPropert
 
 
 class RigToolsShapeKeyConnection(bpy.types.PropertyGroup):
-	"""Records that this bone drives one mesh's shape key, from one side (axis and direction)."""
+	"""Records that this bone drives one mesh's shape key, from one side: channel (location or
+	rotation), axis and direction."""
 	mesh: PointerProperty(
 		type=bpy.types.Object,
 		poll=lambda self, obj: obj.type == 'MESH',
@@ -13,6 +14,8 @@ class RigToolsShapeKeyConnection(bpy.types.PropertyGroup):
 	key_name: StringProperty()
 	axis: EnumProperty(items=(('X', "X", ""), ('Y', "Y", ""), ('Z', "Z", "")))
 	positive: BoolProperty(default=True, description="Which way the bone moves to reach the shape")
+	# Records from before rotation existed read as location
+	channel: EnumProperty(items=(('LOC', "Location", ""), ('ROT', "Rotation", "")), default='LOC')
 
 class RigToolsShapeKeyConnections(bpy.types.PropertyGroup):
 	"""Everything this bone drives, plus the list's selection."""
@@ -25,24 +28,25 @@ def get_shape_key_connections(pose_bone):
 	return pose_bone.rigtools_shape_keys.items
 
 
-def find_shape_key_connection(pose_bone, mesh, key_name, axis, positive):
+def find_shape_key_connection(pose_bone, mesh, key_name, axis, positive, channel):
 	"""The connection item for this key on this side of the bone, or None."""
 	for item in pose_bone.rigtools_shape_keys.items:
-		if (item.mesh == mesh and item.key_name == key_name
+		if (item.mesh == mesh and item.key_name == key_name and item.channel == channel
 				and item.axis == axis and item.positive == positive):
 			return item
 	return None
 
 
-def add_shape_key_connection(pose_bone, mesh, key_name, axis, positive):
+def add_shape_key_connection(pose_bone, mesh, key_name, axis, positive, channel):
 	"""Add a new connection, returns existing if already present."""
-	item = find_shape_key_connection(pose_bone, mesh, key_name, axis, positive)
+	item = find_shape_key_connection(pose_bone, mesh, key_name, axis, positive, channel)
 	if item is None:
 		item = pose_bone.rigtools_shape_keys.items.add()
 		item.mesh = mesh
 		item.key_name = key_name
 		item.axis = axis
 		item.positive = positive
+		item.channel = channel
 	return item
 
 

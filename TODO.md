@@ -1,3 +1,5 @@
+symmetrize widget, copy all to selected.  Symmetrize widgets on shape key symmetrization.
+
 language packs?
 
 weight pain proxy on a single chain is a cylinder?
