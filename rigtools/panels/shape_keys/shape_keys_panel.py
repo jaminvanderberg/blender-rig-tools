@@ -3,7 +3,7 @@ from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
 	HAS_KEY_LOCK, can_mirror, can_split, falloff_prop, has_sides, is_key_driven, mirror_shape_key_name,
 )
-from rigtools.panels.shape_keys.connect import drive_slider, limit_constraint, side_name
+from rigtools.panels.shape_keys.connect import drive_slider, limit_constraint, range_name, side_name
 from rigtools.rig_data.shape_key_connections import find_bone_connections_for_shape_key
 
 class RIG_UL_active_bone_connections(bpy.types.UIList):
@@ -225,14 +225,14 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 	if prop in pose_bone:
 		col.prop(pose_bone, drive_slider(axis, connection.positive), text="Extent")
 
-	# The shape key's own Range. Its max sets how far the bone travels: extent x max, so 1.2
-	# lets the key reach 1.2. It belongs to the key, so every bone driving it follows it
-	key = connection.mesh.data.shape_keys if connection.mesh else None
-	key_block = key.key_blocks.get(connection.key_name) if key else None
-	if key_block:
+	# The side's range, shared by every key connected on it. Max sets how far the bone travels
+	# (extent x max, so 1.2 overshoots); Min below 0 lets the keys go negative the other way.
+	# Each key's slider range is driven from the sides driving it
+	min_prop, max_prop = (range_name(axis, connection.positive, end) for end in ("Min", "Max"))
+	if min_prop in pose_bone and max_prop in pose_bone:
 		row = col.row(align=True)
-		row.prop(key_block, "slider_min", text="Range")
-		row.prop(key_block, "slider_max", text="")
+		row.prop(pose_bone, f'["{min_prop}"]', text="Range")
+		row.prop(pose_bone, f'["{max_prop}"]', text="")
 	layout.separator()
 
 class RIG_PT_shape_keys(bpy.types.Panel):

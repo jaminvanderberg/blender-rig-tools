@@ -4,12 +4,19 @@ Each connection is recorded on the control bone (rig_data/shape_key_connections.
 mesh's shape key it drives, and from which side (axis and direction). The shape key's driver
 is built from those records and never read back. Per bone driving the key, it has a
 location variable (capture_n) and a variable reading that side's extent property on the bone
-(extent_n), combined as `max(capture_0 / extent_0, capture_1 / extent_1, 0)`. The key's own
-slider range caps the top.
+(extent_n), combined as `max(capture_0 / extent_0, capture_1 / extent_1)`. No clamp in the
+expression: Blender clamps the value to the key's slider range.
 
-Each side's extent is an `SK ±Axis` custom property on the control, e.g. `SK +Z`: how far
-the bone moves on that side to reach 1. Each control also gets one Limit Location whose
-connected sides are driven by those same extent properties.
+Each connected side has three custom properties on the control, e.g. for +Z:
+	SK +Z       extent: how far the bone moves on that side to reach 1
+	SK +Z Min   the range's bottom, 0 by default; below 0 lets its keys go negative
+	SK +Z Max   the range's top, 1 by default; 1.2 lets the bone and its keys overshoot
+The key's slider range is driven from them (the widest range of the bones driving it), and
+each control gets one Limit Location whose connected sides are driven by them too.
+
+Nothing on the bone may read the Key. Blender evaluates a shape key's settings together with
+its value driver, which reads the bone, so a limit reading the key's slider_max is a
+dependency cycle. Custom properties on the bone are safe to read from anywhere.
 """
 import bpy
 from bpy.props import BoolProperty, StringProperty
@@ -65,14 +72,32 @@ def side_name(axis, positive):
 	"""The control's extent property for one side, e.g. 'SK +Z'."""
 	return f"SK {'+' if positive else '-'}{'XYZ'[axis]}"
 
+def range_name(axis, positive, end):
+	"""A side's range property on the control, e.g. 'SK +Z Max' or 'SK +Z Min'."""
+	return f"{side_name(axis, positive)} {end}"
+
+def side_props(axis, positive):
+	"""Every custom property a connected side owns: extent, Min and Max."""
+	return (side_name(axis, positive), range_name(axis, positive, "Min"), range_name(axis, positive, "Max"))
+
 def limit_field(axis, positive):
 	"""The Limit Location field for one side, e.g. 'max_z' for +Z."""
 	return f"{'max' if positive else 'min'}_{'xyz'[axis]}"
 
-def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, side_connections):
-	"""Drive one side's limit field: the extent times the largest Range Max among the shape
-	keys connected on that side. A Range Max of 1 stops the bone at the extent; 1.2 lets it
-	travel 20% further, so the key reaches 1.2 (overshoot)."""
+def _add_bone_variable(driver, name, armature_obj, pose_bone, prop):
+	"""A driver variable reading one of the control's custom properties."""
+	variable = driver.variables.new()
+	variable.name = name
+	variable.type = 'SINGLE_PROP'
+	variable.targets[0].id_type = 'OBJECT'
+	variable.targets[0].id = armature_obj
+	variable.targets[0].data_path = f'pose.bones{_quote(pose_bone.name)}{_quote(prop)}'
+
+def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, opposite_connected):
+	"""Drive one side's limit field from the bone's own properties: how far its keys need the
+	bone to go. That's the side's extent times its Max (1 stops at the extent, 1.2 overshoots),
+	or, if the opposite side is connected, that side's extent times minus its Min (how far
+	back its keys go negative), whichever is further."""
 	field = limit_field(axis, positive)
 	fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
 	if fcurve is None:
@@ -81,34 +106,21 @@ def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, sid
 	for variable in list(driver.variables):
 		driver.variables.remove(variable)
 
-	extent = driver.variables.new()
-	extent.name = "extent"
-	extent.type = 'SINGLE_PROP'
-	extent.targets[0].id_type = 'OBJECT'
-	extent.targets[0].id = armature_obj
-	extent.targets[0].data_path = f'pose.bones{_quote(pose_bone.name)}{_quote(side_name(axis, positive))}'
-
-	range_maxes = []
-	for connection in side_connections:
-		key = connection.mesh.data.shape_keys if connection.mesh else None
-		key_block = key.key_blocks.get(connection.key_name) if key else None
-		if key_block is None:
-			continue
-		range_max = driver.variables.new()
-		range_max.name = f"range_max_{len(range_maxes)}"
-		range_max.type = 'SINGLE_PROP'
-		range_max.targets[0].id_type = 'KEY'
-		range_max.targets[0].id = key
-		range_max.targets[0].data_path = key_block.path_from_id("slider_max")
-		range_maxes.append(range_max.name)
+	_add_bone_variable(driver, "extent", armature_obj, pose_bone, side_name(axis, positive))
+	_add_bone_variable(driver, "range_max", armature_obj, pose_bone, range_name(axis, positive, "Max"))
+	reaches = ["extent * range_max"]
+	if opposite_connected:
+		_add_bone_variable(driver, "opposite_extent", armature_obj, pose_bone, side_name(axis, not positive))
+		_add_bone_variable(driver, "opposite_min", armature_obj, pose_bone, range_name(axis, not positive, "Min"))
+		reaches.append("opposite_extent * -opposite_min")
 
 	sign = '' if positive else '-'
-	driver.expression = f"{sign}extent * max({', '.join(range_maxes + ['1'])})"
+	driver.expression = f"{sign}max({', '.join(reaches)}, 0)"
 
 def update_limits(armature_obj, pose_bone):
 	"""Rebuild the bone's Limit Location from its connection records. Each connected side's
-	field is driven by its extent and its shape keys' Range Max. Sides with no connection
-	stay free, and lose their extent property."""
+	field is driven by the bone's extent and range properties. Sides with no connection stay
+	free, and lose their properties."""
 	connections = get_shape_key_connections(pose_bone)
 	sides = {("XYZ".index(connection.axis), connection.positive) for connection in connections}
 
@@ -118,18 +130,18 @@ def update_limits(armature_obj, pose_bone):
 		constraint.name = LIMIT_NAME
 	for axis in range(3):
 		for positive in (True, False):
-			prop = side_name(axis, positive)
 			connected = (axis, positive) in sides
-			if not connected and prop in pose_bone:
-				del pose_bone[prop]
+			if not connected:
+				for prop in side_props(axis, positive):
+					if prop in pose_bone:
+						del pose_bone[prop]
 			if constraint is None:
 				continue
 			field = limit_field(axis, positive)
 			setattr(constraint, f"use_{field}", connected)
 			if connected:
-				side_connections = [connection for connection in connections
-					if connection.axis == "XYZ"[axis] and connection.positive == positive]
-				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, side_connections)
+				opposite_connected = (axis, not positive) in sides
+				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, opposite_connected)
 				continue
 			fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
 			if fcurve:
@@ -146,24 +158,33 @@ def update_limits(armature_obj, pose_bone):
 	constraint.owner_space = 'LOCAL'
 	constraint.use_transform_limit = True
 
-def _build_driver(armature_obj, mesh, key_block):
-	"""Writes or overwrites the shape key's driver from the connection records, or removes
-	it when no bone is recorded as driving the key. Returns whether a driver remains."""
-	key = mesh.data.shape_keys
-	path = key_block.path_from_id("value")
+def _combine(function, terms):
+	"""max(a, b, ...) or min(...), or the bare term when there's only one: Python's max and
+	min need at least two arguments."""
+	return terms[0] if len(terms) == 1 else f"{function}({', '.join(terms)})"
+
+def _key_driver(key, key_block, prop, found):
+	"""The key's driver on one of its properties, emptied for rebuilding; or removed (and
+	None returned) when no bone drives the key. A removed range driver leaves its last value."""
+	path = key_block.path_from_id(prop)
 	fcurve = _find_driver(key, path)
-	found = find_bone_connections_for_shape_key(armature_obj, mesh, key_block.name)
 	if not found:
 		if fcurve:
 			key.animation_data.drivers.remove(fcurve)
-		return False
-
+		return None
 	if fcurve is None:
 		fcurve = _create_new_driver(key, path)
 	driver = fcurve.driver
 	for variable in list(driver.variables):
 		driver.variables.remove(variable)
+	return driver
 
+def _build_value_driver(armature_obj, key, key_block, found):
+	"""Per bone and side: location over extent, combined with max. Blender clamps the value
+	to the slider range, which _build_range_drivers sets, so no clamp here."""
+	driver = _key_driver(key, key_block, "value", found)
+	if driver is None:
+		return
 	terms = []
 	for n, (pose_bone, sk_connection) in enumerate(found):
 		axis = "XYZ".index(sk_connection.axis)
@@ -176,21 +197,39 @@ def _build_driver(armature_obj, mesh, key_block):
 		ctarget.transform_type = AXES[axis]
 		ctarget.transform_space = 'LOCAL_SPACE'
 
-		extent = driver.variables.new()
-		extent.name = f"extent_{n}"
-		extent.type = 'SINGLE_PROP'
-		etarget = extent.targets[0]
-		etarget.id_type = 'OBJECT'
-		etarget.id = armature_obj
-		etarget.data_path = (
-			f'pose.bones{_quote(pose_bone.name)}{_quote(side_name(axis, sk_connection.positive))}'
-		)
+		_add_bone_variable(driver, f"extent_{n}", armature_obj, pose_bone,
+			side_name(axis, sk_connection.positive))
 
 		sign = '' if sk_connection.positive else '-'
 		terms.append(f"{sign}capture_{n} / extent_{n}")
+	driver.expression = _combine("max", terms)
 
-	driver.expression = f"max({', '.join(terms)}, 0)"
-	return True
+def _build_range_drivers(armature_obj, key, key_block, found):
+	"""The key's slider range from the bones driving it: the widest of their sides' ranges,
+	so slider_max is the largest Max and slider_min the smallest Min. Reads only bone
+	properties, so nothing here waits on the key's own value."""
+	for prop, end, function in (("slider_max", "Max", "max"), ("slider_min", "Min", "min")):
+		driver = _key_driver(key, key_block, prop, found)
+		if driver is None:
+			continue
+		terms = []
+		for n, (pose_bone, sk_connection) in enumerate(found):
+			axis = "XYZ".index(sk_connection.axis)
+			name = f"{end.lower()}_{n}"
+			_add_bone_variable(driver, name, armature_obj, pose_bone,
+				range_name(axis, sk_connection.positive, end))
+			terms.append(name)
+		driver.expression = _combine(function, terms)
+
+def _build_driver(armature_obj, mesh, key_block):
+	"""Writes or overwrites the shape key's value and range drivers from the connection
+	records, or removes them when no bone is recorded as driving the key. Returns whether
+	the key is still driven."""
+	key = mesh.data.shape_keys
+	found = find_bone_connections_for_shape_key(armature_obj, mesh, key_block.name)
+	_build_range_drivers(armature_obj, key, key_block, found)
+	_build_value_driver(armature_obj, key, key_block, found)
+	return bool(found)
 
 class RIG_OT_connect_shape_key(bpy.types.Operator):
 	bl_idname = "rig.connect_shape_key"
@@ -238,6 +277,20 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 			subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
 			step=0.01, precision=4,
 			description=f"How far the bone moves {side[3:]} for its shape keys to reach 1")
+		# The side's range: created once, then the user's. Reconnecting keeps it
+		positive = extreme > 0
+		for end, default, description in (
+				("Min", 0.0, "The lowest its shape keys go. Below 0, moving the bone the other way "
+					"takes them negative"),
+				("Max", 1.0, "The highest its shape keys go. Above 1 lets the bone travel past "
+					"the extent (overshoot)")):
+			prop = range_name(axis, positive, end)
+			if prop not in pose_bone:
+				pose_bone[prop] = default
+				pose_bone.id_properties_ui(prop).update(
+					min=-10.0 if end == "Min" else 0.0, max=0.0 if end == "Min" else 10.0,
+					soft_min=-1.0 if end == "Min" else 0.0, soft_max=0.0 if end == "Min" else 2.0,
+					step=1, precision=2, description=description)
 
 		# Record the connection on this bone, then build the shape key's driver from the records
 		axis_name = "XYZ"[axis]
