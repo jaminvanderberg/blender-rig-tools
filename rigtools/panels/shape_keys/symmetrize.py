@@ -129,7 +129,9 @@ def mirror_connections(armature_obj, source, target):
 			target[range_name(axis, flipped, end, channel)] = source.get(
 				range_name(axis, positive, end, channel), default)
 
-	# Sides the source doesn't use lose their properties; the limits are on, as after Connect
+	# Sides the source doesn't use lose their properties; the limits are on, as after Connect.
+	# (Setting the lock runs its own rebuild too; harmless)
+	target.rigtools_lock_unused = source.rigtools_lock_unused
 	update_limits(armature_obj, target)
 	set_limits_enabled(target, True)
 	return keys, trust

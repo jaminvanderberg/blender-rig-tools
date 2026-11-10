@@ -138,11 +138,13 @@ def _add_bone_variable(driver, name, armature_obj, pose_bone, prop):
 	variable.targets[0].id = armature_obj
 	variable.targets[0].data_path = f'pose.bones{_quote(pose_bone.name)}{_quote(prop)}'
 
-def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel, opposite_connected):
+def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel, connected,
+		opposite_connected):
 	"""Drive one side's limit field from the bone's own properties: how far its keys need the
 	bone to go. That's the side's extent times its Max (1 stops at the extent, 1.2 overshoots),
 	or, if the opposite side is connected, that side's extent times minus its Min (how far
-	back its keys go negative), whichever is further. Rotation stops short of a half turn."""
+	back its keys go negative), whichever is further. A locked side that isn't connected has
+	only the second. Rotation stops short of a half turn."""
 	field = limit_field(axis, positive)
 	fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
 	if fcurve is None:
@@ -151,10 +153,12 @@ def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, cha
 	for variable in list(driver.variables):
 		driver.variables.remove(variable)
 
-	_add_bone_variable(driver, "extent", armature_obj, pose_bone, side_name(axis, positive, channel))
-	_add_bone_variable(driver, "range_max", armature_obj, pose_bone,
-		range_name(axis, positive, "Max", channel))
-	reaches = ["extent * range_max"]
+	reaches = []
+	if connected:
+		_add_bone_variable(driver, "extent", armature_obj, pose_bone, side_name(axis, positive, channel))
+		_add_bone_variable(driver, "range_max", armature_obj, pose_bone,
+			range_name(axis, positive, "Max", channel))
+		reaches.append("extent * range_max")
 	if opposite_connected:
 		_add_bone_variable(driver, "opposite_extent", armature_obj, pose_bone,
 			side_name(axis, not positive, channel))
@@ -167,12 +171,13 @@ def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, cha
 		reach = f"min({reach}, {MAX_TURN:.4f})"
 	driver.expression = reach if positive else f"-{reach}"
 
-def _update_channel_limits(armature_obj, pose_bone, channel, sides):
-	"""One channel's limit constraint: connected sides driven, others free, and the
-	constraint removed when no side is connected."""
+def _update_channel_limits(armature_obj, pose_bone, channel, sides, lock):
+	"""One channel's limit constraint: connected sides driven, others free, or held at rest
+	when lock is set. Removed when nothing on it is connected or locked."""
 	name, constraint_type = LIMITS[channel]
+	needed = bool(sides) or lock
 	constraint = pose_bone.constraints.get(name)
-	if sides and constraint is None:
+	if needed and constraint is None:
 		constraint = pose_bone.constraints.new(constraint_type)
 		constraint.name = name
 	if constraint is None:
@@ -181,23 +186,25 @@ def _update_channel_limits(armature_obj, pose_bone, channel, sides):
 		if channel == 'ROT':
 			# Limit Rotation has one switch per axis, so a free side gets a half turn
 			setattr(constraint, f"use_limit_{'xyz'[axis]}",
-				(axis, True) in sides or (axis, False) in sides)
+				lock or (axis, True) in sides or (axis, False) in sides)
 		for positive in (True, False):
 			field = limit_field(axis, positive)
 			connected = (axis, positive) in sides
+			opposite_connected = (axis, not positive) in sides
 			if channel == 'LOC':
-				setattr(constraint, f"use_{field}", connected)
-			if connected:
+				setattr(constraint, f"use_{field}", connected or lock)
+			# A locked side still lets the opposite side's keys go negative (its Min)
+			if connected or (lock and opposite_connected):
 				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel,
-					(axis, not positive) in sides)
+					connected, opposite_connected)
 				continue
 			fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
 			if fcurve:
 				armature_obj.animation_data.drivers.remove(fcurve)
-			free = math.pi if channel == 'ROT' else 0.0
+			free = 0.0 if lock or channel == 'LOC' else math.pi
 			setattr(constraint, field, free if positive else -free)
 
-	if not sides:
+	if not needed:
 		# Its field drivers are gone above; now the constraint itself
 		pose_bone.constraints.remove(constraint)
 		return
@@ -209,9 +216,11 @@ def _update_channel_limits(armature_obj, pose_bone, channel, sides):
 
 def update_limits(armature_obj, pose_bone):
 	"""Rebuild the bone's limit constraints from its connection records. Each connected side's
-	field is driven by the bone's extent and range properties. Sides with no connection stay
-	free, and lose their properties."""
+	field is driven by the bone's extent and range properties. Sides with no connection lose
+	their properties, and stay free unless Lock Unused is on (a bone with no connections left
+	isn't locked: it's no longer a control)."""
 	connections = get_shape_key_connections(pose_bone)
+	lock = pose_bone.rigtools_lock_unused and len(connections) > 0
 	for channel in CHANNELS:
 		sides = _sides(connections, channel)
 		for axis in range(3):
@@ -220,7 +229,7 @@ def update_limits(armature_obj, pose_bone):
 					for prop in side_props(axis, positive, channel):
 						if prop in pose_bone:
 							del pose_bone[prop]
-		_update_channel_limits(armature_obj, pose_bone, channel, sides)
+		_update_channel_limits(armature_obj, pose_bone, channel, sides, lock)
 
 def _combine(function, terms):
 	"""max(a, b, ...) or min(...), or the bare term when there's only one: Python's max and
@@ -580,11 +589,41 @@ class RIG_OT_select_connected_key(bpy.types.Operator):
 			return {'CANCELLED'}
 		return {'FINISHED'}
 
+class RIG_OT_lock_unused_sides(bpy.types.Operator):
+	"""Sets the bone's saved Lock Unused setting. Unlike the Limited toggle, which is for
+	posing past the limits for a moment, this is part of the control's setup"""
+	bl_idname = "rig.lock_unused_sides"
+	bl_label = "Lock Unused Sides"
+	bl_description = ("Hold every side with no shape key at rest, location and rotation, so the "
+		"control only moves the ways it drives something")
+	bl_options = {'REGISTER', 'UNDO'}
+
+	armature_name: StringProperty(options={'HIDDEN'})
+	bone_name: StringProperty(options={'HIDDEN'})
+	lock: BoolProperty(default=True, options={'HIDDEN'})
+
+	@classmethod
+	def description(cls, context, properties):
+		if properties.lock:
+			return cls.bl_description
+		return "Let the sides with no shape key move freely again"
+
+	def execute(self, context):
+		armature_obj = bpy.data.objects.get(self.armature_name)
+		pose_bone = armature_obj.pose.bones.get(self.bone_name) if armature_obj else None
+		if pose_bone is None:
+			self.report({'ERROR'}, f"No bone '{self.bone_name}'")
+			return {'CANCELLED'}
+		# Its update rebuilds the limits (and turns them on when locking)
+		pose_bone.rigtools_lock_unused = self.lock
+		return {'FINISHED'}
+
 classes = (
 	RIG_OT_connect_shape_key,
 	RIG_OT_disconnect_shape_key,
 	RIG_OT_select_control,
 	RIG_OT_select_connected_key,
+	RIG_OT_lock_unused_sides,
 )
 
 # The bone view's extent sliders. Each edits a side's SK property and moves or turns the bone
@@ -641,6 +680,15 @@ def _get_limits_enabled(pose_bone):
 def _set_limits_enabled(pose_bone, value):
 	set_limits_enabled(pose_bone, value)
 
+# Lock Unused: saved on the bone, read by update_limits. Turning it on also turns the limits
+# on, so the lock shows right away
+def _update_lock_unused(pose_bone, context):
+	armature_obj = pose_bone.id_data
+	update_limits(armature_obj, pose_bone)
+	if pose_bone.rigtools_lock_unused:
+		set_limits_enabled(pose_bone, True)
+	armature_obj.update_tag()
+
 def _all_sides():
 	return [(axis, positive, channel) for channel in CHANNELS for axis in range(3)
 		for positive in (True, False)]
@@ -656,8 +704,14 @@ def register():
 		description="The shape key limits. Turn off to pose past them for a new connection; "
 			"Connect turns them back on",
 		get=_get_limits_enabled, set=_set_limits_enabled)
+	bpy.types.PoseBone.rigtools_lock_unused = BoolProperty(
+		name="Lock Unused",
+		description="Hold every side with no shape key at rest, location and rotation. "
+			"Turn Limited off to pose past it",
+		default=False, update=_update_lock_unused)
 
 def unregister():
+	del bpy.types.PoseBone.rigtools_lock_unused
 	del bpy.types.PoseBone.rigtools_limits_enabled
 	for axis, positive, channel in _all_sides():
 		delattr(bpy.types.PoseBone, drive_slider(axis, positive, channel))

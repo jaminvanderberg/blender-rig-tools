@@ -230,6 +230,19 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 		rows=3,
 	)
 
+	# Lock Unused is setup, done once when the control is finished: a button, then a status
+	# line with an undo, so it doesn't read as a second Limited toggle
+	if pose_bone.rigtools_lock_unused:
+		row = layout.row()
+		row.label(text="Unused sides locked", icon='LOCKED')
+		op = row.operator("rig.lock_unused_sides", text="", icon='X', emboss=False)
+		op.lock = False
+	else:
+		op = layout.operator("rig.lock_unused_sides", icon='LOCKED')
+		op.lock = True
+	op.armature_name = armature_obj.name
+	op.bone_name = pose_bone.name
+
 	# The selected connection's settings. The extent belongs to the side, shared by every
 	# key connected on it
 	index = sk_connections.active_index
