@@ -34,7 +34,7 @@ from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
 from rigtools.panels.bone_style import bone_style_panel
-from rigtools.panels.shape_keys import connect, symmetrize, split, mirror, reverse, key_actions, shape_keys_panel
+from rigtools.panels import shape_keys
 from rigtools.data_viewer import panel as data_viewer_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import snapping_data
@@ -50,6 +50,38 @@ classes = (
 	parent_along_chain.RIG_OT_parent_along_chain,
 )
 
+modules = (
+	# Registered first so the Armature panel sits at the top of the tab
+	armature_panel,
+	armature_settings,
+	migrate_rig,
+	twist_chain,
+	shape_key_connections,
+
+	assembly_data,
+	config_registry,
+	skirt_legs_panel,
+	ik_panel,
+	fk_panel,
+	assembly_panel,
+	data_viewer_panel,
+
+	rename_chain,
+	weight_paint_proxy,
+	root_widget,
+	human_skeleton,
+	create_twist_bones,
+	bone_colors,
+	corrective_bones,
+	bone_style_panel,
+	shape_keys,
+
+	snapping_data,
+	rig_ui,
+	collections_panel,
+	embed_ui,
+)
+
 def register():
 	if rig_ui.RIG_DATA_VERSION != armature_settings.CURRENT_RIG_DATA_VERSION:
 		raise RuntimeError(
@@ -57,82 +89,13 @@ def register():
 			f"CURRENT_RIG_DATA_VERSION ({armature_settings.CURRENT_RIG_DATA_VERSION})"
 		)
 
-	# Registered first so the Armature panel sits at the top of the tab
-	armature_panel.register()
-	armature_settings.register()
-	migrate_rig.register()
-	twist_chain.register()
-	shape_key_connections.register()
-
-	assembly_data.register()
-	config_registry.register()
-	skirt_legs_panel.register()
-	ik_panel.register()
-	fk_panel.register()
-	assembly_panel.register()
-	data_viewer_panel.register()
-
-	rename_chain.register()
-	weight_paint_proxy.register()
-	root_widget.register()
-	human_skeleton.register()
-	create_twist_bones.register()
-	bone_colors.register()
-	corrective_bones.register()
-	bone_style_panel.register()
-	connect.register()
-	symmetrize.register()
-	split.register()
-	mirror.register()
-	reverse.register()
-	key_actions.register()
-	shape_keys_panel.register()
-
-	snapping_data.register()
-	rig_ui.register()
-	collections_panel.register()
-	embed_ui.register()
-
+	for mod in modules:
+		mod.register()
 	for cls in classes:
 		bpy.utils.register_class(cls)
 
 def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
-
-	embed_ui.unregister()
-	collections_panel.unregister()
-	rig_ui.unregister()
-	snapping_data.unregister()
-
-	shape_keys_panel.unregister()
-	key_actions.unregister()
-	reverse.unregister()
-	mirror.unregister()
-	split.unregister()
-	symmetrize.unregister()
-	connect.unregister()
-	bone_style_panel.unregister()
-	corrective_bones.unregister()
-	bone_colors.unregister()
-	create_twist_bones.unregister()
-	human_skeleton.unregister()
-	root_widget.unregister()
-	weight_paint_proxy.unregister()
-	rename_chain.unregister()
-	shape_key_connections.unregister()
-	twist_chain.unregister()
-
-	data_viewer_panel.unregister()
-	assembly_panel.unregister()
-	ik_panel.unregister()
-	fk_panel.unregister()
-	skirt_legs_panel.unregister()
-	config_registry.unregister()
-	assembly_data.unregister()
-	migrate_rig.unregister()
-	armature_settings.unregister()
-	armature_panel.unregister()
-
-if __name__ == "__main__":
-	register()
+	for mod in reversed(modules):
+		mod.unregister()

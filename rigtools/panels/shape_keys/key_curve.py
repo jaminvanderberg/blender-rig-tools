@@ -29,7 +29,7 @@ def match_curve_preset(fcurve):
 		first = (keyframes[0].interpolation, keyframes[0].easing)
 		for name, settings in CURVE_PRESETS.items():
 			if first == settings:
-				return name            
+				return name
 	return 'CUSTOM'
 
 def apply_curve_preset(fcurve, preset):
@@ -48,6 +48,12 @@ def apply_curve_preset(fcurve, preset):
 	fcurve.extrapolation = 'LINEAR'
 	fcurve.update()
 
+def curve_preset_label(fcurve):
+	"""The dropdown's text: the matching preset's name, or "Custom" for a curve edited by hand."""
+	preset = match_curve_preset(fcurve)
+	return next((name for identifier, name, _ in CURVE_PRESET_ITEMS if identifier == preset),
+		"Custom")
+
 class RIG_OT_set_key_curve(bpy.types.Operator):
 	bl_idname = "rig.set_key_curve"
 	bl_label = "Set Key Curve"
@@ -57,11 +63,6 @@ class RIG_OT_set_key_curve(bpy.types.Operator):
 	object_name: StringProperty(options={'HIDDEN'})
 	shape_key_name: StringProperty(options={'HIDDEN'})
 	preset: EnumProperty(items=CURVE_PRESET_ITEMS)
-
-	@classmethod
-	def description(cls, context, properties):
-		# Each menu entry's tooltip is its preset's description
-		return next(item[2] for item in CURVE_PRESET_ITEMS if item[0] == properties.preset)
 
 	def execute(self, context):
 		mesh = bpy.data.objects.get(self.object_name)
@@ -87,3 +88,15 @@ class RIG_OT_set_key_curve(bpy.types.Operator):
 
 		self.report({'INFO'}, f"Curve preset '{self.preset}' to shape key '{self.shape_key_name}'")
 		return {'FINISHED'}
+
+classes = (
+	RIG_OT_set_key_curve,
+)
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+def unregister():
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)

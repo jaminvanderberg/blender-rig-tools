@@ -154,6 +154,7 @@ def register():
 	bpy.types.Armature.rigtools = bpy.props.PointerProperty(type=RigToolsArmatureSettings)
 
 def unregister():
-	for cls in classes:
-		bpy.utils.unregister_class(cls)
 	del bpy.types.Armature.rigtools
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+

@@ -3,7 +3,7 @@
 ## Next steps (start here)
 Only the items under "Decided" are the user's decisions; everything under "Proposed" is still open. These are general add-on tools for anyone building a face rig; nothing here edits a specific rig. Kendra is only the test case: `Z:\Data\Blender\Kendra\Kendra-Character1.blend` (RigTools rig `Armature`, 1519 bones, no face controls).
 
-**Status (2026-11-11): everything below marked built is committed.** Connect redesign `2b21dba`; Mirror Shape Key and lock checks `ac019a5`; Range on the bone and copied/stale record repair `066d0ac`; rotation connections and Symmetrize Connections `c9b5c97`; Lock Unused `b439aea`. Range with several keys per side and several bones per key, and Lock Unused, are tested headless; not yet confirmed in the UI. **In progress:** key curve presets (the user is writing it, Claude guiding; see "Key curve presets" under Easing). **Next after that:** the tidy bug (below), the Remove button, the Data Viewer checks.
+**Status (2026-11-11): everything below marked built is committed.** Connect redesign `2b21dba`; Mirror Shape Key and lock checks `ac019a5`; Range on the bone and copied/stale record repair `066d0ac`; rotation connections and Symmetrize Connections `c9b5c97`; Lock Unused `b439aea`. Range with several keys per side and several bones per key, and Lock Unused, are tested headless; not yet confirmed in the UI. **Key curve presets work in the UI (user, 2026-11-11), not committed;** left: Symmetrize copying the curve (see "Key curve presets" under Easing). **Next after that:** Pin to Mesh (the user's pick, 2026-11-11; see "Pinned controls"), then the tidy bug (below), the Remove button, the Data Viewer checks.
 
 Built, all in `rigtools/panels/shape_keys/`:
 - `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Blender's lock toggle (`lock_shape`, Basis included), Connect button (hidden on split sources and the Basis). Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys with Falloff, Mirror to <name>, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
@@ -36,12 +36,12 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 
 **Still to do for Connect:**
 - **Bug: tidy only covers the operated bone (found 2026-11-11, not fixed).** `tidy_connections` runs on the bone being operated on, but `build_key_drivers` finds records by the key's current name. If bones A and B drive a key that was renamed, Connect on A renames A's record only; the rebuild leaves B's term out (B's record still has the old name), and B's record is then DEAD and deleted on its next operation. B's connection is silently lost. Fix: tidy every bone driving the key (or the whole rig) before looking up records.
-- **Key curve presets (in progress 2026-11-11):** see "Key curve presets" under Easing.
+- **Key curve presets (built 2026-11-11 by the user, works in the UI, not committed):** Symmetrize copying the curve is left; see "Key curve presets" under Easing.
 - **Remove button:** the ✕ in each list row reads as text unembossed and looks poor embossed. Proposed: a − button in a column beside the list (Blender's convention), acting on the selected row; room there later for "select this key".
 - **Repair:** built with copy detection (2026-11-09, Claude; not committed), see "Copied and stale records" below. Left: the Data Viewer check and cleanup.
 - **MIN** per key.
 - **Rotation connections (built 2026-11-09, Claude; `c9b5c97`).** Needed for lip curl and the anime mouth rotate. The user's chibi rig (`\\Jefe\Ubertaco\Data\Blender\Chibii\Chibit2.blend`) had `mouth.move` driving Left/Right/Up/Down on location and `Mouth.Rotate.L/.R` on ROT_Y (0.5 rad) with Limit Rotation ±30°, so one bone drives both channels. As built: records have `channel` (`LOC`/`ROT`, default `LOC`, no migration); rotation sides are `SK ±RX/RY/RZ` (+ Min/Max), radians shown in degrees, capped at 179°; capture reads swing/twist around Y exactly as the driver does (`read_turns`: the twist angle, and the swing as `2·asin` of its components, tested against Blender's own, which isn't axis × angle) and refuses a bone both moved and turned; value variables are `ROT_n` with `SWING_TWIST_Y`; a second constraint, "Shape Key Rotation Limits" (Limit Rotation, local, non-legacy, Affect Transform), driven like location and capped short of a half turn, free sides at ±180° (Limit Rotation has one switch per axis); the Limited toggle is a get/set `rigtools_limits_enabled` covering both constraints; the Extent slider turns the bone on rotation sides; Symmetrize flips rotation Y and Z (X keeps its sign), Blender's flip-pose rule. Known approximation: Limit Rotation clamps Euler angles while the driver reads swing/twist, so a pose on two axes at once reads slightly under (0.9989 at the captured pose for an X swing with a 0.05 twist; 1.0 with the limits off). Tested headless: three channels on one bone, motion and limits, Max overshoot, the moved-and-turned refusal, capture matching the driver, the slider, the toggle, mirrored tails for RX, RY and RZ, and the earlier range, symmetrize and copy tests unchanged.
-- **Pinned control operators (not planned yet):** create (VIS bone, control, anchor group under a chosen parent, keeping the two cycle rules), symmetrize (including a mirrored anchor group; check what Blender's Symmetrize does with a vertex group subtarget), delete (with clearing connections). See "Pinned controls".
+- **Pinned control operators:** Pin to Mesh is next (decided 2026-11-11, see "Pin to Mesh" under "Pinned controls"). Later: symmetrize (including a mirrored anchor group; check what Blender's Symmetrize does with a vertex group subtarget), delete (with clearing connections). See "Pinned controls".
 - **Range Min below 0:** now part of Range on the bone (below).
 - **Limited/Unlocked toggle:** kept (decided 2026-11-09). Needed to pose past the limits for a new connection; Connect and Lock Unused turn it back on, and the Data Viewer check reports it muted.
 - **Kendra's data** (old channel-layer leftovers, broken L/R keys): the user fixes it by hand while testing; not tool work unless they ask.
@@ -190,7 +190,7 @@ Capture works the same for both. Face shapes are mostly keys, with small deform 
 ### Easing (decided: optional, hidden, linear by default)
 The jaw has always felt too snappy; it should spend more time barely open. Easing goes on the driver's own F-curve: the expression is unchanged, and the curve's keyframes reshape its result (X = expression result, Y = key value). No keyframes means linear, as now.
 
-### Key curve presets (decided 2026-11-11; in progress, the user writing it)
+### Key curve presets (decided 2026-11-11; built by the user, works in the UI, not committed)
 **Decided:**
 - **Per key, on the key's value driver F-curve.** Applied after the `max` combines the key's bones. Per connection was considered (easing math in each expression term), but only ease in works cleanly past 1 and below 0 that way.
 - **Nothing stored.** The panel reads the keyframes' own fields (`co`, `interpolation`, `easing`) and the F-curve's `extrapolation`. That's reading Blender's typed fields, not parsing the expression, so it's neither fragile nor broken by format changes (the user's two objections to reading drivers). Rebuilds already leave keyframes alone (`_create_new_driver` clears them only on creation). Removing a key's last connection deletes the driver and its curve: accepted, no problem.
@@ -201,9 +201,11 @@ The jaw has always felt too snappy; it should spend more time barely open. Easin
 
 **Tested headless (Blender 5.2):** with keyframes at (0,0), (1,1) and Linear extrapolation, non-Bezier curves continue at slope 1 past both ends (1.2 gives 1.2, −0.5 gives −0.5), so overshoot and negative Min work as without a curve. Quad Ease In: 0.062 / 0.25 / 0.562 at a quarter, half, three quarters; Quad Ease Out: 0.438 / 0.75 / 0.938; Sine Ease In-Out: 0.146 / 0.5 / 0.854; Cubic Ease In (stronger): 0.016 / 0.125 / 0.422. `UILayout.operator_menu_enum` returns the operator's properties, so the dropdown needs no menu class.
 
-**As built so far** (`panels/shape_keys/key_curve.py`): `CURVE_PRESETS`, `CURVE_PRESET_ITEMS`, `match_curve_preset`, `apply_curve_preset`, `RIG_OT_set_key_curve` (`rig.set_key_curve`; `object_name`, `shape_key_name`, `preset`). `find_driver(anim_owner, path)` moved to `shape_key_utils.py` (public; connect.py uses it too). Review notes not yet applied: line 80 passes `key.animation_data` to `find_driver` (should be `key`); guard `shape_keys` being None; the `description` classmethod can go (enum item descriptions are the tooltips).
+**As built** (`panels/shape_keys/key_curve.py`): `CURVE_PRESETS`, `CURVE_PRESET_ITEMS`, `match_curve_preset`, `apply_curve_preset`, `curve_preset_label` (the preset's name, or "Custom"), `RIG_OT_set_key_curve` (`rig.set_key_curve`; `object_name`, `shape_key_name`, `preset`). `find_driver(anim_owner, path)` lives in `shape_key_utils.py` (public; connect.py uses it too). Review notes applied: `find_driver` gets `key`, `shape_keys` None is guarded, the `description` classmethod is gone. The panel row is at the end of `draw_active_bone` in `shape_keys_panel.py`: split 0.4, a right-aligned "Curve" label, `operator_menu_enum`, shown only when the connection is live and the key has a driver. It goes into `col`, so it sits with Extent and Range, above the separator.
 
-**Left:** `curve_preset_label` helper and the panel row in `draw_active_bone` (code drafted in chat: split 0.4 for the "Curve" label, `operator_menu_enum`); Symmetrize copies the keyframes (interpolation, easing, positions, extrapolation) to the mirror key; registration in `rigtools/__init__.py`; try it on `Mouth.Open`.
+**Registration changed (2026-11-11, the user):** `rigtools/panels/shape_keys/__init__.py` has its own `modules` tuple and `register()`/`unregister()`; the top-level `rigtools/__init__.py` imports the package (`from rigtools.panels import shape_keys`) and registers through its own `modules` tuple, unregistering in strict reverse. A new shape key module goes in the package tuple, before `shape_keys_panel`.
+
+**Left:** Symmetrize copies the keyframes (interpolation, easing, positions, extrapolation) to the mirror key. Small tidy: the continuation line of the `operator_menu_enum` call is indented with spaces, trailing spaces after `return name` in `match_curve_preset`, an extra blank line before `RIG_PT_shape_keys`.
 
 ### Channel layer (dropped and removed 2026-11-08: see Connect redesign)
 Controls drive named channels (custom properties on the property bone), and channels drive keys: `control > channel > key`. Every input (face bone, slider, Rig UI property, emote, later mocap) writes to a channel the same way. The user wants to try it in practice on a real rig before deciding; a toy demo didn't settle anything.
@@ -332,6 +334,15 @@ Bone envelopes on the armature modifier must stay off, since they make the modif
 
 Check while testing: VIS reads the mesh's final evaluated geometry, after Kendra's `_Mask` modifiers. Make sure anchor vertices aren't masked away.
 
+#### Pin to Mesh (decided 2026-11-11)
+- **Pins an existing bone; it doesn't create one.** Select the control in pose mode and click Pin to Mesh. The operator adds only what pinning needs: the `ANCHOR-{name}` vertex group, `VIS-{name}` (Copy Location to that group), and the control's custom shape override pointing at VIS. The parent, widget and collection are whatever the user gave the bone, and the name comes from the bone.
+- **Anchor vertices, chosen in the redo panel** (`REGISTER`, `UNDO`): **Closest** (default) finds the vertices nearest the bone's head, so it all stays in pose mode; **Selection** uses the mesh's stored edit mode selection (`mesh.vertices[i].select`).
+- **Proposed, not decided:**
+  - Closest as the surface point: the nearest face's vertices, weighted so their average lands on the closest point; the single nearest vertex is the fallback. Test first that Copy Location averages a vertex group by weight.
+  - Which mesh: the nearest of the controlled meshes by default, also a redo panel option.
+  - The anchor group template goes in `BONE` in `rigtools/utils/naming.py` next to `"vis"`.
+- **Open:** the widget only follows the mesh, so grabbing the control doesn't move it; it moves only as far as the shape key moves the anchor vertices. Fine when the anchor sits on what the key moves (brow on the brow). If not, VIS would also need the control's offset (allowed: VIS may depend on the control, not the reverse), but that doubles the motion on an anchor the key does move.
+
 ### Tested behaviour (Blender 5.2, throwaway scenes)
 | Setup | Cycle? | Follow works? |
 |---|---|---|
@@ -352,7 +363,7 @@ Proposed order, not decided:
 2. **Symmetric key sets.** Split and Update from a full-face source, the calculated weight, and the name swaps for direction keys.
 3. **Editing.** Adjust and delete in the panel. Data Viewer sub-panel and checks: dead drivers, and anchor name collisions.
 4. **Sliders, properties and emotes.** Custom property as an input, a location-driven bone as an output (also a real jaw bone), and the Rig UI section.
-5. **Pinned control creator.** Select vertices on the mesh, run it, and it makes the anchor group, VIS bone, control, widget and collection.
+5. **Pin to Mesh.** Select an existing control in pose mode, run it, and it makes the anchor group and VIS bone and sets the widget override (decided 2026-11-11, replaces the creator).
 6. **Frames and the matrix.** A frame is a bone with the rectangle widget, sized from captured extremes using custom shape scale so no new mesh is needed.
 7. **Corner capture.** A pose using two axes writes `min(a, b)`.
 
@@ -365,7 +376,7 @@ Proposed order, not decided:
 - Widgets: `apply_widget` (line 213) and `widget_scale_xyz` (line 53) in `rigtools/utils/widget.py`.
 - Tools panel, "Pose Tools:" section: `rigtools/panels/main/main_panel.py` (line 29).
 - Rig UI properties: `RIG_PT_properties_ui` in `rigtools/rig_ui/rig_ui.py` (line 322). Properties live on the property bone; see `ToolProperty` in `rigtools/assemblies/tool_data/tool_properties.py` (line 5).
-- Registration: `rigtools/__init__.py` (lines 28, 77, 98).
+- Registration: the `modules` tuple in `rigtools/__init__.py` (line 53); shape key modules go in the `modules` tuple in `rigtools/panels/shape_keys/__init__.py` (line 3).
 - Data Viewer: `rigtools/data_viewer/checks.py`, and the Correctives sub-panel at `rigtools/data_viewer/panel.py` (line 471).
 
 ## Old driver reference

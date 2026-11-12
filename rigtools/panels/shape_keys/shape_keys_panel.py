@@ -1,7 +1,8 @@
 import bpy
+from rigtools.panels.shape_keys.key_curve import curve_preset_label
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
-	HAS_KEY_LOCK, can_mirror, can_split, falloff_prop, has_sides, is_key_driven, mirror_shape_key_name,
+	HAS_KEY_LOCK, can_mirror, can_split, falloff_prop, find_driver, has_sides, is_key_driven, mirror_shape_key_name,
 )
 from rigtools.panels.shape_keys.connect import (
 	connection_status, drive_slider, has_connections, live_connections_for_key, range_name,
@@ -264,6 +265,22 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 		row = col.row(align=True)
 		row.prop(pose_bone, f'["{min_prop}"]', text="Range")
 		row.prop(pose_bone, f'["{max_prop}"]', text="")
+
+	_, key_name = connection_status(armature_obj, pose_bone, connection)
+	if key_name:
+		mesh = connection.mesh
+		key = mesh.data.shape_keys
+		fcurve = find_driver(key, key.key_blocks[key_name].path_from_id("value"))
+		if fcurve:
+			split = col.split(factor=0.4)
+			label = split.row()
+			label.alignment = 'RIGHT'
+			label.label(text="Curve")
+			op = split.operator_menu_enum("rig.set_key_curve", "preset",
+				text=curve_preset_label(fcurve))
+			op.object_name = mesh.name
+			op.shape_key_name = key_name
+
 	layout.separator()
 
 class RIG_PT_shape_keys(bpy.types.Panel):
