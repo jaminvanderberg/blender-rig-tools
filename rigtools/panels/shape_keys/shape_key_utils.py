@@ -10,6 +10,10 @@ from rigtools.utils.naming import SEPARATORS, SIDE_NAMES
 def side_names(name):
 	return f"{name}.L", f"{name}.R"
 
+def find_driver(anim_owner, path):
+	anim = anim_owner.animation_data
+	return anim.drivers.find(path) if anim else None
+
 # Direction words flip with the side: the mirror of the left eye looking left is the
 # right eye looking right. Lower case: chunks are matched ignoring case
 _LEFT, _RIGHT = SIDE_NAMES["L"].lower(), SIDE_NAMES["R"].lower()

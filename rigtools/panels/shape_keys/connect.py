@@ -32,7 +32,7 @@ from mathutils import Quaternion
 
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
-from rigtools.panels.shape_keys.shape_key_utils import has_sides
+from rigtools.panels.shape_keys.shape_key_utils import find_driver, has_sides
 from rigtools.rig_data.shape_key_connections import (
 	add_shape_key_connection, find_bone_connections_for_shape_key, find_shape_key_connection,
 	get_shape_key_connections, remove_shape_key_connection)
@@ -52,10 +52,6 @@ MAX_TURN = math.radians(179)
 
 def _quote(name):
 	return f'["{bpy.utils.escape_identifier(name)}"]'
-
-def _find_driver(anim_owner, path):
-	anim = anim_owner.animation_data
-	return anim.drivers.find(path) if anim else None
 
 def _create_new_driver(owner, path):
 	"""A clean scripted driver: no mapping curve or modifiers, so it outputs its expression."""
@@ -146,7 +142,7 @@ def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, cha
 	back its keys go negative), whichever is further. A locked side that isn't connected has
 	only the second. Rotation stops short of a half turn."""
 	field = limit_field(axis, positive)
-	fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
+	fcurve = find_driver(armature_obj, constraint.path_from_id(field))
 	if fcurve is None:
 		fcurve = _create_new_driver(constraint, field)
 	driver = fcurve.driver
@@ -198,7 +194,7 @@ def _update_channel_limits(armature_obj, pose_bone, channel, sides, lock):
 				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel,
 					connected, opposite_connected)
 				continue
-			fcurve = _find_driver(armature_obj, constraint.path_from_id(field))
+			fcurve = find_driver(armature_obj, constraint.path_from_id(field))
 			if fcurve:
 				armature_obj.animation_data.drivers.remove(fcurve)
 			free = 0.0 if lock or channel == 'LOC' else math.pi
@@ -240,7 +236,7 @@ def _key_driver(key, key_block, prop, found):
 	"""The key's driver on one of its properties, emptied for rebuilding; or removed (and
 	None returned) when no bone drives the key. A removed range driver leaves its last value."""
 	path = key_block.path_from_id(prop)
-	fcurve = _find_driver(key, path)
+	fcurve = find_driver(key, path)
 	if not found:
 		if fcurve:
 			key.animation_data.drivers.remove(fcurve)
@@ -315,7 +311,7 @@ def build_key_drivers(armature_obj, mesh, key_block, trust=()):
 
 def _reads_side(armature_obj, key, key_block, pose_bone, connection):
 	"""True if the key's value driver reads this bone's extent property for this record's side."""
-	fcurve = _find_driver(key, key_block.path_from_id("value"))
+	fcurve = find_driver(key, key_block.path_from_id("value"))
 	if fcurve is None:
 		return False
 	prop = side_name("XYZ".index(connection.axis), connection.positive, connection.channel)
@@ -411,7 +407,7 @@ def has_foreign_driver(armature_obj, mesh, key_block):
 	"""A value driver with no live connection records behind it was made by someone else:
 	leave it alone."""
 	key = mesh.data.shape_keys
-	return (_find_driver(key, key_block.path_from_id("value")) is not None
+	return (find_driver(key, key_block.path_from_id("value")) is not None
 		and not live_connections_for_key(armature_obj, mesh, key_block))
 
 def control_problem(context, armature_obj, pose_bone):
