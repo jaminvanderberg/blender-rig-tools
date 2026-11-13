@@ -27,6 +27,7 @@ from rigtools.operators import human_skeleton
 from rigtools.operators import create_twist_bones
 from rigtools.operators import bone_colors
 from rigtools.operators import corrective_bones
+from rigtools.operators import pin_to_mesh
 from rigtools.assemblies import assembly_data
 from rigtools.assemblies import config_registry
 from rigtools.panels import skirt_legs as skirt_legs_panel
@@ -73,6 +74,7 @@ modules = (
 	create_twist_bones,
 	bone_colors,
 	corrective_bones,
+	pin_to_mesh,
 	bone_style_panel,
 	shape_keys,
 

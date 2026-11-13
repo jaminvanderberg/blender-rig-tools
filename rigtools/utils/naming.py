@@ -25,6 +25,7 @@ BONE = {
 	"fk_master": "{name}.master.{i}",
 	"foot_roll": "{name}.roll",
 	"vis": "VIS-{name}",
+	"anchor": "ANCHOR-{name}",
 	"mch": "MCH-{name}",
 	"twist_def": "DEF-{name}.{i}",
 	"twist_org": "ORG-{name}.{i}",

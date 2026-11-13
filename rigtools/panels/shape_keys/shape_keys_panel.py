@@ -1,4 +1,5 @@
 import bpy
+from rigtools.operators.pin_to_mesh import find_pin
 from rigtools.panels.shape_keys.key_curve import curve_preset_label
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
@@ -224,6 +225,11 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 		right.prop(pose_bone, "rigtools_limits_enabled", text="Limited" if limited else "Unlocked",
 			icon='UNLOCKED', emboss=False)
 
+	if find_pin(pose_bone) is not None:
+		row.operator("rig.unpin_from_mesh", text="", icon='PINNED', emboss=True)
+	else:
+		row.operator("rig.pin_to_mesh", text="", icon='UNPINNED', emboss=False)
+	
 	layout.template_list(
 		"RIG_UL_active_bone_connections", "",
 		sk_connections, "items",
