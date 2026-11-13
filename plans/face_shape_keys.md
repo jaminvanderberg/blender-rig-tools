@@ -40,6 +40,7 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 - **Remove button:** the ✕ in each list row reads as text unembossed and looks poor embossed. Proposed: a − button in a column beside the list (Blender's convention), acting on the selected row; room there later for "select this key".
 - **Repair:** built with copy detection (2026-11-09, Claude; not committed), see "Copied and stale records" below. Left: the Data Viewer check and cleanup.
 - **MIN** per key.
+- **Followers** (proposed 2026-11-13): bones that follow a control, e.g. teeth and tongue on a hinge following the chin. See "Followers".
 - **Rotation connections (built 2026-11-09, Claude; `c9b5c97`).** Needed for lip curl and the anime mouth rotate. The user's chibi rig (`\\Jefe\Ubertaco\Data\Blender\Chibii\Chibit2.blend`) had `mouth.move` driving Left/Right/Up/Down on location and `Mouth.Rotate.L/.R` on ROT_Y (0.5 rad) with Limit Rotation ±30°, so one bone drives both channels. As built: records have `channel` (`LOC`/`ROT`, default `LOC`, no migration); rotation sides are `SK ±RX/RY/RZ` (+ Min/Max), radians shown in degrees, capped at 179°; capture reads swing/twist around Y exactly as the driver does (`read_turns`: the twist angle, and the swing as `2·asin` of its components, tested against Blender's own, which isn't axis × angle) and refuses a bone both moved and turned; value variables are `ROT_n` with `SWING_TWIST_Y`; a second constraint, "Shape Key Rotation Limits" (Limit Rotation, local, non-legacy, Affect Transform), driven like location and capped short of a half turn, free sides at ±180° (Limit Rotation has one switch per axis); the Limited toggle is a get/set `rigtools_limits_enabled` covering both constraints; the Extent slider turns the bone on rotation sides; Symmetrize flips rotation Y and Z (X keeps its sign), Blender's flip-pose rule. Known approximation: Limit Rotation clamps Euler angles while the driver reads swing/twist, so a pose on two axes at once reads slightly under (0.9989 at the captured pose for an X swing with a 0.05 twist; 1.0 with the limits off). Tested headless: three channels on one bone, motion and limits, Max overshoot, the moved-and-turned refusal, capture matching the driver, the slider, the toggle, mirrored tails for RX, RY and RZ, and the earlier range, symmetrize and copy tests unchanged.
 - **Pinned control operators:** Pin to Mesh is next (decided 2026-11-11, see "Pin to Mesh" under "Pinned controls"). Later: symmetrize (including a mirrored anchor group; check what Blender's Symmetrize does with a vertex group subtarget), delete (with clearing connections). See "Pinned controls".
 - **Range Min below 0:** now part of Range on the bone (below).
@@ -344,6 +345,37 @@ Check while testing: VIS reads the mesh's final evaluated geometry, after Kendra
   - Closest as the surface point: the nearest face's vertices, weighted so their average lands on the closest point.
   - The anchor group template goes in `BONE` in `rigtools/utils/naming.py` next to `"vis"`.
 - **Deferred (the user, 2026-11-12; not part of the first pass):** the widget only follows the mesh, so grabbing the control doesn't move it; it moves only as far as the shape key moves the anchor vertices. Fine when the anchor sits on what the key moves (brow on the brow). If not, VIS would also need the control's offset (allowed: VIS may depend on the control, not the reverse), but that doubles the motion on an anchor the key does move.
+
+### Followers (discussed 2026-11-13; proposed, not built)
+Bones that follow a face control: the lower teeth and tongue following the jaw, and later controls following controls, DEF/ORG bones following face controls. Fills the "bone location in, bone moves out" cell of the Emotes table.
+
+**The case:** Kendra's mouth opens with `Mouth.Open`, driven by a chin control that only translates (down; also left/right). The lower teeth and tongue must follow, but they swing around a hinge at the back of the throat, not the chin. The old rig did this with an MCH at the tongue base with Transformation constraints (move and rotate) from the jaw control, parent of the teeth and tongue. The upper teeth likely want the same (the anime mouth opens up a little).
+
+**Decided (user):**
+- **A tool,** not a one-off: there will be others like it.
+- **Follow the control bone,** not the shape key value. (Rejected: drivers reading the key's value. It ties a follower to one key and isn't general.)
+- **The user creates the hinge bone and the parenting** (teeth and tongue root under it). The tool only captures the transform. The followers share the hinge as parent, so they move together exactly; nobody poses teeth and tongue separately.
+- **A way to hide the hinge in the MCH collection,** since it isn't a true control.
+- **Can't assume** the teeth and tongue are separate meshes or part of the face mesh.
+- **Discoverability matters:** the worry is that this becomes an invisible tool people never think to use, even if documented.
+
+**Rejected along the way:** the tool creating the hinge at the 3D cursor (it still had to be posed); solving the pivot from the followers' pose (needs both posed by hand, and the solve is fragile at jaw angles of 10–15°); posing the followers together around the cursor.
+
+**Proposed:**
+- **Capture:** the corrective gesture with a location input. Pose the control at a side's extreme, pose the follower (the hinge), select the follower with the control active, Add Follower. Adds a Transformation constraint on the follower: from the control's side (0 to extent, local location) to the captured location/rotation, `ADD` mix, then clears the follower's pose. The control stays posed. Another side (chin sideways) is another capture, stacked on the same follower like correctives stack.
+- **Range from the extent:** the constraint's "from" end is driven by the side's `SK ±A` property, so changing Extent keeps followers matched. Reads a bone property, not the Key, so no cycle. Extrapolate on, so Range Max overshoot carries through; the control's own limit caps it.
+- **Panel:** a Followers section in the control's bone view, under Connections and Extent/Range/Curve, always shown for a connected control even when empty: a UIList (follower, side, ✕) and an Add Follower button whose tooltip explains the gesture. This is the answer to discoverability: the question "what else moves when this moves?" sits where the user just connected the key. General, not jaw-specific.
+- **Move to MCH:** a separate button (not automatic, so the hinge can stay visible while tuning), using `ensure_bone_collection(get_preferences().mch_collection_name, hidden=True)` as correctives do.
+- **Reuse `CorrectiveSetup`** (`operators/corrective_bones.py`) where it fits: capture, `add_transform`, mirroring, read-back. Correctives read rotation through a reader MCH; a face control's local location is read directly, so no reader.
+- **Symmetrize** mirrors followers by the corrective rules.
+- **Checks:** same as correctives (no DEF bones, no assembly mechanism bones).
+
+**Known gaps:**
+- **Easing:** Transformation constraints are linear. If `Mouth.Open` has Ease In, the teeth drift from the mouth mid-motion and line up only at 0 and 1. Ship linear and see if it's noticeable; a driver-built follow could apply the key's curve.
+- **Two sides on one hinge** are each exact at their extreme; combined poses add the two rotations, fine at small angles.
+- **ORG followers in an assembly:** reparenting must also update the assembly's saved parent (`org_state.parent`), or regenerating undoes it. Now the user's job (they do the parenting); worth a check or a note.
+
+**Open:** where the follower's side shows on the follower itself ("Follows jaw −Z"); whether Move to MCH also clears `use_deform`; Data Viewer checks for followers.
 
 ### Tested behaviour (Blender 5.2, throwaway scenes)
 | Setup | Cycle? | Follow works? |
