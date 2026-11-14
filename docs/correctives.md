@@ -5,7 +5,7 @@
 
 Corrective bones fix the shape of the mesh when a joint bends a long way, such as the shoulder when the arm is raised, or the elbow when it's fully bent.  You set one up from a pose: bend the joint, move the corrective bone to where it should be, and RigTools makes it move there by itself whenever the joint bends that way.
 
-**Where:** n-Panel > RigTools > Tools > Create Corrective Bone (Pose mode)
+**Where:** n-Panel > RigTools > Corrective Bones > Create Corrective Bone (Pose mode)
 { .where }
 
 Also in **Pose > Constraints**, or press ++shift+alt+c++.
@@ -46,7 +46,7 @@ The corrective bone snaps back to its rest position, then moves to your correcte
 
 ## Adjusting a corrective
 
-Select the corrective bone.  Its settings show at the top of the *[Assembly panel](assemblies.md#assembly-panel)*, one box per corrective on that bone.
+Select the corrective bone.  Its settings show in the *Corrective Bones* panel, under the Create button, one box per corrective on that bone.
 
 - **From**: how far the joint bends (or the driving bone moves) before the correction is at full strength.  Going further than this doesn't add any more.
 - **Move** or **Rotate** X / Y / Z: the correction at full strength.
@@ -57,7 +57,7 @@ Select the corrective bone.  Its settings show at the top of the *[Assembly pane
     Hold ++shift++ while dragging a value for finer adjustments.
 
 !!! screenshot "Image placeholder"
-    `image/corrective_panel.png` — The Assembly panel with a corrective bone selected, showing the corrective box (From, Move X/Y/Z) above the assembly list.
+    `image/corrective_panel.png` — The Corrective Bones panel with a corrective bone selected, showing the corrective box (From, Move X/Y/Z) under the Create button.
 
 ## Combining correctives
 

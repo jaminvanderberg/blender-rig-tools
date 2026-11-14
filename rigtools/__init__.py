@@ -34,6 +34,7 @@ from rigtools.panels import skirt_legs as skirt_legs_panel
 from rigtools.panels.ik import ik_panel
 from rigtools.panels.fk import fk_panel
 from rigtools.panels.assembly import assembly_panel
+from rigtools.panels.corrective import corrective_panel
 from rigtools.panels.bone_style import bone_style_panel
 from rigtools.panels import shape_keys
 from rigtools.data_viewer import panel as data_viewer_panel
@@ -65,6 +66,7 @@ modules = (
 	ik_panel,
 	fk_panel,
 	assembly_panel,
+	corrective_panel,
 	data_viewer_panel,
 
 	rename_chain,

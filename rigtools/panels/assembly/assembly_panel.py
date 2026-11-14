@@ -4,7 +4,6 @@ from rigtools.assemblies.assembly_data import find_assemblies, find_assembly, fi
 from rigtools.assemblies.config_registry import iterate_configs
 from rigtools.assemblies.delete_assembly import delete_assembly
 from rigtools.assemblies.limb_collections import find_bones_by_limb_role, find_limb_collections
-from rigtools.panels.assembly.corrective_subpanel import draw_correctives
 from rigtools.utils.bone import get_selected_bones, select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES
@@ -199,8 +198,6 @@ class RIG_PT_assembly_panel(bpy.types.Panel):
 
 	def draw(self, context):
 		layout = self.layout
-		draw_correctives(layout, context)
-
 		armature_data = context.object.data
 		if needs_rig_upgrade(armature_data):
 			settings = armature_data.rigtools

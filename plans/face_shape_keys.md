@@ -408,7 +408,7 @@ Proposed order, not decided:
 
 ## Code locations
 - Corrective bones to model this on: `rigtools/operators/corrective_bones.py`. Capture at `capture_corrective_pose` (line 89), mirroring at `mirror_from` (line 146), rotation-only input at line 190.
-- Corrective Extrapolate: the panel row goes in `draw_constraint` in `rigtools/panels/assembly/corrective_subpanel.py`. The Mirror operator rebuilds the constraint and copies influence (`corrective_bones.py` line 375), so it has to copy this too.
+- Corrective Extrapolate: the panel row goes in `draw_constraint` in `rigtools/panels/corrective/corrective_panel.py`. The Mirror operator rebuilds the constraint and copies influence (`corrective_bones.py` line 375), so it has to copy this too.
 - Read-back helpers pattern: `rigtools/rig_data/correctives.py`.
 - Side names: `flip_side_name` in `rigtools/rig_ui/rig_ui.py` (line 92).
 - Bone templates: `BONE` in `rigtools/utils/naming.py`. `"vis"` is at line 27. Add the anchor group template here.

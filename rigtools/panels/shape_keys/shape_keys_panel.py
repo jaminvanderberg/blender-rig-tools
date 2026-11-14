@@ -3,7 +3,7 @@ from rigtools.operators.pin_to_mesh import find_pin
 from rigtools.panels.shape_keys.key_curve import curve_preset_label
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
-	HAS_KEY_LOCK, can_mirror, can_split, falloff_prop, find_driver, has_sides, is_key_driven, mirror_shape_key_name,
+	HAS_KEY_LOCK, can_mirror, can_split, find_driver, has_sides, is_key_driven, mirror_shape_key_name,
 )
 from rigtools.panels.shape_keys.connect import (
 	connection_status, drive_slider, has_connections, live_connections_for_key, range_name,
@@ -124,6 +124,32 @@ def draw_key_actions(layout, obj):
 	op.shape_key_name = active.name if active else ""
 	edit.menu("MESH_MT_shape_key_context_menu", icon='DOWNARROW_HLT', text="")
 
+	key = obj.data.shape_keys
+	key_block = obj.active_shape_key
+	center = row.row(align=True)
+	if can_split(key, key_block):
+		split_exists = has_sides(key, key_block.name)
+		op = center.operator(
+			"rig.split_shape_key",
+			text="Update Split" if split_exists else "Split L/R",
+			icon='FILE_REFRESH' if split_exists else 'MOD_MIRROR',
+		)
+		op.object_name = obj.name
+		op.shape_key_name = key_block.name
+		# Falloff is set in the redo panel; the split stores it so the next Update reuses it
+
+	key = obj.data.shape_keys
+	key_block = obj.active_shape_key
+	# Shown whenever the key has a mirror; greyed out while that key is locked
+	mirror_name = mirror_shape_key_name(key_block.name)
+	if mirror_name:
+		mrow = center.row()
+		mrow.enabled = can_mirror(key, key_block)
+		op = mrow.operator("rig.mirror_shape_key", text=f"Mirror",
+			icon='MOD_MIRROR', translate=False)
+		op.object_name = obj.name
+		op.shape_key_name = key_block.name	
+
 	move = row.row(align=True)
 	move.alignment = 'RIGHT'
 	move.enabled = not_basis
@@ -145,7 +171,6 @@ def draw_active_key(layout, obj):
 	if key_block is None or key_block == key.reference_key:
 		return
 
-	layout.separator()
 	col = layout.column()
 	col.use_property_split = True
 	col.use_property_decorate = False
@@ -159,59 +184,6 @@ def draw_active_key(layout, obj):
 	op = apply.operator("rig.apply_shape_key_vertex_group", text="", icon='CHECKMARK')
 	op.object_name = obj.name
 	op.shape_key_name = key_block.name
-
-	if can_split(key, key_block):
-		col.separator()
-		split_exists = has_sides(key, key_block.name)
-		op = col.operator(
-			"rig.split_shape_key",
-			text="Update L/R Shape Keys" if split_exists else "Create L/R Shape Keys",
-			icon='FILE_REFRESH' if split_exists else 'MOD_MIRROR',
-		)
-		op.object_name = obj.name
-		op.shape_key_name = key_block.name
-		# Stored by the first split; editing it takes effect on the next Update
-		prop = falloff_prop(key_block.name)
-		if prop in key:
-			col.prop(key, f'["{bpy.utils.escape_identifier(prop)}"]', text="Falloff")
-
-	# Shown whenever the key has a mirror; greyed out while that key is locked
-	mirror_name = mirror_shape_key_name(key_block.name)
-	if mirror_name:
-		col.separator()
-		row = col.row()
-		row.enabled = can_mirror(key, key_block)
-		op = row.operator("rig.mirror_shape_key", text=f"Mirror to {mirror_name}",
-			icon='MOD_MIRROR', translate=False)
-		op.object_name = obj.name
-		op.shape_key_name = key_block.name
-
-	# The bones recorded as driving this key, each with a button to disconnect it
-	armature_obj = obj.find_armature()
-	found = live_connections_for_key(armature_obj, obj, key_block) if armature_obj else []
-	if not found:
-		return
-	layout.separator()
-	layout.label(text="Connections")
-	col = layout.column(align=True)
-	for pose_bone, connection in found:
-		row = col.row()
-		op = row.operator("rig.select_control", text=pose_bone.name, icon='BONE_DATA',
-			emboss=False, translate=False)
-		op.armature_name = armature_obj.name
-		op.bone_name = pose_bone.name
-		right = row.row()
-		right.alignment = 'RIGHT'
-		# The direction the bone moves or turns to reach the shape, e.g. -Z or +RY
-		right.label(text=side_label("XYZ".index(connection.axis), connection.positive, connection.channel))
-		op = right.operator("rig.disconnect_shape_key", text="", icon='X', emboss=False)
-		op.armature_name = armature_obj.name
-		op.bone_name = pose_bone.name
-		op.object_name = obj.name
-		op.shape_key_name = key_block.name
-		op.axis = connection.axis
-		op.positive = connection.positive
-		op.channel = connection.channel
 
 def draw_active_bone(layout, armature_obj, pose_bone):
 	"""What the active control drives, as a list of its connection records, with the selected
@@ -294,8 +266,6 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 			op.object_name = mesh.name
 			op.shape_key_name = key_name
 
-	layout.separator()
-
 class RIG_PT_shape_keys(bpy.types.Panel):
 	bl_label = "Shape Keys"
 	bl_idname = "RIG_PT_shape_keys" 
@@ -357,7 +327,7 @@ class RIG_PT_shape_keys(bpy.types.Panel):
 			"RIG_UL_shape_keys", obj.name,
 			obj.data.shape_keys, "key_blocks",
 			obj, "active_shape_key_index",
-			rows=6,
+			rows=4,
 		)
 		draw_key_actions(layout, obj)
 		draw_active_key(layout, obj)

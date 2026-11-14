@@ -7,7 +7,7 @@ Built:
 - **Create** (`RIG_OT_create_corrective_bone`, `operators/corrective_bones.py`): validation, reader MCH, capture, Transformation constraints, pose cleared. Mirror on by default. Tested on Sarah's arm and shoulders.
 - **Delete** and **Mirror** (`RIG_OT_delete_corrective`, `RIG_OT_mirror_corrective`). Tested.
 - **Entry points:** Tools panel ("Pose Tools:" section, pose mode only), Pose > Constraints menu, Shift+Alt+C (Pose keymap).
-- **Panel:** corrective box at the top of the Assembly panel (`draw_correctives` in `panels/assembly/corrective_subpanel.py`).
+- **Panel:** Corrective Bones panel after Assembly, closed by default: the Create button, plus the active bone's correctives (`panels/corrective/corrective_panel.py`).
 - **Assembly validation:** `create_assembly_data` now rejects other assemblies' mechanism bones (`find_assemblies` in place of `check_assembly_use`) and DEF bones by name.
 - **Data viewer:** Correctives sub-panel; the orphan MCH check ignores MCHs a corrective reads.
 - **Docs:** `docs/correctives.md`, plus `data_viewer.md`, `assemblies.md`, `workflow.md` (new step 8) and the nav. Docs built and checked.
