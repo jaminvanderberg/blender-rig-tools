@@ -410,6 +410,32 @@ def has_foreign_driver(armature_obj, mesh, key_block):
 	return (find_driver(key, key_block.path_from_id("value")) is not None
 		and not live_connections_for_key(armature_obj, mesh, key_block))
 
+def disconnect_key_for_removal(mesh, key_block):
+	"""Before a shape key is removed: forget the bones' records for it, rebuild their limits,
+	and remove every driver on the key. Python's shape_key_remove deletes the drivers itself
+	but doesn't rebuild the depsgraph, which then evaluates the deleted drivers and crashes
+	Blender; drivers.remove does rebuild it. Returns the names of the bones disconnected."""
+	key = mesh.data.shape_keys
+	armature_objs = {modifier.object for modifier in mesh.modifiers
+		if modifier.type == 'ARMATURE' and modifier.object}
+	disconnected = []
+	for armature_obj in armature_objs:
+		# Read before the drivers go: a record is live when the key's driver reads it
+		found = live_connections_for_key(armature_obj, mesh, key_block)
+		for pose_bone, connection in found:
+			remove_shape_key_connection(pose_bone, connection)
+		# Each bone once, in list order
+		for pose_bone in dict.fromkeys(pose_bone for pose_bone, _connection in found):
+			update_limits(armature_obj, pose_bone)
+			disconnected.append(pose_bone.name)
+
+	if key.animation_data:
+		key_path = key_block.path_from_id()
+		for fcurve in [fcurve for fcurve in key.animation_data.drivers
+				if fcurve.data_path.startswith(key_path + ".")]:
+			key.animation_data.drivers.remove(fcurve)
+	return disconnected
+
 def control_problem(context, armature_obj, pose_bone):
 	"""Why this bone can't be a shape key control, or None."""
 	prop_bone_name = get_armature_settings(armature_obj.data, context).property_bone_name

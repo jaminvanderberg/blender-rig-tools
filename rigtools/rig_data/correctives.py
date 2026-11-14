@@ -21,11 +21,21 @@ def corrective_target(obj, constraint):
 	mch = obj.pose.bones[constraint.subtarget]
 	return mch.constraints[0].subtarget
 
+def from_suffix(constraint):
+	"""'_rot' when the corrective reads rotation, '' when it reads location"""
+	return "_rot" if constraint.map_from == 'ROTATION' else ""
+
 def correction_end(constraint):
 	"""'min' or 'max': the end of the ranges that holds the correction"""
 	# Only one end of each range holds the correction; the other end is 0.
 	# A negative reading puts the correction at min (see add_transform)
 	axis = constraint.map_to_x_from.lower()
-	from_min = getattr(constraint, f"from_min_{axis}_rot")
-	from_max = getattr(constraint, f"from_max_{axis}_rot")
+	suffix = from_suffix(constraint)
+	from_min = getattr(constraint, f"from_min_{axis}{suffix}")
+	from_max = getattr(constraint, f"from_max_{axis}{suffix}")
 	return "min" if abs(from_min) > abs(from_max) else "max"
+
+def from_value_name(constraint):
+	"""Name of the From field holding the driving bone's reading, e.g. 'from_max_x_rot'"""
+	axis = constraint.map_to_x_from.lower()
+	return f"from_{correction_end(constraint)}_{axis}{from_suffix(constraint)}"

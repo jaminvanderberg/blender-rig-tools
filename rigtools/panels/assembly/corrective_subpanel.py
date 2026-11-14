@@ -1,4 +1,4 @@
-from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target
+from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target, from_value_name
 
 def draw_correctives(layout, context):
 	"""Correctives on the active bone, drawn at the top of the assembly panel.
@@ -35,11 +35,10 @@ def draw_constraint(layout, obj, pose_bone, c):
 	op.bone_name = pose_bone.name
 	op.constraint_name = c.name
 
-	axis = c.map_to_x_from.lower()
 	end = correction_end(c)
 
 	col.separator(factor=0.5)
-	col.prop(c, f"from_{end}_{axis}_rot", text="From")
+	col.prop(c, from_value_name(c), text="From")
 
 	suffix = "_rot" if c.map_to == 'ROTATION' else ""
 	row = col.row(align=True)

@@ -28,6 +28,8 @@ Also in **Pose > Constraints**, or press ++shift+alt+c++.
 
 The corrective bone snaps back to its rest position, then moves to your corrected position on its own.  As the joint bends toward that pose, the corrective bone eases into place.  When the joint is back at rest, so is the corrective bone.
 
+**Moving instead of bending:** the driving bone can also be moved rather than rotated, such as a jaw control that slides down.  The corrective then follows how far it moved.  If the driving bone was both rotated and moved, the rotation is used.
+
 ### Mirror
 
 **Mirror** is on by default, in the redo panel.  It creates the same corrective on the other side of the rig.  If there's no matching bone on the other side, only one side is created, and you get a note saying so.
@@ -46,9 +48,9 @@ The corrective bone snaps back to its rest position, then moves to your correcte
 
 Select the corrective bone.  Its settings show at the top of the *[Assembly panel](assemblies.md#assembly-panel)*, one box per corrective on that bone.
 
-- **From**: how far the joint bends before the correction is at full strength.  Bending further than this doesn't add any more.
+- **From**: how far the joint bends (or the driving bone moves) before the correction is at full strength.  Going further than this doesn't add any more.
 - **Move** or **Rotate** X / Y / Z: the correction at full strength.
-- The **mirror** button copies this corrective to the other side, replacing the one that's already there.  Use it after adjusting one side.
+- The **mirror** button copies this corrective to the other side, replacing the matching one that's already there (same driving direction and same Move or Rotate).  Use it after adjusting one side.
 - The **trash** button deletes the corrective.
 
 !!! tip

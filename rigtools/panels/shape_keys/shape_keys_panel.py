@@ -30,6 +30,13 @@ class RIG_UL_active_bone_connections(bpy.types.UIList):
 		right.label(text=connection.mesh.name if connection.mesh else "(no mesh)", translate=False)
 		right.label(text=side_label("XYZ".index(connection.axis), connection.positive, connection.channel))
 		right.separator()
+		# Shown whenever the key has a mirror name; anything else in the way is reported when
+		# it's pressed. A blank keeps the X buttons lined up
+		if key_name and mirror_shape_key_name(key_name):
+			op = right.operator("rig.mirror_connection", text="", icon='MOD_MIRROR', emboss=True)
+			op.index = index
+		else:
+			right.label(text="", icon='BLANK1')
 		op = right.operator("rig.disconnect_shape_key", text="", icon='X', emboss=True)
 		op.armature_name = armature_obj.name
 		op.bone_name = pose_bone.name

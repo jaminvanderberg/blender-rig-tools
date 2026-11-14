@@ -13,16 +13,22 @@ rebuild everything from the records.
 
 Only live records count (see connection_status): a bone copied with Blender's Duplicate or
 Symmetrize carries records that drive nothing, and they're neither mirrored nor kept.
+
+Mirror Connection does the same for one record, adding instead of replacing: a row of the
+active bone's list goes onto its mirror bone, or onto itself for a center bone (the
+jaw's Jaw.Left +X gives Jaw.Right -X). A side the target already has keeps its extent and
+range, since other keys share them.
 """
 import bpy
-from bpy.props import EnumProperty
+from bpy.props import EnumProperty, IntProperty
 
 from rigtools.panels.shape_keys.connect import (
 	build_key_drivers, connection_status, control_problem, has_connections, has_foreign_driver,
-	range_name, record_id, set_limits_enabled, set_side_props, side_name, tidy_connections,
-	update_limits)
+	range_name, record_id, set_limits_enabled, set_side_props, side_label, side_name,
+	tidy_connections, update_limits)
 from rigtools.panels.shape_keys.shape_key_utils import has_sides, mirror_shape_key_name
-from rigtools.rig_data.shape_key_connections import add_shape_key_connection, get_shape_key_connections
+from rigtools.rig_data.shape_key_connections import (
+	add_shape_key_connection, find_shape_key_connection, get_shape_key_connections)
 from rigtools.rig_ui.rig_ui import flip_side_name, get_base_name
 
 def mirror_bone(armature_obj, pose_bone):
@@ -191,8 +197,108 @@ class RIG_OT_symmetrize_connections(bpy.types.Operator):
 		self.report({'INFO'}, f"Symmetrized {names}")
 		return {'FINISHED'}
 
+def mirror_target_bone(armature_obj, pose_bone):
+	"""Where one connection mirrors to: the bone on the other side, or the bone itself for a
+	center bone (a jaw's +X mirrors to its own -X). None for a sided bone with no partner."""
+	if not get_base_name(pose_bone.name)[1]:
+		return pose_bone
+	return mirror_bone(armature_obj, pose_bone)
+
+def plan_connection_mirror(context, armature_obj, source, connection):
+	"""(plan, None) or (None, an error message) for mirroring one record. The plan is plain
+	values, read before anything changes: (target bone, mesh, key block, axis, flipped, channel,
+	source side)."""
+	status, key_name = connection_status(armature_obj, source, connection)
+	if status == 'AMBIGUOUS':
+		return None, f"'{connection.key_name}' was renamed, and several keys could be it"
+	if status == 'DEAD':
+		return None, f"'{connection.key_name}' isn't driven by {source.name}"
+	target_name = mirror_shape_key_name(key_name)
+	if target_name is None:
+		return None, f"'{key_name}' has no mirror key name"
+	target = mirror_target_bone(armature_obj, source)
+	if target is None:
+		return None, f"No mirror bone for '{source.name}'"
+	axis, channel = "XYZ".index(connection.axis), connection.channel
+	flipped = mirrored_side(axis, connection.positive, channel)
+	if target == source and flipped == connection.positive:
+		return None, (f"{side_label(axis, flipped, channel)} doesn't flip on a center bone, so "
+			"its mirror is the same side")
+	error = control_problem(context, armature_obj, target)
+	if error:
+		return None, error
+	mesh = connection.mesh
+	key = mesh.data.shape_keys
+	target_block = key.key_blocks.get(target_name)
+	if target_block is None:
+		return None, f"'{target_name}' isn't on '{mesh.name}'. Mirror '{key_name}' first"
+	if has_sides(key, target_name):
+		return None, f"'{target_name}' is split: its .L and .R are what get connected"
+	if has_foreign_driver(armature_obj, mesh, target_block):
+		return None, f"'{target_name}' has a driver RigTools didn't make"
+	source_side = (axis, connection.positive, channel)
+	if side_name(*source_side) not in source:
+		return None, f"{source.name} has no {side_name(*source_side)} extent. Connect it again"
+	return (target, mesh, target_block, axis, flipped, channel, source_side), None
+
+class RIG_OT_mirror_connection(bpy.types.Operator):
+	"""One record, added to whatever the target already drives. Unlike Symmetrize, nothing on
+	the target is replaced, and a center bone mirrors onto itself"""
+	bl_idname = "rig.mirror_connection"
+	bl_label = "Mirror Connection"
+	bl_description = ("Drive the mirrored shape key from the mirrored side: on the mirror bone, "
+		"or on this bone if it's a center bone. Other connections are kept")
+	bl_options = {'REGISTER', 'UNDO'}
+
+	# The row's record in the active bone's list
+	index: IntProperty(options={'HIDDEN'})
+
+	@classmethod
+	def poll(cls, context):
+		return context.mode == 'POSE' and context.active_pose_bone is not None
+
+	def execute(self, context):
+		armature_obj = context.object
+		source = context.active_pose_bone
+		items = source.rigtools_shape_keys.items
+		if not 0 <= self.index < len(items):
+			self.report({'ERROR'}, f"{source.name} has no connection {self.index}")
+			return {'CANCELLED'}
+		connection = items[self.index]
+		plan, error = plan_connection_mirror(context, armature_obj, source, connection)
+		if error:
+			self.report({'ERROR'}, error)
+			return {'CANCELLED'}
+		target, mesh, target_block, axis, flipped, channel, source_side = plan
+		axis_name = "XYZ"[axis]
+
+		# Records can move once tidied, so nothing below reads the source's record again
+		tidy_connections(armature_obj, target)
+		# A side that's already connected keeps its extent and range: other keys share them
+		if side_name(axis, flipped, channel) not in target:
+			set_side_props(target, axis, flipped, source[side_name(*source_side)], channel)
+			for end, default in (("Min", 0.0), ("Max", 1.0)):
+				target[range_name(axis, flipped, end, channel)] = source.get(
+					range_name(*source_side[:2], end, channel), default)
+
+		replaced = find_shape_key_connection(
+			target, mesh, target_block.name, axis_name, flipped, channel) is not None
+		add_shape_key_connection(target, mesh, target_block.name, axis_name, flipped, channel)
+		update_limits(armature_obj, target)
+		set_limits_enabled(target, True)
+		build_key_drivers(armature_obj, mesh, target_block,
+			trust={record_id(target, mesh, target_block.name, axis_name, flipped, channel)})
+		# Bone properties set from Python don't tag the drivers that read them
+		armature_obj.update_tag()
+
+		action = "Updated" if replaced else "Connected"
+		self.report({'INFO'}, f"{action} {target_block.name} to {target.name} "
+			f"{side_label(axis, flipped, channel)}")
+		return {'FINISHED'}
+
 classes = (
 	RIG_OT_symmetrize_connections,
+	RIG_OT_mirror_connection,
 )
 
 def register():

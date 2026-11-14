@@ -2,7 +2,8 @@ from mathutils import Euler, Vector
 import bpy
 from rigtools.assemblies.assembly_data import find_assemblies, find_org_state
 from rigtools.preferences import get_preferences
-from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target, find_correctives
+from rigtools.rig_data.correctives import (correction_end, corrective_constraints,
+	corrective_target, find_correctives, from_value_name)
 from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.bone_collection import ensure_bone_collection
@@ -22,6 +23,7 @@ class CorrectiveSetup:
 
 		self.location = None
 		self.rotation = None
+		self.from_channel = None # 'ROTATION' or 'LOCATION': what the driving bone's pose is read from
 		self.axis = None
 		self.from_value = None
 
@@ -111,8 +113,9 @@ class CorrectiveSetup:
 			copy.subtarget = self.target_name
 
 	def capture_target_pose(self, obj):
-		"""Store the largest rotation axis on the reader. Error message if
-		the target is at rest. Call context.view_layer.update() first."""
+		"""Store the largest axis on the reader: rotation if the target turned,
+		otherwise location. Error message if the target is at rest.
+		Call context.view_layer.update() first."""
 		mch = obj.pose.bones[self.mch_name]
 		local = obj.convert_space(
 			pose_bone=mch,
@@ -120,12 +123,18 @@ class CorrectiveSetup:
 			from_space='POSE',
 			to_space='LOCAL',
 		)
-		reading = local.to_euler()
+		# Rotation first, so joints that also moved read as before
+		rotation = local.to_euler()
+		location = local.to_translation()
+		if max(abs(a) for a in rotation) >= 1e-4:
+			self.from_channel, reading = 'ROTATION', rotation
+		elif location.length > 1e-5:
+			self.from_channel, reading = 'LOCATION', location
+		else:
+			return f"'{self.target_name}' is at rest. Pose it first."
 		# Find the largest input axis on the reader
 		self.axis = max(range(3), key=lambda i: abs(reading[i]))
 		self.from_value = reading[self.axis]
-		if abs(self.from_value) < 1e-4:
-			return f"'{self.target_name}' is at rest. Pose it first."
 		return None
 	
 	def apply(self, obj):
@@ -146,11 +155,13 @@ class CorrectiveSetup:
 	def mirror_from(self, source):
 		"""Copy source's captured values, flipped across X.
 		Assumes symmetric rest rolls: location X flips, rotation Y and Z flip"""
+		self.from_channel = source.from_channel
 		self.axis = source.axis
-		if source.axis == 0:
-			self.from_value = source.from_value
+		if source.from_channel == 'LOCATION':
+			flips = source.axis == 0
 		else:
-			self.from_value = -source.from_value
+			flips = source.axis != 0
+		self.from_value = -source.from_value if flips else source.from_value
 		x, y, z = source.location
 		self.location = Vector((-x, y, z))
 		rx, ry, rz = source.rotation
@@ -162,8 +173,9 @@ class CorrectiveSetup:
 		setup = cls(corrective_target(obj, constraint), bone_name)
 		axis_name = constraint.map_to_x_from.lower()
 		end = correction_end(constraint)
+		setup.from_channel = constraint.map_from
 		setup.axis = "xyz".index(axis_name)
-		setup.from_value = getattr(constraint, f"from_{end}_{axis_name}_rot")
+		setup.from_value = getattr(constraint, from_value_name(constraint))
 
 		suffix = "_rot" if constraint.map_to == 'ROTATION' else ""
 		values = [getattr(constraint, f"to_{end}_{out}{suffix}")
@@ -187,14 +199,16 @@ class CorrectiveSetup:
 		c.target_space = 'LOCAL'
 		c.owner_space = 'LOCAL'
 
-		c.map_from = 'ROTATION'
-		c.from_rotation_mode = 'AUTO'
+		c.map_from = self.from_channel
+		if self.from_channel == 'ROTATION':
+			c.from_rotation_mode = 'AUTO'
+		from_suffix = "_rot" if self.from_channel == 'ROTATION' else ""
 		axis_name = "xyz"[axis]
 		# Keep the from range ordered (min < max); a negative reading
 		# flips which end maps to the correction
 		low, high = sorted((0.0, from_value))
-		setattr(c, f"from_min_{axis_name}_rot", clean(low))
-		setattr(c, f"from_max_{axis_name}_rot", clean(high))
+		setattr(c, f"from_min_{axis_name}{from_suffix}", clean(low))
+		setattr(c, f"from_max_{axis_name}{from_suffix}", clean(high))
 
 		c.map_to = map_to
 		suffix = "_rot" if map_to == 'ROTATION' else ""
@@ -358,14 +372,18 @@ class RIG_OT_mirror_corrective(bpy.types.Operator):
 			bpy.ops.object.mode_set(mode='POSE')
 		mirrored.pose_mode(obj)
 
-		# Replace the opposite side's matching corrective so mirroring twice doesn't stack
+		# Replace the opposite side's matching corrective so mirroring twice doesn't stack.
+		# Matching: same driving bone, input channel, axis and direction, and same output
+		mirrored.mirror_from(source)
 		mirror_bone = obj.pose.bones[mirrored.corrective_name]
 		for old in corrective_constraints(mirror_bone):
 			if (old.subtarget == mirrored.mch_name
-					and old.map_to == constraint.map_to):
+					and old.map_to == constraint.map_to
+					and old.map_from == mirrored.from_channel
+					and old.map_to_x_from == constraint.map_to_x_from
+					and (getattr(old, from_value_name(old)) < 0) == (mirrored.from_value < 0)):
 				mirror_bone.constraints.remove(old)
 
-		mirrored.mirror_from(source)
 		if constraint.map_to == 'ROTATION':
 			values = mirrored.rotation
 		else:

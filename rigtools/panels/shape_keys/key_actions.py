@@ -4,6 +4,7 @@ Basis included."""
 import bpy
 from bpy.props import EnumProperty, StringProperty
 
+from rigtools.panels.shape_keys.connect import disconnect_key_for_removal
 from rigtools.panels.shape_keys.shape_key_utils import group_weights, is_locked, key_index, move_key, read_co
 
 class RIG_OT_remove_shape_key(bpy.types.Operator):
@@ -30,9 +31,11 @@ class RIG_OT_remove_shape_key(bpy.types.Operator):
 			return {'CANCELLED'}
 
 		index = key_index(key, key_block)
+		disconnected = disconnect_key_for_removal(obj, key_block)
 		obj.shape_key_remove(key_block)
 		obj.active_shape_key_index = max(1, index - 1)
-		self.report({'INFO'}, f"Removed '{self.shape_key_name}' from '{obj.name}'")
+		bones = f" (disconnected from {', '.join(disconnected)})" if disconnected else ""
+		self.report({'INFO'}, f"Removed '{self.shape_key_name}' from '{obj.name}'{bones}")
 		return {'FINISHED'}
 
 class RIG_OT_move_shape_key(bpy.types.Operator):

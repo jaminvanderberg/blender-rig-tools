@@ -10,7 +10,7 @@ from rigtools.assemblies.palm_templates import get_palm_template
 from rigtools.assemblies.torso_templates import get_torso_template
 from rigtools.data_viewer.checks import apply_fix, assemblies_by_limb, bone_names, collection_names, get_property_bone, limb_label, run_checks
 from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS, SELECT_SIMILAR_ROLES
-from rigtools.rig_data.correctives import correction_end, find_correctives
+from rigtools.rig_data.correctives import find_correctives, from_value_name
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES, side_display_name
@@ -518,7 +518,13 @@ class RIG_PT_data_viewer_correctives(bpy.types.Panel):
 		target = copies[0].subtarget if copies else ""
 
 		axis = c.map_to_x_from.lower()
-		angle = getattr(c, f"from_{correction_end(c)}_{axis}_rot")
+		reading = getattr(c, from_value_name(c))
+		if c.map_from == 'ROTATION':
+			reading_text = f"{math.degrees(reading):.1f}°"
+		else:
+			units = bpy.context.scene.unit_settings
+			reading_text = bpy.utils.units.to_string(units.system, 'LENGTH',
+				reading * units.scale_length, precision=3)
 		kind = "Rotate" if c.map_to == 'ROTATION' else "Move"
 
 		row = col.row(align=True)
@@ -528,7 +534,7 @@ class RIG_PT_data_viewer_correctives(bpy.types.Panel):
 			icon='CON_TRANSFORM')
 		sub = row.row()
 		sub.alignment = 'RIGHT'
-		sub.label(text=f"{axis.upper()} {math.degrees(angle):.1f}°")
+		sub.label(text=f"{axis.upper()} {reading_text}")
 
 		row = col.row(align=True)
 		row.active = False
