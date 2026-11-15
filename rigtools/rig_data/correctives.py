@@ -39,3 +39,10 @@ def from_value_name(constraint):
 	"""Name of the From field holding the driving bone's reading, e.g. 'from_max_x_rot'"""
 	axis = constraint.map_to_x_from.lower()
 	return f"from_{correction_end(constraint)}_{axis}{from_suffix(constraint)}"
+
+def from_start_name(constraint):
+	"""Name of the From field where the correction begins (the end that isn't the
+	reading), e.g. 'from_min_x_rot'. 0 unless a dead zone was set"""
+	axis = constraint.map_to_x_from.lower()
+	start = "max" if correction_end(constraint) == "min" else "min"
+	return f"from_{start}_{axis}{from_suffix(constraint)}"

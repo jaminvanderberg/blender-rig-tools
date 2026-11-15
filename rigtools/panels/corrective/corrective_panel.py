@@ -1,7 +1,7 @@
 """Corrective Bones panel: the Create button, plus the active bone's correctives when it has any."""
 import bpy
 
-from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target, from_value_name
+from rigtools.rig_data.correctives import correction_end, corrective_constraints, corrective_target, from_value_name, from_start_name
 
 class RIG_PT_corrective_bones(bpy.types.Panel):
 	bl_label = "Corrective Bones"
@@ -52,6 +52,7 @@ def draw_constraint(layout, obj, pose_bone, c):
 	end = correction_end(c)
 
 	col.separator(factor=0.5)
+	col.prop(c, from_start_name(c), text="Start")
 	col.prop(c, from_value_name(c), text="From")
 
 	suffix = "_rot" if c.map_to == 'ROTATION' else ""

@@ -11,8 +11,15 @@ Built:
 - **Assembly validation:** `create_assembly_data` now rejects other assemblies' mechanism bones (`find_assemblies` in place of `check_assembly_use`) and DEF bones by name.
 - **Data viewer:** Correctives sub-panel; the orphan MCH check ignores MCHs a corrective reads.
 - **Docs:** `docs/correctives.md`, plus `data_viewer.md`, `assemblies.md`, `workflow.md` (new step 8) and the nav. Docs built and checked.
+- **Location input** (2026-11-13, Claude; `2c76550`): a corrective can be driven by a bone's location as well as its rotation, for the face (chin control swinging a teeth/tongue hinge). `CorrectiveSetup.from_channel`; details in `plans/face_shape_keys.md` under Followers. Tested by the user on the teeth: works well.
 
-**Resume here:** nothing left. Possible follow-ups: recapture (see Decisions), Swing + Twist rotation mode, an "Include mirror" toggle for slider edits.
+**Resume here (2026-11-14):**
+1. **Start (in progress, the user writing it).** A dead zone: the From end that isn't the reading, 0 by default. The user raised it by hand for the teeth (they stay shut while the mouth starts to open) and it works well. Nothing stored; the constraint's other From field holds it.
+   - Done, not committed: `from_start_name(constraint)` in `rig_data/correctives.py` (the end opposite `correction_end`), and a Start row above From in `draw_constraint`.
+   - Left: `CorrectiveSetup` carries it. `self.from_start = 0.0` in `__init__`; read back in `from_constraint` with `from_start_name`; flipped in `mirror_from` by the same rule as `from_value`; `add_transform` orders `(self.from_start, from_value)` in place of `(0.0, from_value)`. Until then Mirror Corrective resets the mirror side's Start to 0. The `to_` mapping needs no change (Start is on the reading's side of 0).
+   - Known, left alone for now: a Start typed past From swaps which end `correction_end` picks, so the panel labels flip.
+2. **One box per capture, not per constraint (the user, 2026-11-14; proposed).** A capture that moved and turned the corrective makes two constraints (location and rotation) with the same driving bone, input channel, axis, Start and From; the panel shows two boxes and Start and From must be set twice. The user: they most likely never differ. Proposed: group constraints that share subtarget, `map_from`, `map_to_x_from` and the reading's sign into one box: target, mirror, delete, Start, From, then Move X Y Z and Rotate X Y Z. Open: how one Start/From edit reaches both constraints, since constraint fields have no update callback. Options: drive the second constraint's from fields from the first (a driver per field, no Python); a get/set property that writes both (like the shape key Extent slider, which the user finds too complex); or show only the first constraint's fields and have Mirror/Create copy them across (drifts if edited in the constraint tab). Mirror and Delete on the box act on both constraints.
+3. Possible follow-ups: recapture (see Decisions), Swing + Twist rotation mode, an "Include mirror" toggle for slider edits.
 
 How we'll work: the user builds this. Claude explains, reviews and helps on request.
 

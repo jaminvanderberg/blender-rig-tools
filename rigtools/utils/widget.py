@@ -71,7 +71,7 @@ DEFAULT_WIDGET_CLASSES = {'FK': "FK", 'IK': "IK"}
 # Every widget type _widget_creator can build
 STANDARD_WIDGET_TYPES = (
 	'CIRCLE', 'RECTANGLE', 'FK', 'BOX', 'PILL', 'SHOULDER', 'IK', 'SPHERE',
-	'LINE', 'TWIST', 'WAVY', 'ROLL', 'PADDLE', 'COMPASS', 'GEAR',
+	'LINE', 'TWIST', 'WAVY', 'ROLL', 'PADDLE', 'COMPASS', 'GEAR', 'ARCH'
 )
 
 def is_standard_widget(obj):
@@ -206,6 +206,8 @@ def _widget_creator(widget_type):
 			creator = _create_compass_widget
 		case 'GEAR':
 			creator = _create_gear_widget
+		case 'ARCH':
+			creator = _create_arch_widget
 		case _:
 			raise ValueError(f"Invalid widget type: {widget_type}")
 	return creator
@@ -1240,6 +1242,64 @@ def _create_gear_widget(widget_name):
         (71, 70),
         (48, 71),
 	]
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
+	return wgt
+
+def _create_arch_widget(widget_name):
+	verts = [
+        (0.000000, 0.059128, -0.101640),
+        (-0.488333, -0.370040, 0.373971),
+        (-0.125335, -0.410559, 0.734701),
+        (-0.439701, -0.390300, 0.554336),
+        (-0.306835, -0.405130, 0.686372),
+        (0.488334, -0.370040, 0.373971),
+        (0.125335, -0.410559, 0.734701),
+        (0.439701, -0.390299, 0.554336),
+        (0.306834, -0.405130, 0.686372),
+        (-0.428880, 0.059128, -0.101640),
+        (-0.488333, 0.003874, -0.061520),
+        (-0.458606, 0.054626, -0.095070),
+        (-0.480368, 0.035090, -0.082076),
+        (0.428881, 0.059128, -0.101640),
+        (0.488334, 0.003874, -0.061520),
+        (0.458607, 0.054626, -0.095070),
+        (0.480369, 0.035090, -0.082076),
+        (0.488334, -0.124039, 0.025150),
+        (0.488334, -0.327784, 0.257549),
+        (0.488334, -0.244670, 0.124903),
+        (-0.488333, -0.124039, 0.025150),
+        (-0.488333, -0.327784, 0.257549),
+        (-0.488333, -0.244670, 0.124903),
+	]
+	edges = [
+        (1, 3),
+        (3, 4),
+        (4, 2),
+        (5, 7),
+        (7, 8),
+        (8, 6),
+        (2, 6),
+        (9, 11),
+        (11, 12),
+        (12, 10),
+        (13, 15),
+        (15, 16),
+        (16, 14),
+        (9, 0),
+        (13, 0),
+        (17, 19),
+        (19, 18),
+        (20, 22),
+        (22, 21),
+        (17, 14),
+        (18, 5),
+        (20, 10),
+        (21, 1),
+	]
+
 	mesh = bpy.data.meshes.new(widget_name)
 	mesh.from_pydata(verts, edges, [])
 	mesh.update()
