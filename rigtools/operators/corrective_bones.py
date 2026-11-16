@@ -1,18 +1,33 @@
-from mathutils import Euler, Vector
+from dataclasses import dataclass
+
 import bpy
 from rigtools.assemblies.assembly_data import find_assemblies, find_org_state
 from rigtools.preferences import get_preferences
 from rigtools.rig_data.correctives import (correction_end, corrective_constraints,
-	corrective_target, find_correctives, from_value_name)
+	corrective_target, find_box, find_corrective_boxes, find_correctives, get_box_base_name,
+	join_constraints, make_box_names, read_box_range, read_input,
+	remove_box_properties_if_unused)
 from rigtools.rig_ui.rig_ui import flip_side_name
 from rigtools.utils.bone import duplicate_bone
 from rigtools.utils.bone_collection import ensure_bone_collection
 from rigtools.utils.naming import does_match_def_name, name_bone
 from bpy.props import BoolProperty, StringProperty
 
+EXTRAPOLATE_DESCRIPTION = ("Keep correcting past Full instead of stopping there. "
+	"Works both ways: below Begin it corrects backward, so a joint bent the other way "
+	"moves the corrective the wrong way, and a dead zone no longer holds still")
+
 def clean(value):
 	"""Snap -0.0 and small numbers to 0.0"""
 	return 0.0 if abs(value) < 1e-6 else value
+
+@dataclass
+class Correction:
+	"""One constraint's output: what it moves, by how much at Full, and its settings"""
+	map_to: str # 'LOCATION' or 'ROTATION'
+	values: tuple # (x, y, z) at full strength
+	influence: float = 1.0
+	extrapolate: bool = False
 
 class CorrectiveSetup:
 	def __init__(self, target_name, corrective_name):
@@ -25,7 +40,9 @@ class CorrectiveSetup:
 		self.rotation = None
 		self.from_channel = None # 'ROTATION' or 'LOCATION': what the driving bone's pose is read from
 		self.axis = None
-		self.from_value = None
+		self.from_begin = 0.0 # the reading where the correction starts
+		self.from_full = None # the reading where the correction is fully applied
+		self.corrections = [] # one Correction per constraint
 
 	def mirrored(self, obj):
 		"""Setup for the opposite side, or None if there isn't one"""
@@ -47,18 +64,18 @@ class CorrectiveSetup:
 		if owners:
 			return (f"'{self.target_name}' belongs to assembly "
 				f"'{owners[0].name}'. Use the ORG bone.")
-		
+
 		# Corrective shouldn't have any other constraint types (stacking transforms is ok)
 		corrective = pose_bones[self.corrective_name]
 		others = [c for c in corrective.constraints if c.type != 'TRANSFORM']
 		if others:
 			return f"'{corrective.name}' has a {others[0].type} constraint."
-		
+
 		# An added protection to block DEF bones by name. Might not catch everything, but still good
 		for name in (self.target_name, self.corrective_name):
 			if does_match_def_name(name):
 				return f"'{name}' is a DEF bone. Use the ORG bone."
-		
+
 		return None
 
 	def edit_mode(self, armature_data):
@@ -97,8 +114,13 @@ class CorrectiveSetup:
 		if not self.uses_location() and not self.uses_rotation():
 			return (f"'{self.corrective_name}' isn't posed. "
 				"Move or rotate it first.")
+		self.corrections = []
+		if self.uses_location():
+			self.corrections.append(Correction('LOCATION', tuple(self.location)))
+		if self.uses_rotation():
+			self.corrections.append(Correction('ROTATION', tuple(self.rotation)))
 		return None
-	
+
 	def uses_location(self):
 		return self.location.length > 1e-5
 
@@ -134,23 +156,35 @@ class CorrectiveSetup:
 			return f"'{self.target_name}' is at rest. Pose it first."
 		# Find the largest input axis on the reader
 		self.axis = max(range(3), key=lambda i: abs(reading[i]))
-		self.from_value = reading[self.axis]
+		self.from_full = reading[self.axis]
 		return None
-	
-	def apply(self, obj):
-		"""Add the Transformation constraints and clear the corrective's pose"""
-		if self.uses_location():
-			self.add_transform(obj, self.axis, self.from_value,
-				'LOCATION', self.location)
-		if self.uses_rotation():
-			self.add_transform(obj, self.axis, self.from_value,
-				'ROTATION', self.rotation)
+
+	def read_input(self):
+		"""What the constraints read, matching read_input in rig_data/correctives.py"""
+		return (self.mch_name, self.from_channel, "XYZ"[self.axis], self.from_full < 0)
+
+	def get_box_base_name(self):
+		return get_box_base_name(self.mch_name, self.from_channel, self.axis, self.from_full)
+
+	def apply(self, obj, box_name):
+		"""Add the Transformation constraints, joined as box_name unless it's None,
+		and clear the corrective's pose"""
+		self.add_constraints(obj, box_name)
 
 		# Clear the pose so the correction isn't applied twice
 		corrective = obj.pose.bones[self.corrective_name]
 		corrective.location = (0, 0, 0)
 		corrective.rotation_quaternion = (1, 0, 0, 0)
 		corrective.rotation_euler = (0, 0, 0)
+
+	def add_constraints(self, obj, box_name):
+		"""One constraint per correction, joined as box_name unless it's None.
+		Returns the constraints"""
+		constraints = [self.add_transform(obj, correction) for correction in self.corrections]
+		if box_name is not None:
+			pose_bone = obj.pose.bones[self.corrective_name]
+			join_constraints(pose_bone, constraints, box_name, self.from_begin, self.from_full)
+		return constraints
 
 	def mirror_from(self, source):
 		"""Copy source's captured values, flipped across X.
@@ -161,36 +195,37 @@ class CorrectiveSetup:
 			flips = source.axis == 0
 		else:
 			flips = source.axis != 0
-		self.from_value = -source.from_value if flips else source.from_value
-		x, y, z = source.location
-		self.location = Vector((-x, y, z))
-		rx, ry, rz = source.rotation
-		self.rotation = Euler((rx, -ry, -rz))
+		sign = -1 if flips else 1
+		self.from_full = sign * source.from_full
+		self.from_begin = sign * source.from_begin
+		self.corrections = []
+		for correction in source.corrections:
+			x, y, z = correction.values
+			if correction.map_to == 'ROTATION':
+				values = (x, -y, -z)
+			else:
+				values = (-x, y, z)
+			self.corrections.append(Correction(correction.map_to, values,
+				correction.influence, correction.extrapolate))
 
 	@classmethod
-	def from_constraint(cls, obj, bone_name, constraint):
-		"""Setup with values read back from an existing corrective constraint"""
-		setup = cls(corrective_target(obj, constraint), bone_name)
-		axis_name = constraint.map_to_x_from.lower()
-		end = correction_end(constraint)
-		setup.from_channel = constraint.map_from
-		setup.axis = "xyz".index(axis_name)
-		setup.from_value = getattr(constraint, from_value_name(constraint))
-
-		suffix = "_rot" if constraint.map_to == 'ROTATION' else ""
-		values = [getattr(constraint, f"to_{end}_{out}{suffix}")
-			for out in "xyz"]
-		# mirror_from flips both, so the unused one is zeros
-		if constraint.map_to == 'ROTATION':
-			setup.location = Vector((0, 0, 0))
-			setup.rotation = Euler(values)
-		else:
-			setup.location = Vector(values)
-			setup.rotation = Euler((0, 0, 0))
+	def from_box(cls, obj, pose_bone, box):
+		"""Setup with values read back from an existing corrective box"""
+		first = box.constraints[0]
+		setup = cls(corrective_target(obj, first), pose_bone.name)
+		setup.from_channel = first.map_from
+		setup.axis = "xyz".index(first.map_to_x_from.lower())
+		setup.from_begin, setup.from_full = read_box_range(pose_bone, box)
+		for constraint in box.constraints:
+			end = correction_end(pose_bone, constraint)
+			suffix = "_rot" if constraint.map_to == 'ROTATION' else ""
+			values = tuple(getattr(constraint, f"to_{end}_{out}{suffix}") for out in "xyz")
+			setup.corrections.append(Correction(constraint.map_to, values,
+				constraint.influence, constraint.use_motion_extrapolate))
 		return setup
 
-	
-	def add_transform(self, obj, axis, from_value, map_to, values):
+	def add_transform(self, obj, correction):
+		map_to, values = correction.map_to, correction.values
 		pose_bone = obj.pose.bones[self.corrective_name]
 		c = pose_bone.constraints.new('TRANSFORM')
 		c.name = f"Corrective {map_to.title()} ({self.mch_name})"
@@ -198,28 +233,27 @@ class CorrectiveSetup:
 		c.subtarget = self.mch_name
 		c.target_space = 'LOCAL'
 		c.owner_space = 'LOCAL'
+		c.influence = correction.influence
+		c.use_motion_extrapolate = correction.extrapolate
 
 		c.map_from = self.from_channel
 		if self.from_channel == 'ROTATION':
 			c.from_rotation_mode = 'AUTO'
 		from_suffix = "_rot" if self.from_channel == 'ROTATION' else ""
-		axis_name = "xyz"[axis]
-		# Keep the from range ordered (min < max); a negative reading
-		# flips which end maps to the correction
-		low, high = sorted((0.0, from_value))
-		setattr(c, f"from_min_{axis_name}{from_suffix}", clean(low))
-		setattr(c, f"from_max_{axis_name}{from_suffix}", clean(high))
+		axis_name = "xyz"[self.axis]
+		# Full goes at max, or at min for a negative reading, so the range stays ordered;
+		# Begin takes the other end
+		full_end = "min" if self.from_full < 0 else "max"
+		begin_end = "max" if full_end == "min" else "min"
+		setattr(c, f"from_{full_end}_{axis_name}{from_suffix}", clean(self.from_full))
+		setattr(c, f"from_{begin_end}_{axis_name}{from_suffix}", clean(self.from_begin))
 
 		c.map_to = map_to
 		suffix = "_rot" if map_to == 'ROTATION' else ""
 		for i, out_name in enumerate("xyz"):
 			setattr(c, f"map_to_{out_name}_from", axis_name.upper())
-			if from_value < 0:
-				at_low, at_high = values[i], 0.0
-			else:
-				at_low, at_high = 0.0, values[i]
-			setattr(c, f"to_min_{out_name}{suffix}", clean(at_low))
-			setattr(c, f"to_max_{out_name}{suffix}", clean(at_high))
+			setattr(c, f"to_{full_end}_{out_name}{suffix}", clean(values[i]))
+			setattr(c, f"to_{begin_end}_{out_name}{suffix}", 0.0)
 
 		if map_to == 'ROTATION':
 			c.to_euler_order = 'XYZ'
@@ -232,7 +266,7 @@ class CorrectiveSetup:
 	def remove_mch(self, edit_bones):
 		"""Edit mode only. Remove the MCH if this setup created it."""
 		if self.created:
-			edit_bones.remove(edit_bones[self.mch_name])	
+			edit_bones.remove(edit_bones[self.mch_name])
 
 
 class RIG_OT_create_corrective_bone(bpy.types.Operator):
@@ -271,12 +305,12 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 			if error:
 				self.report({'ERROR'}, error)
 				return {'CANCELLED'}
-		
+
 		error = source.capture_corrective_pose(obj)
 		if error:
 			self.report({'ERROR'}, error)
 			return {'CANCELLED'}
-		
+
 		bpy.ops.object.mode_set(mode='EDIT')
 		for setup in setups:
 			setup.edit_mode(armature_data)
@@ -294,11 +328,17 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 			bpy.ops.object.mode_set(mode='POSE')
 			self.report({'ERROR'}, error)
 			return {'CANCELLED'}
-		
+
 		if mirrored:
 			mirrored.mirror_from(source)
-		for setup in setups:
-			setup.apply(obj)
+		# A capture that both moved and turned the corrective starts as one joined box. Both
+		# sides share a name suffix, so Mirror finds the matching box later
+		box_names = [None] * len(setups)
+		if len(source.corrections) > 1:
+			box_names = make_box_names([(obj.pose.bones[s.corrective_name], s.get_box_base_name())
+				for s in setups])
+		for setup, box_name in zip(setups, box_names):
+			setup.apply(obj, box_name)
 		if self.mirror and not mirrored:
 			self.report({'INFO'}, "No mirror found; created one side only.")
 		elif mirrored:
@@ -307,23 +347,30 @@ class RIG_OT_create_corrective_bone(bpy.types.Operator):
 			self.report({'INFO'}, "Successfully created corrective bone.")
 
 		return {'FINISHED'}
-	
+
 class RIG_OT_delete_corrective(bpy.types.Operator):
 	bl_idname = "rig.delete_corrective"
 	bl_label = "Delete Corrective"
-	bl_description = ("Remove this corrective constraint, "
+	bl_description = ("Remove this corrective (every constraint in its box), "
 		"and its MCH if nothing else uses it")
 	bl_options = {'REGISTER', 'UNDO'}
 
 	bone_name: StringProperty()
-	constraint_name: StringProperty()
+	constraint_name: StringProperty() # any constraint in the box
 
 	def execute(self, context):
 		obj = context.object
 		pose_bone = obj.pose.bones[self.bone_name]
-		constraint = pose_bone.constraints[self.constraint_name]
-		mch_name = constraint.subtarget
-		pose_bone.constraints.remove(constraint)
+		box = find_box(pose_bone, self.constraint_name)
+		if box is None:
+			self.report({'ERROR'}, f"'{self.constraint_name}' isn't a corrective.")
+			return {'CANCELLED'}
+		mch_name = box.constraints[0].subtarget
+		# Removing a constraint also removes the drivers on its own fields
+		for constraint in box.constraints:
+			pose_bone.constraints.remove(constraint)
+		if box.name is not None:
+			remove_box_properties_if_unused(pose_bone, box.name)
 
 		# Keep the MCH if another corrective still reads it
 		still_used = any(c.subtarget == mch_name
@@ -334,9 +381,9 @@ class RIG_OT_delete_corrective(bpy.types.Operator):
 			edit_bones.remove(edit_bones[mch_name])
 			bpy.ops.object.mode_set(mode='POSE')
 
-		self.report({'INFO'}, f"Removed '{self.constraint_name}'.")
+		self.report({'INFO'}, f"Removed the corrective from '{self.bone_name}'.")
 		return {'FINISHED'}
-	
+
 class RIG_OT_mirror_corrective(bpy.types.Operator):
 	bl_idname = "rig.mirror_corrective"
 	bl_label = "Mirror Corrective"
@@ -345,15 +392,17 @@ class RIG_OT_mirror_corrective(bpy.types.Operator):
 	bl_options = {'REGISTER', 'UNDO'}
 
 	bone_name: StringProperty()
-	constraint_name: StringProperty()
+	constraint_name: StringProperty() # any constraint in the box
 
 	def execute(self, context):
 		obj = context.object
 		pose_bone = obj.pose.bones[self.bone_name]
-		constraint = pose_bone.constraints[self.constraint_name]
+		box = find_box(pose_bone, self.constraint_name)
+		if box is None:
+			self.report({'ERROR'}, f"'{self.constraint_name}' isn't a corrective.")
+			return {'CANCELLED'}
 
-		source = CorrectiveSetup.from_constraint(obj, self.bone_name,
-			constraint)
+		source = CorrectiveSetup.from_box(obj, pose_bone, box)
 		mirrored = source.mirrored(obj)
 		if not mirrored:
 			self.report({'ERROR'},
@@ -371,28 +420,55 @@ class RIG_OT_mirror_corrective(bpy.types.Operator):
 			mirrored.edit_mode(obj.data)
 			bpy.ops.object.mode_set(mode='POSE')
 		mirrored.pose_mode(obj)
-
-		# Replace the opposite side's matching corrective so mirroring twice doesn't stack.
-		# Matching: same driving bone, input channel, axis and direction, and same output
 		mirrored.mirror_from(source)
 		mirror_bone = obj.pose.bones[mirrored.corrective_name]
-		for old in corrective_constraints(mirror_bone):
-			if (old.subtarget == mirrored.mch_name
-					and old.map_to == constraint.map_to
-					and old.map_from == mirrored.from_channel
-					and old.map_to_x_from == constraint.map_to_x_from
-					and (getattr(old, from_value_name(old)) < 0) == (mirrored.from_value < 0)):
-				mirror_bone.constraints.remove(old)
 
-		if constraint.map_to == 'ROTATION':
-			values = mirrored.rotation
-		else:
-			values = mirrored.location
-		new = mirrored.add_transform(obj, mirrored.axis,
-			mirrored.from_value, constraint.map_to, values)
-		new.influence = constraint.influence
+		# A joined box mirrors to the box with the same suffix on the other side
+		mirror_box_name = None
+		if box.name is not None:
+			base = source.get_box_base_name()
+			suffix = box.name[len(base):] if box.name.startswith(base) else ""
+			mirror_box_name = mirrored.get_box_base_name() + suffix
+
+		# Replace what's there so mirroring twice doesn't stack: the same-named box on the other
+		# side, whole, so it becomes a copy of this one; and split constraints there with the
+		# same input and an output this box has. Other joined boxes on the same input are
+		# separate captures, and are left alone
+		outputs = {correction.map_to for correction in source.corrections}
+		replaced = []
+		for other in find_corrective_boxes(mirror_bone):
+			if other.name is not None and other.name == mirror_box_name:
+				replaced += other.constraints
+			elif other.name is None:
+				replaced += [c for c in other.constraints
+					if c.map_to in outputs and read_input(mirror_bone, c) == mirrored.read_input()]
+		for constraint in replaced:
+			mirror_bone.constraints.remove(constraint)
+
+		mirrored.add_constraints(obj, mirror_box_name)
 
 		self.report({'INFO'}, f"Mirrored to '{mirrored.corrective_name}'.")
+		return {'FINISHED'}
+
+class RIG_OT_set_corrective_extrapolate(bpy.types.Operator):
+	bl_idname = "rig.set_corrective_extrapolate"
+	bl_label = "Extrapolate"
+	bl_description = EXTRAPOLATE_DESCRIPTION
+	bl_options = {'REGISTER', 'UNDO'}
+
+	bone_name: StringProperty(options={'HIDDEN'})
+	constraint_name: StringProperty(options={'HIDDEN'}) # any constraint in the box
+	extrapolate: BoolProperty(name="Extrapolate", description=EXTRAPOLATE_DESCRIPTION)
+
+	def execute(self, context):
+		pose_bone = context.object.pose.bones.get(self.bone_name)
+		box = find_box(pose_bone, self.constraint_name) if pose_bone else None
+		if box is None:
+			self.report({'ERROR'}, f"'{self.constraint_name}' isn't a corrective.")
+			return {'CANCELLED'}
+		# Every constraint in the box, so a joined box stays one thing
+		for constraint in box.constraints:
+			constraint.use_motion_extrapolate = self.extrapolate
 		return {'FINISHED'}
 
 addon_keymaps = []
@@ -404,6 +480,7 @@ classes = (
 	RIG_OT_create_corrective_bone,
 	RIG_OT_delete_corrective,
 	RIG_OT_mirror_corrective,
+	RIG_OT_set_corrective_extrapolate,
 )
 
 def register():

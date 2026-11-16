@@ -48,20 +48,27 @@ The corrective bone snaps back to its rest position, then moves to your correcte
 
 Select the corrective bone.  Its settings show in the *Corrective Bones* panel, under the Create button, one box per corrective on that bone.
 
-- **From**: how far the joint bends (or the driving bone moves) before the correction is at full strength.  Going further than this doesn't add any more.
-- **Move** or **Rotate** X / Y / Z: the correction at full strength.
-- The **mirror** button copies this corrective to the other side, replacing the matching one that's already there (same driving direction and same Move or Rotate).  Use it after adjusting one side.
+- **Begin**: how far the joint bends (or the driving bone moves) before the correction starts.  0 by default; raise it for a dead zone, such as teeth that stay shut while the mouth starts to open.
+- **Full**: how far the joint bends before the correction is at full strength.  Going further than this doesn't add any more.
+- **Extrapolate**: keep correcting past Full instead of stopping there.  It works both ways: below Begin it corrects *backward*, so bending the joint the other way moves the corrective the wrong way, and a dead zone no longer holds still.  Best for joints that only bend one way.
+- **Move** and **Rotate** X / Y / Z: the correction at full strength.  A corrective that both moves and rotates shows both rows in one box, sharing one Begin and Full.
+- The **mirror** button copies this corrective to the other side, replacing the matching one that's already there.  Use it after adjusting one side.
 - The **trash** button deletes the corrective.
+- The **join** and **split** buttons are described under *Combining correctives*.
 
 !!! tip
     Hold ++shift++ while dragging a value for finer adjustments.
 
 !!! screenshot "Image placeholder"
-    `image/corrective_panel.png` — The Corrective Bones panel with a corrective bone selected, showing the corrective box (From, Move X/Y/Z) under the Create button.
+    `image/corrective_panel.png` — The Corrective Bones panel with a corrective bone selected, showing the corrective box (Begin, Full, Move X/Y/Z) under the Create button.
 
 ## Combining correctives
 
-- **Move and rotate:** to add a rotation to a corrective that only moves, pose the joint the same way again, rotate the corrective bone, and click **Create Corrective Bone** again.  The two add together.
+- **Move and rotate:** if you both move and rotate the corrective bone before clicking Create, you get one box with both, sharing one Begin and Full.  To add a rotation to a corrective that only moves, pose the joint again, rotate the corrective bone, and click **Create Corrective Bone** again.  The two add together, as two boxes.
+- **Join:** the link button pulls another corrective on the same bone into this one, so they share this one's Begin and Full.  Only correctives driven by the same bone in the same direction can be joined; the button is greyed out otherwise.  In the redo panel, pick which one to join, and how its amounts are handled:
+    - **Keep** (default): its Move and Rotate amounts stay the same.  It now reaches them at this corrective's Full.
+    - **Scale**: its amounts are scaled so that at this corrective's Full it's where it was before.
+- **Split:** the unlink button on a joined box gives each part its own Begin and Full again, keeping their current values.
 - **More than one joint:** one corrective bone can react to several joints.  For example, a shoulder blade corrective can react to both the shoulder and the arm.  Create one corrective for each driving bone; their effects add together.
 
 ## Good to know
@@ -69,6 +76,8 @@ Select the corrective bone.  Its settings show in the *Corrective Bones* panel, 
 - **Mirroring assumes the two sides are symmetrical.**  If the left and right bones weren't made with Symmetrize, the mirrored corrective may move the wrong way.
 - **RigTools adds a hidden helper bone** in the MCH collection for each driving bone, named like `MCH-CORR-arm.L`.  All correctives driven by that bone share it, and it's removed when the last one is deleted.  Don't rename it.
 - **Correctives aren't assemblies.**  Deleting or reconfiguring an assembly doesn't change them.
+- **Joined correctives keep their Begin and Full as custom properties** on the corrective bone, named like `CORR MCH-CORR-arm.L +RX Begin`.  Edit them from the box rather than the Custom Properties panel.
+- **Join or split both sides.**  Mirror replaces the matching box on the other side, but it can't undo a join or split made on one side only.  Do the same on both sides, or mirror each box.
 - **The *[Data Viewer](data_viewer.md#correctives)*** lists every corrective on the rig.
 
 ## Related

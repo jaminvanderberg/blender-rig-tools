@@ -10,7 +10,7 @@ from rigtools.assemblies.palm_templates import get_palm_template
 from rigtools.assemblies.torso_templates import get_torso_template
 from rigtools.data_viewer.checks import apply_fix, assemblies_by_limb, bone_names, collection_names, get_property_bone, limb_label, run_checks
 from rigtools.panels.assembly.assembly_panel import ASSEMBLY_TYPE_OPERATORS, SELECT_SIMILAR_ROLES
-from rigtools.rig_data.correctives import find_correctives, from_value_name
+from rigtools.rig_data.correctives import find_correctives, from_full_name
 from rigtools.utils.bone import select_bones
 from rigtools.utils.icons import icon
 from rigtools.utils.naming import LIMB_COLLECTION_ROLES, side_display_name
@@ -506,10 +506,10 @@ class RIG_PT_data_viewer_correctives(bpy.types.Panel):
 			for i, c in enumerate(constraints):
 				if i:
 					col.separator()
-				self._draw_constraint(col, obj, c)
+				self._draw_constraint(col, obj, obj.pose.bones[bone_name], c)
 
 	@staticmethod
-	def _draw_constraint(col, obj, c):
+	def _draw_constraint(col, obj, pose_bone, c):
 		# The MCH or its Copy Transforms can be deleted by hand;
 		# show that rather than fail
 		mch = obj.pose.bones.get(c.subtarget)
@@ -518,7 +518,7 @@ class RIG_PT_data_viewer_correctives(bpy.types.Panel):
 		target = copies[0].subtarget if copies else ""
 
 		axis = c.map_to_x_from.lower()
-		reading = getattr(c, from_value_name(c))
+		reading = getattr(c, from_full_name(pose_bone, c))
 		if c.map_from == 'ROTATION':
 			reading_text = f"{math.degrees(reading):.1f}°"
 		else:
