@@ -59,13 +59,15 @@ Select the corrective bone.  Its settings show in the *Corrective Bones* panel, 
 !!! tip
     Hold ++shift++ while dragging a value for finer adjustments.
 
-!!! screenshot "Image placeholder"
-    `image/corrective_panel.png` — The Corrective Bones panel with a corrective bone selected, showing the corrective box (Begin, Full, Move X/Y/Z) under the Create button.
+<figure markdown="span">
+  ![Chain example](image/corrective_panel.png){ width="480" }
+  <figcaption>The corrective bone panel when a corrective bone is selected.</figcaption>
+</figure>
 
 ## Combining correctives
 
 - **Move and rotate:** if you both move and rotate the corrective bone before clicking Create, you get one box with both, sharing one Begin and Full.  To add a rotation to a corrective that only moves, pose the joint again, rotate the corrective bone, and click **Create Corrective Bone** again.  The two add together, as two boxes.
-- **Join:** the link button pulls another corrective on the same bone into this one, so they share this one's Begin and Full.  Only correctives driven by the same bone in the same direction can be joined; the button is greyed out otherwise.  In the redo panel, pick which one to join, and how its amounts are handled:
+- **Join:** the link button pulls another corrective on the same bone into this one, so they share this one's Begin and Full.  Only correctives driven by the same bone in the same direction can be joined; the button only shows when there's one to join.  In the redo panel, pick which one to join, and how its amounts are handled:
     - **Keep** (default): its Move and Rotate amounts stay the same.  It now reaches them at this corrective's Full.
     - **Scale**: its amounts are scaled so that at this corrective's Full it's where it was before.
 - **Split:** the unlink button on a joined box gives each part its own Begin and Full again, keeping their current values.

@@ -25,7 +25,8 @@ from bpy.props import EnumProperty, IntProperty
 from rigtools.panels.shape_keys.connect import (
 	build_key_drivers, connection_status, control_problem, has_connections, has_foreign_driver,
 	range_name, record_id, set_limits_enabled, set_side_props, side_label, side_name,
-	tidy_connections, update_limits)
+	tidy_rig_connections, update_limits)
+from rigtools.panels.shape_keys.key_curve import copy_key_curve
 from rigtools.panels.shape_keys.shape_key_utils import has_sides, mirror_shape_key_name
 from rigtools.rig_data.shape_key_connections import (
 	add_shape_key_connection, find_shape_key_connection, get_shape_key_connections)
@@ -104,9 +105,11 @@ def pair_problems(context, armature_obj, source, target):
 
 def mirror_connections(armature_obj, source, target):
 	"""Replace target's connections with source's, mirrored, and copy each side's extent and
-	range. Returns (keys, trust): the (mesh, key name) of every key whose drivers need
-	rebuilding (the target's old keys and its new ones), and the record_ids just written.
-	Drivers aren't rebuilt here, so several bones can be written before any key is."""
+	range. Returns (keys, trust, curves): the (mesh, key name) of every key whose drivers need
+	rebuilding (the target's old keys and its new ones), the record_ids just written, and
+	(mesh, source key name, target key name) for each key curve to copy once they're built.
+	Drivers aren't rebuilt here, so several bones can be written before any key is. The caller
+	runs tidy_rig_connections first."""
 	# The target's old keys under their current names; its dead records drove nothing
 	keys = set()
 	for connection in get_shape_key_connections(target):
@@ -114,8 +117,7 @@ def mirror_connections(armature_obj, source, target):
 		if status in {'LIVE', 'RENAMED'}:
 			keys.add((connection.mesh, key_name))
 	target.rigtools_shape_keys.items.clear()
-	tidy_connections(armature_obj, source)
-	trust = set()
+	trust, curves = set(), set()
 
 	sides = set()
 	for connection in get_shape_key_connections(source):
@@ -126,6 +128,7 @@ def mirror_connections(armature_obj, source, target):
 		trust.add(record_id(target, connection.mesh, key_name, connection.axis, positive, channel))
 		sides.add((axis, connection.positive, channel))
 		keys.add((connection.mesh, key_name))
+		curves.add((connection.mesh, connection.key_name, key_name))
 	target.rigtools_shape_keys.active_index = source.rigtools_shape_keys.active_index
 
 	for axis, positive, channel in sides:
@@ -140,7 +143,7 @@ def mirror_connections(armature_obj, source, target):
 	target.rigtools_lock_unused = source.rigtools_lock_unused
 	update_limits(armature_obj, target)
 	set_limits_enabled(target, True)
-	return keys, trust
+	return keys, trust, curves
 
 class RIG_OT_symmetrize_connections(bpy.types.Operator):
 	bl_idname = "rig.symmetrize_connections"
@@ -165,6 +168,8 @@ class RIG_OT_symmetrize_connections(bpy.types.Operator):
 
 	def execute(self, context):
 		armature_obj = context.object
+		# Renamed keys' records get their new names before anything is checked or mirrored
+		tidy_rig_connections(armature_obj)
 		pairs = symmetrize_pairs(armature_obj, context.selected_pose_bones or [],
 			self.direction == 'LEFT_TO_RIGHT')
 		if not pairs:
@@ -178,11 +183,12 @@ class RIG_OT_symmetrize_connections(bpy.types.Operator):
 			self.report({'ERROR'}, "Nothing symmetrized. " + "; ".join(problems))
 			return {'CANCELLED'}
 
-		keys, trust = set(), set()
+		keys, trust, curves = set(), set(), set()
 		for source, target in pairs:
-			pair_keys, pair_trust = mirror_connections(armature_obj, source, target)
+			pair_keys, pair_trust, pair_curves = mirror_connections(armature_obj, source, target)
 			keys |= pair_keys
 			trust |= pair_trust
+			curves |= pair_curves
 
 		# Once every bone is written, since two of them can drive one key
 		for mesh, key_name in keys:
@@ -190,6 +196,10 @@ class RIG_OT_symmetrize_connections(bpy.types.Operator):
 			key_block = key.key_blocks.get(key_name) if key else None
 			if key_block and not build_key_drivers(armature_obj, mesh, key_block, trust):
 				key_block.value = 0.0
+		# The mirror keys ease like their sources. After the build: a new driver has no curve
+		for mesh, source_name, target_name in curves:
+			key_blocks = mesh.data.shape_keys.key_blocks
+			copy_key_curve(mesh.data.shape_keys, key_blocks[source_name], key_blocks[target_name])
 		# Bone properties set from Python don't tag the drivers that read them
 		armature_obj.update_tag()
 
@@ -206,8 +216,8 @@ def mirror_target_bone(armature_obj, pose_bone):
 
 def plan_connection_mirror(context, armature_obj, source, connection):
 	"""(plan, None) or (None, an error message) for mirroring one record. The plan is plain
-	values, read before anything changes: (target bone, mesh, key block, axis, flipped, channel,
-	source side)."""
+	values, read before anything changes: (target bone, mesh, source key block, target key block,
+	axis, flipped, channel, source side)."""
 	status, key_name = connection_status(armature_obj, source, connection)
 	if status == 'AMBIGUOUS':
 		return None, f"'{connection.key_name}' was renamed, and several keys could be it"
@@ -234,12 +244,11 @@ def plan_connection_mirror(context, armature_obj, source, connection):
 		return None, f"'{target_name}' isn't on '{mesh.name}'. Mirror '{key_name}' first"
 	if has_sides(key, target_name):
 		return None, f"'{target_name}' is split: its .L and .R are what get connected"
-	if has_foreign_driver(armature_obj, mesh, target_block):
-		return None, f"'{target_name}' has a driver RigTools didn't make"
 	source_side = (axis, connection.positive, channel)
 	if side_name(*source_side) not in source:
 		return None, f"{source.name} has no {side_name(*source_side)} extent. Connect it again"
-	return (target, mesh, target_block, axis, flipped, channel, source_side), None
+	return (target, mesh, key.key_blocks[key_name], target_block, axis, flipped, channel,
+		source_side), None
 
 class RIG_OT_mirror_connection(bpy.types.Operator):
 	"""One record, added to whatever the target already drives. Unlike Symmetrize, nothing on
@@ -269,11 +278,16 @@ class RIG_OT_mirror_connection(bpy.types.Operator):
 		if error:
 			self.report({'ERROR'}, error)
 			return {'CANCELLED'}
-		target, mesh, target_block, axis, flipped, channel, source_side = plan
+		target, mesh, source_block, target_block, axis, flipped, channel, source_side = plan
 		axis_name = "XYZ"[axis]
 
 		# Records can move once tidied, so nothing below reads the source's record again
-		tidy_connections(armature_obj, target)
+		tidy_rig_connections(armature_obj)
+		# After the tidy: until then, a renamed key's records have the old name and its
+		# driver looks like someone else's
+		if has_foreign_driver(armature_obj, mesh, target_block):
+			self.report({'ERROR'}, f"'{target_block.name}' has a driver RigTools didn't make")
+			return {'CANCELLED'}
 		# A side that's already connected keeps its extent and range: other keys share them
 		if side_name(axis, flipped, channel) not in target:
 			set_side_props(target, axis, flipped, source[side_name(*source_side)], channel)
@@ -288,6 +302,8 @@ class RIG_OT_mirror_connection(bpy.types.Operator):
 		set_limits_enabled(target, True)
 		build_key_drivers(armature_obj, mesh, target_block,
 			trust={record_id(target, mesh, target_block.name, axis_name, flipped, channel)})
+		# The mirror key eases like its source, replacing its own curve
+		copy_key_curve(mesh.data.shape_keys, source_block, target_block)
 		# Bone properties set from Python don't tag the drivers that read them
 		armature_obj.update_tag()
 

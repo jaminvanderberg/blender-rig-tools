@@ -55,7 +55,7 @@ class RIG_UL_active_bone_connections(bpy.types.UIList):
 		return flags, []
 
 class RIG_UL_shape_keys(bpy.types.UIList):
-	
+
 	def draw_item(self, context, layout, shape_keys, shape_key, icon_value, active_data,
 			active_propname, index):
 		# data is the mesh's Key, item is one of its key_blocks
@@ -148,7 +148,7 @@ def draw_key_actions(layout, obj):
 		op = mrow.operator("rig.mirror_shape_key", text=f"Mirror",
 			icon='MOD_MIRROR', translate=False)
 		op.object_name = obj.name
-		op.shape_key_name = key_block.name	
+		op.shape_key_name = key_block.name
 
 	move = row.row(align=True)
 	move.alignment = 'RIGHT'
@@ -208,7 +208,7 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 		row.operator("rig.unpin_from_mesh", text="", icon='PINNED', emboss=True)
 	else:
 		row.operator("rig.pin_to_mesh", text="", icon='UNPINNED', emboss=False)
-	
+
 	layout.template_list(
 		"RIG_UL_active_bone_connections", "",
 		sk_connections, "items",
@@ -268,7 +268,7 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 
 class RIG_PT_shape_keys(bpy.types.Panel):
 	bl_label = "Shape Keys"
-	bl_idname = "RIG_PT_shape_keys" 
+	bl_idname = "RIG_PT_shape_keys"
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
 	bl_category = "Rig Tools"
@@ -309,7 +309,7 @@ class RIG_PT_shape_keys(bpy.types.Panel):
 
 		# The rig is active: one collapsible sub-panel per mesh
 		if not meshes:
-			layout.label(text="No meshes with shape keys use this rig") 
+			layout.label(text="No meshes with shape keys use this rig")
 			return
 		for obj in meshes:
 			header, body = layout.panel(

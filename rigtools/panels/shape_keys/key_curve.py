@@ -48,6 +48,32 @@ def apply_curve_preset(fcurve, preset):
 	fcurve.extrapolation = 'LINEAR'
 	fcurve.update()
 
+def copy_key_curve(key, source_block, target_block):
+	"""Give the target key's value driver the source's curve: its keyframes as they are
+	(positions, handles, interpolation, easing) and its extrapolation, so a hand-edited
+	Custom curve mirrors too. Replaces whatever curve the target had; no source curve
+	leaves the target linear. Run after the target's driver is built: a new driver starts
+	with no keyframes. Does nothing if either key isn't driven."""
+	source = find_driver(key, source_block.path_from_id("value"))
+	target = find_driver(key, target_block.path_from_id("value"))
+	if source is None or target is None or source == target:
+		return
+	target.keyframe_points.clear()
+	target.keyframe_points.add(len(source.keyframe_points))
+	for from_point, to_point in zip(source.keyframe_points, target.keyframe_points):
+		to_point.co = from_point.co
+		to_point.interpolation = from_point.interpolation
+		to_point.easing = from_point.easing
+		to_point.back = from_point.back
+		to_point.amplitude = from_point.amplitude
+		to_point.period = from_point.period
+		to_point.handle_left_type = from_point.handle_left_type
+		to_point.handle_right_type = from_point.handle_right_type
+		to_point.handle_left = from_point.handle_left
+		to_point.handle_right = from_point.handle_right
+	target.extrapolation = source.extrapolation
+	target.update()
+
 def curve_preset_label(fcurve):
 	"""The dropdown's text: the matching preset's name, or "Custom" for a curve edited by hand."""
 	preset = match_curve_preset(fcurve)
@@ -78,12 +104,12 @@ class RIG_OT_set_key_curve(bpy.types.Operator):
 		if not key_block:
 			self.report({'ERROR'}, f"Shape key not found: '{self.shape_key_name}'")
 			return {'CANCELLED'}
-		
+
 		fcurve = find_driver(key, key_block.path_from_id("value"))
 		if not fcurve:
 			self.report({'ERROR'}, f"Shape key '{self.shape_key_name}' isn't driven")
 			return {'CANCELLED'}
-		
+
 		apply_curve_preset(fcurve, self.preset)
 
 		self.report({'INFO'}, f"Curve preset '{self.preset}' to shape key '{self.shape_key_name}'")

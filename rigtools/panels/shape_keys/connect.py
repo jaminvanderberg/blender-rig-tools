@@ -361,8 +361,8 @@ def live_connections_for_key(armature_obj, mesh, key_block, trust=()):
 		or _reads_side(armature_obj, key, key_block, pose_bone, connection)]
 
 def tidy_connections(armature_obj, pose_bone):
-	"""Run by every operator that changes a bone's connections, before it does: renamed keys
-	get their new name, dead records are forgotten. Ambiguous ones are kept for the Data
+	"""One bone's records: renamed keys get their new name, dead records are forgotten.
+	Operators run tidy_rig_connections, which calls this on every bone. Ambiguous ones are kept for the Data
 	Viewer. The caller's update_limits then clears the dead sides' properties."""
 	items = get_shape_key_connections(pose_bone)
 	statuses = [connection_status(armature_obj, pose_bone, connection) for connection in items]
@@ -372,6 +372,21 @@ def tidy_connections(armature_obj, pose_bone):
 			remove_shape_key_connection(pose_bone, items[index])
 		elif status == 'RENAMED':
 			items[index].key_name = key_name
+
+def tidy_rig_connections(armature_obj):
+	"""tidy_connections on every bone of the rig, run before records are looked up by key
+	name. Records find their key by name, so when two bones drive a renamed key, tidying only
+	the bone being operated on leaves the other under the old name: the rebuilt driver drops
+	it, and it's lost. Bones that lost a dead record get their limits rebuilt here; the
+	operated bone's caller rebuilds its own anyway."""
+	for pose_bone in armature_obj.pose.bones:
+		items = get_shape_key_connections(pose_bone)
+		if not items:
+			continue
+		count = len(items)
+		tidy_connections(armature_obj, pose_bone)
+		if len(items) != count:
+			update_limits(armature_obj, pose_bone)
 
 def set_side_props(pose_bone, axis, positive, extent, channel):
 	"""Write a side's extent, and create its Min and Max if they're missing: the range is
@@ -420,6 +435,8 @@ def disconnect_key_for_removal(mesh, key_block):
 		if modifier.type == 'ARMATURE' and modifier.object}
 	disconnected = []
 	for armature_obj in armature_objs:
+		# Records of a renamed key get its new name first, or they'd be missed here
+		tidy_rig_connections(armature_obj)
 		# Read before the drivers go: a record is live when the key's driver reads it
 		found = live_connections_for_key(armature_obj, mesh, key_block)
 		for pose_bone, connection in found:
@@ -482,12 +499,12 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 		channel, axis, extreme = capture
 		positive = extreme > 0
 
+		# Copied records go first, so connecting a duplicated bone starts it clean. Before the
+		# foreign check too: a renamed key's records still have the old name until tidied
+		tidy_rig_connections(armature_obj)
 		if has_foreign_driver(armature_obj, mesh, key_block):
 			self.report({'ERROR'}, f"'{key_block.name}' has a driver RigTools didn't make. Left alone")
 			return {'CANCELLED'}
-
-		# Copied records go first, so connecting a duplicated bone starts it clean
-		tidy_connections(armature_obj, pose_bone)
 		# Connect captures: the pose sets the side's extent, new side or not
 		set_side_props(pose_bone, axis, positive, abs(extreme), channel)
 
@@ -550,7 +567,7 @@ class RIG_OT_disconnect_shape_key(bpy.types.Operator):
 		# The key's current name, in case it was renamed since the record was written
 		_status, key_name = connection_status(armature_obj, pose_bone, connection)
 		remove_shape_key_connection(pose_bone, connection)
-		tidy_connections(armature_obj, pose_bone)
+		tidy_rig_connections(armature_obj)
 		update_limits(armature_obj, pose_bone)
 
 		# The shape key's driver is rebuilt from the bones still driving it, or removed

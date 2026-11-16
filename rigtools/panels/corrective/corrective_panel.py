@@ -46,9 +46,9 @@ def draw_box(layout, obj, pose_bone, box):
 	if box.name is not None:
 		set_box_operator(row.operator("rig.split_corrective", text="", icon='UNLINKED'),
 			pose_bone, box)
-	join = row.row(align=True)
-	join.enabled = bool(find_join_candidates(pose_bone, box))
-	set_box_operator(join.operator("rig.join_corrective", text="", icon='LINKED'), pose_bone, box)
+	if find_join_candidates(pose_bone, box):
+		set_box_operator(row.operator("rig.join_corrective", text="", icon='LINKED'),
+			pose_bone, box)
 	set_box_operator(row.operator("rig.mirror_corrective", text="", icon='MOD_MIRROR'),
 		pose_bone, box)
 	set_box_operator(row.operator("rig.delete_corrective", text="", icon='TRASH'),
