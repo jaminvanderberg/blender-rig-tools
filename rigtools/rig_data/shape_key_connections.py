@@ -1,6 +1,10 @@
 import bpy
 from bpy.props import BoolProperty, CollectionProperty, EnumProperty, IntProperty, PointerProperty, StringProperty
 
+SHAPE_KEY_COMBINE_ITEMS = (
+	('MAX', "Max", "Any connected bone turns the key on"),
+	('MIN', "Min", "Used for combining keys. Requires all bones to be moved to turn the key on."),
+)
 
 class RigToolsShapeKeyConnection(bpy.types.PropertyGroup):
 	"""Records that this bone drives one mesh's shape key, from one side: channel (location or
@@ -10,12 +14,12 @@ class RigToolsShapeKeyConnection(bpy.types.PropertyGroup):
 		poll=lambda self, obj: obj.type == 'MESH',
 		description="The mesh that has the shape key. A real reference: survives renaming the object",
 	)
-	# Shape keys can't be pointed to, so this is a name. Repaired from the drivers if stale
+	# Shape keys stored by name. Repaired from the drivers if stale
 	key_name: StringProperty()
 	axis: EnumProperty(items=(('X', "X", ""), ('Y', "Y", ""), ('Z', "Z", "")))
 	positive: BoolProperty(default=True, description="Which way the bone moves to reach the shape")
-	# Records from before rotation existed read as location
 	channel: EnumProperty(items=(('LOC', "Location", ""), ('ROT', "Rotation", "")), default='LOC')
+	combine: EnumProperty(items=SHAPE_KEY_COMBINE_ITEMS, default="MAX")
 
 class RigToolsShapeKeyConnections(bpy.types.PropertyGroup):
 	"""Everything this bone drives, plus the list's selection."""
@@ -49,6 +53,9 @@ def add_shape_key_connection(pose_bone, mesh, key_name, axis, positive, channel)
 		item.channel = channel
 	return item
 
+def rename_shape_key_connection(connection, key_name):
+	"""Point a record at its key's new name"""
+	connection.key_name = key_name
 
 def remove_shape_key_connection(pose_bone, item):
 	"""Forget a connection, keeping the list's selection in range."""
@@ -62,6 +69,14 @@ def find_bone_connections_for_shape_key(armature_obj, mesh, key_name):
 	return [(pose_bone, sk_connection) for pose_bone in armature_obj.pose.bones
 		for sk_connection in get_shape_key_connections(pose_bone)
 		if sk_connection.mesh == mesh and sk_connection.key_name == key_name]
+
+def get_key_combine(connections):
+	"""'MIN' if any record of the key says MIN, else 'MAX'"""
+	return 'MIN' if any(c.combine == 'MIN' for _, c in connections) else 'MAX'
+
+def set_key_combine(connections, combine):
+	for _, connection in connections:
+		connection.combine = combine
 
 classes = (
 	RigToolsShapeKeyConnection,

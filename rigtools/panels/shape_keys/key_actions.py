@@ -4,7 +4,7 @@ Basis included."""
 import bpy
 from bpy.props import EnumProperty, StringProperty
 
-from rigtools.panels.shape_keys.connect import disconnect_key_for_removal
+from rigtools.panels.shape_keys.key_drivers import disconnect_key_for_removal
 from rigtools.panels.shape_keys.shape_key_utils import group_weights, is_locked, key_index, move_key, read_co
 
 class RIG_OT_remove_shape_key(bpy.types.Operator):

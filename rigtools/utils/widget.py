@@ -71,7 +71,7 @@ DEFAULT_WIDGET_CLASSES = {'FK': "FK", 'IK': "IK"}
 # Every widget type _widget_creator can build
 STANDARD_WIDGET_TYPES = (
 	'CIRCLE', 'RECTANGLE', 'FK', 'BOX', 'PILL', 'SHOULDER', 'IK', 'SPHERE',
-	'LINE', 'TWIST', 'WAVY', 'ROLL', 'PADDLE', 'COMPASS', 'GEAR', 'ARCH'
+	'LINE', 'TWIST', 'WAVY', 'ROLL', 'PADDLE', 'COMPASS', 'GEAR', 'ARCH', 'SEMICIRCLE',
 )
 
 def is_standard_widget(obj):
@@ -208,6 +208,8 @@ def _widget_creator(widget_type):
 			creator = _create_gear_widget
 		case 'ARCH':
 			creator = _create_arch_widget
+		case 'SEMICIRCLE':
+			creator = _create_semicircle_widget
 		case _:
 			raise ValueError(f"Invalid widget type: {widget_type}")
 	return creator
@@ -1298,6 +1300,52 @@ def _create_arch_widget(widget_name):
         (18, 5),
         (20, 10),
         (21, 1),
+	]
+
+	mesh = bpy.data.meshes.new(widget_name)
+	mesh.from_pydata(verts, edges, [])
+	mesh.update()
+	wgt = bpy.data.objects.new(widget_name, mesh)
+	return wgt
+
+def _create_semicircle_widget(widget_name):
+	verts = [
+        (-0.700157, -0.000000, -0.000000),
+        (-0.686704, 0.000000, 0.136594),
+        (-0.646861, 0.000000, 0.267939),
+        (-0.582159, 0.000000, 0.388986),
+        (-0.495086, 0.000000, 0.495086),
+        (-0.388986, 0.000000, 0.582159),
+        (-0.267939, 0.000000, 0.646861),
+        (-0.136594, 0.000000, 0.686704),
+        (-0.000000, 0.000000, 0.700157),
+        (0.136594, 0.000000, 0.686704),
+        (0.267939, 0.000000, 0.646861),
+        (0.388986, 0.000000, 0.582159),
+        (0.495086, 0.000000, 0.495086),
+        (0.582159, 0.000000, 0.388986),
+        (0.646861, 0.000000, 0.267939),
+        (0.686704, 0.000000, 0.136594),
+        (0.700157, 0.000000, 0.000000),
+	]
+	edges = [
+        (1, 0),
+        (2, 1),
+        (3, 2),
+        (4, 3),
+        (5, 4),
+        (6, 5),
+        (7, 6),
+        (8, 7),
+        (9, 8),
+        (10, 9),
+        (11, 10),
+        (12, 11),
+        (13, 12),
+        (14, 13),
+        (15, 14),
+        (16, 15),
+        (0, 16),
 	]
 
 	mesh = bpy.data.meshes.new(widget_name)

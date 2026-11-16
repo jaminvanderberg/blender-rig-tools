@@ -1,4 +1,6 @@
-"""Shared helpers for the shape key tools: side naming, key data, and moving keys."""
+"""Shared helpers for the shape key tools: key names and data, moving keys, drivers, and a
+control's sides and their properties."""
+import math
 import re
 
 import bpy
@@ -8,11 +10,93 @@ from rigtools.rig_ui.rig_ui import flip_side_name, get_base_name
 from rigtools.utils.naming import SEPARATORS, SIDE_NAMES
 
 def side_names(name):
+	"""A key's .L and .R names"""
 	return f"{name}.L", f"{name}.R"
 
 def find_driver(anim_owner, path):
 	anim = anim_owner.animation_data
 	return anim.drivers.find(path) if anim else None
+
+def _quote(name):
+	return f'["{bpy.utils.escape_identifier(name)}"]'
+
+def bone_prop_path(pose_bone, prop):
+	"""Data path from the armature object to a custom property on the bone"""
+	return f'pose.bones{_quote(pose_bone.name)}{_quote(prop)}'
+
+def create_new_driver(owner, path):
+	"""A scripted driver with no curve or modifiers, so it outputs its expression"""
+	fcurve = owner.driver_add(path)
+	fcurve.keyframe_points.clear()
+	for modifier in list(fcurve.modifiers):
+		fcurve.modifiers.remove(modifier)
+	fcurve.driver.type = 'SCRIPTED'
+	return fcurve
+
+def add_bone_variable(driver, name, armature_obj, pose_bone, prop):
+	"""A driver variable reading a custom property on the bone"""
+	variable = driver.variables.new()
+	variable.name = name
+	variable.type = 'SINGLE_PROP'
+	variable.targets[0].id_type = 'OBJECT'
+	variable.targets[0].id = armature_obj
+	variable.targets[0].data_path = bone_prop_path(pose_bone, prop)
+
+# A control's side is one direction it moves or turns to drive keys: (axis 0-2, positive,
+# channel). Each connected side has three custom properties on the control:
+#   'SK +Z'      extent: how far the bone goes on that side to reach 1
+#   'SK +Z Min'  the side's range bottom (below 0 takes its keys negative)
+#   'SK +Z Max'  the side's range top (above 1 overshoots)
+# Rotation sides have an R ('SK +RZ') and are angles.
+CHANNELS = ('LOC', 'ROT')
+# How rotation is read, by capture and by the drivers alike
+SWING_TWIST = 'SWING_TWIST_Y'
+# A turn's direction is ambiguous at 180 degrees
+MAX_TURN = math.radians(179)
+
+def side_label(axis, positive, channel):
+	"""e.g. '+Z' or '-RY'"""
+	return f"{'+' if positive else '-'}{'R' if channel == 'ROT' else ''}{'XYZ'[axis]}"
+
+def extent_name(axis, positive, channel):
+	"""The side's extent property, e.g. 'SK +Z'"""
+	return f"SK {side_label(axis, positive, channel)}"
+
+def range_name(axis, positive, end, channel):
+	"""The side's 'Min' or 'Max' property, e.g. 'SK +Z Max'"""
+	return f"{extent_name(axis, positive, channel)} {end}"
+
+def side_prop_names(axis, positive, channel):
+	"""All three properties of a side: extent, Min, Max"""
+	return (extent_name(axis, positive, channel), range_name(axis, positive, "Min", channel),
+		range_name(axis, positive, "Max", channel))
+
+def set_side_props(pose_bone, axis, positive, extent, channel):
+	"""Write the side's extent. Min and Max are made once (0 and 1), then left to the user"""
+	prop = extent_name(axis, positive, channel)
+	pose_bone[prop] = extent
+	label = side_label(axis, positive, channel)
+	if channel == 'ROT':
+		pose_bone.id_properties_ui(prop).update(
+			subtype='ANGLE', min=0.0001, max=MAX_TURN, soft_min=0.0, soft_max=math.pi / 2,
+			precision=1, description=f"How far the bone turns {label} for its shape keys to reach 1")
+	else:
+		pose_bone.id_properties_ui(prop).update(
+			subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
+			step=0.01, precision=4,
+			description=f"How far the bone moves {label} for its shape keys to reach 1")
+	for end, default, description in (
+			("Min", 0.0, "The lowest its shape keys go. Below 0, moving the bone the other way "
+				"takes them negative"),
+			("Max", 1.0, "The highest its shape keys go. Above 1 lets the bone travel past "
+				"the extent (overshoot)")):
+		prop = range_name(axis, positive, end, channel)
+		if prop not in pose_bone:
+			pose_bone[prop] = default
+			pose_bone.id_properties_ui(prop).update(
+				min=-10.0 if end == "Min" else 0.0, max=0.0 if end == "Min" else 10.0,
+				soft_min=-1.0 if end == "Min" else 0.0, soft_max=0.0 if end == "Min" else 2.0,
+				step=1, precision=2, description=description)
 
 # Direction words flip with the side: the mirror of the left eye looking left is the
 # right eye looking right. Lower case: chunks are matched ignoring case

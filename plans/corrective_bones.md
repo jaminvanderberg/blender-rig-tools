@@ -13,13 +13,13 @@ Built:
 - **Docs:** `docs/correctives.md`, plus `data_viewer.md`, `assemblies.md`, `workflow.md` (new step 8) and the nav. Docs built and checked.
 - **Location input** (2026-11-13, Claude; `2c76550`): a corrective can be driven by a bone's location as well as its rotation, for the face (chin control swinging a teeth/tongue hinge). `CorrectiveSetup.from_channel`; details in `plans/face_shape_keys.md` under Followers. Tested by the user on the teeth: works well.
 
-**Resume here (2026-11-15):** Begin/Full, Join/Split and Extrapolate are built (Claude; `da32416`) and **tested in the UI by the user (2026-11-15): everything works.** Left: retake the `corrective_panel.png` docs screenshot, and grouping the Data Viewer's Correctives sub-panel by box (open). Checked in the UI:
+**Resume here (2026-11-15):** Begin/Full, Join/Split and Extrapolate are built (Claude; `da32416`) and **tested in the UI by the user (2026-11-15): everything works.** Screenshot retaken (`faf9dc6`). Left: grouping the Data Viewer's Correctives sub-panel by box, held for the Data Viewer pass at the end of the face work. Checked in the UI:
 - Create with a capture that moves and turns: one joined box; the mirror side gets the matching name. Create with only one output: a plain box.
 - Begin and Full edit from the panel and move both constraints; they read in degrees or scene units.
 - Join (greyed with nothing to join; the redo panel's list and Keep/Scale), Split (numbers kept).
 - Mirror and Delete on a joined box; Mirror twice doesn't stack.
 - The Extrapolate checkbox: looks right as a button, toggles the whole box, survives Mirror.
-- The panel layout overall (the `corrective_panel.png` docs screenshot needs retaking).
+- The panel layout overall.
 - Existing correctives (made before this) show as split boxes and Join works on them.
 1. **Begin (was Start; built).** A dead zone: the From end that isn't the reading, 0 by default. The user raised it by hand for the teeth (they stay shut while the mouth starts to open) and it works well. Nothing stored; the constraint's other From field holds it.
    - `CorrectiveSetup` carries `from_begin` and `from_full` (was `from_value`); `mirror_from` flips both; `add_transform` puts Full at max (min for a negative reading) and Begin at the other end. Helpers renamed `from_begin_name` / `from_full_name` (were `from_start_name` / `from_value_name`); they and `correction_end` now take the pose bone.
@@ -46,7 +46,7 @@ Built:
    - **Not done:** the Data Viewer's Correctives sub-panel still lists one row per constraint (it only switched to `from_full_name`). Grouping it by box is open.
 3. Possible follow-ups: recapture (see Decisions), Swing + Twist rotation mode, an "Include mirror" toggle for slider edits.
 
-How we'll work: the user builds this. Claude explains, reviews and helps on request. (Begin/Full and Join/Split: built by Claude at the user's request, 2026-11-15.)
+How we'll work: either of us builds, as the user asks. (Begin/Full, Join/Split and Extrapolate were built by Claude, 2026-11-15.)
 
 ## Context
 From the TODO item "Corrective bones?". A corrective bone (or shape key) should react to how one bone is posed relative to its parent, e.g. a shoulder corrective driven by the upper arm.

@@ -8,7 +8,11 @@ Only the items under "Decided" are the user's decisions; everything under "Propo
 **Corrective Begin/Full (dead zone) and Join/Split boxes:** built 2026-11-15 with Extrapolate (`da32416`); tested in the UI by the user 2026-11-15, all works; see `plans/corrective_bones.md`. The teeth follow the chin through a location-input corrective on a user-made hinge, and it works well (user).
 **Arch widget** (`'ARCH'` in `STANDARD_WIDGET_TYPES`, `_create_arch_widget` in `utils/widget.py`): a rounded-top, flat-bottom shape for the chin control; centred on the bone (`47facd6`). Not in `UNIFORM_SCALE_WIDGETS`, so it scales per axis.
 
-**Built 2026-11-15 (Claude; not committed, tested headless, not yet in the UI):** the tidy bug fix and Symmetrize/Mirror Connection copying the key curve (both below). Script: scratchpad `test_tidy_curve.py` (not kept in the repo). **Next:** nothing queued from the old list. Followers are proposed (see "Followers"); correctives cover the jaw case for now.
+**Built 2026-11-15 (Claude; committed `faf9dc6`, tested headless; Symmetrize of connect settings confirmed in the UI by the user 2026-11-16):** the tidy bug fix and Symmetrize/Mirror Connection copying the key curve (both below). Script: scratchpad `test_tidy_curve.py` (not kept in the repo).
+
+**Built 2026-11-16 (not committed; tested headless and in the UI by the user: everything works, including Symmetrize copying the connect settings):** MIN per key, and `connect.py` split by role (see "Built" below and "Priorities" under Still to do for Connect). Scripts: scratchpad `test_combine.py` and `test_connect_split.py` (not kept in the repo). **Next: the face layout** (the other priority; was "frames"). Decisions so far and open questions in "Face layout".
+
+**Earlier next:** nothing queued from the old list. Followers are proposed (see "Followers"); correctives cover the jaw case for now.
 
 **Data Viewer: held until the end (the user, 2026-11-15).** All the Data Viewer work is done in one pass once the face tools are finished; until then, just add notes here. Collected so far:
 - "Shape key controls not locked": muted limits and free sides per control; fix unmutes and locks unused sides (see Lock Unused).
@@ -19,7 +23,13 @@ Only the items under "Decided" are the user's decisions; everything under "Propo
 
 Built, all in `rigtools/panels/shape_keys/`:
 - `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Blender's lock toggle (`lock_shape`, Basis included), Connect button (hidden on split sources and the Basis). Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys (Falloff in the redo panel), Mirror to <name>, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
-- `connect.py`: Connect, Disconnect, Select Control, Select Connected Key, the limits, and the Extent slider properties (details below).
+- Connect, split by role (2026-11-16, Claude; was one 760-line `connect.py`; tested headless and in the UI, behaviour unchanged):
+  - `connect.py`: Connect, Disconnect, Select Control, Select Connected Key, reading the pose (`read_capture`, `read_turns`), `control_problem`.
+  - `key_drivers.py`: `build_key_drivers` (value and range drivers), `has_foreign_driver`, `disconnect_key_for_removal`.
+  - `limits.py`: the limit constraints (`update_limits`, `shape_key_limits`), the Limited toggle, Lock Unused (property and operator).
+  - `connection_status.py`: `connection_status`, `has_connections`, `get_live_connections_for_key`, `record_id`, `tidy_connections`, `tidy_rig_connections`.
+  - `extent_slider.py`: the Extent slider properties.
+  - `shape_key_utils.py` gained a control's sides (`side_label`, `extent_name` (was `side_name`), `range_name`, `side_prop_names` (was `side_props`), `set_side_props`, `CHANNELS`, `SWING_TWIST`, `MAX_TURN`) and the driver helpers (`create_new_driver`, `add_bone_variable`, `bone_prop_path`). Records are renamed through `rename_shape_key_connection` in the records module.
 - `rig_data/shape_key_connections.py`: the connection records (PropertyGroup on `PoseBone`) and the only functions that touch them.
 - `split.py`: Create/Update L/R Shape Keys. Smoothstep falloff across X = 0, stored per source as `split_falloff:<name>` on the Key. Respects the source's vertex group. New sides go right under the source, .L then .R, in one block move. Refuses driven keys.
 - `mirror.py`: Mirror Shape Key, a "Mirror to <name>" button under the active key (greyed when the target is locked). Copies the key's shape mirrored across X onto its mirror key (`mirror_shape_key_name`), creating it under the source if missing; writes coordinates only. Mirror pairs from the Basis with a KD-tree (0.1mm); unmatched vertices are left alone and reported.
@@ -30,12 +40,12 @@ Built, all in `rigtools/panels/shape_keys/`:
 
 Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey.select`, 5.0+); every move call re-evaluates the mesh and its modifiers (~0.1s on Kendra, mostly the Data Transfer), so moves are done as one block. Bone selection is `PoseBone.select` (was `Bone.select`). `Operator.check` is reserved; don't name a method `check`.
 
-**Connect as built (2026-11-08)** (`connect.py`, `rig_data/shape_key_connections.py`):
+**Connect as built (2026-11-08)** (`connect.py` and the files split from it, `rig_data/shape_key_connections.py`):
 - **Connection records:** `pose_bone.rigtools_shape_keys.items`, one per key the bone drives: `mesh` (Object pointer), `key_name`, `axis` ('X'/'Y'/'Z'), `positive`; plus `active_index` for the list. Functions: `get_`, `find_`, `add_`, `remove_shape_key_connection`, and `find_bone_connections_for_shape_key(armature_obj, mesh, key_name)` (every bone recorded as driving a key). The records are the source; drivers are output, built from them and never read back. No expression parsing anywhere.
 - **Extent:** `SK ±Axis` custom property on the control per connected side (e.g. `SK +Z`), a positive distance. Connect sets it from the pose every time. Shared by every key on that side. Removed when the side's last connection goes.
 - **Key driver** (`build_key_drivers`), rewritten from the records on every Connect and Disconnect: per bone, `capture_n` (Transform Channel, `LOCAL_SPACE`, location axis) and `extent_n` (the side's `SK` property); expression `max(capture_0 / extent_0, capture_1 / extent_1, 0)`, `-capture_n` on a negative side. No upper clamp: the key's own Range Max caps it. Removed (key set to 0) when no records are left.
 - **Limits** (`update_limits`, `_build_limit_driver`; **replaced 2026-11-09**, this bullet describes the old version: see "Range and locks on the bone"): one "Shape Key Limits" Limit Location per control (local space, Affect Transform). Each connected side's field is driven by `extent * max(range_max_0, ..., 1)`, the Range Max (`slider_max`) of every key connected on that side. A key's Range Max of 1.2 lets the bone travel 20% past the extent and the key reach 1.2 (overshoot), with no lag. Unconnected sides are free; no connections removes the constraint. The Limited/Unlocked toggle mutes it; Connect turns it back on.
-- **Extent slider:** a get/set `FloatProperty` on `PoseBone` (`rigtools_drive_pos_z` etc.) that writes `SK ±Axis` and moves the bone to that extent. Nothing saved. **The user dislikes this complexity and wants it scaled back later.**
+- **Extent slider:** a get/set `FloatProperty` on `PoseBone` (`rigtools_drive_pos_z` etc.) that writes `SK ±Axis` and moves the bone to that extent. Nothing saved. The user found it works well (2026-11-16); no longer to be scaled back. Now in `extent_slider.py`.
 - **Capture:** `matrix_basis` location, largest axis; rotated, scaled or unposed is refused.
 - **Checks:** not the Basis, not a split source, mesh deformed by the armature, control isn't the property bone, not an assembly mechanism bone, not DEF-named. A key driver with no records behind it is someone else's: refused.
 - **Disconnect:** takes bone, mesh, key and side; removes the record, updates the limits, rebuilds the key's driver.
@@ -51,7 +61,13 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 - **Key curve presets (built 2026-11-11 by the user, works in the UI; `c793894`):** Symmetrize and Mirror Connection copying the curve built 2026-11-15 (Claude); see "Key curve presets" under Easing.
 - **Remove button: dropped (the user, 2026-11-15).** The ✕ in each list entry stays as it is. (Was: a − button in a column beside the list.)
 - **Repair:** built with copy detection (2026-11-09, Claude; not committed), see "Copied and stale records" below. Left: the Data Viewer check and cleanup.
-- **MIN** per key: open, discussed 2026-11-15 with corner capture; see "MIN and corner capture (open)" under Connect redesign.
+- **Priorities (the user, 2026-11-16): MIN and frames (now the face layout).** Groups and corner capture are not a priority: the user never asked for them, and marking connections as together looks like a hard UX to manage. **MIN is built (2026-11-16):** per key, Max (default) or Min; the user wrote the core, Claude added the Symmetrize/Mirror Connection copy; all tested in the UI by the user (2026-11-16). As built:
+  - `combine` field on each connection record (`SHAPE_KEY_COMBINE_ITEMS`, `rig_data/shape_key_connections.py`); old records read Max, no migration. `get_key_combine` (Min if any record says Min) and `set_key_combine`.
+  - `build_key_drivers` (`key_drivers.py`) works out the mode, writes it back to every live record of the key, and passes it to `_build_value_driver`: `max(...)` or `min(...)`. Range drivers and limits unchanged. "Any Min wins" so a new Connect (record defaults to Max) keeps a Min key Min.
+  - `RIG_OT_set_key_combine` (`key_combine.py`): tidy, set every live record, rebuild. Panel: a Combine row under Curve, shown when the key has more than one record (`find_bone_connections_for_shape_key`).
+  - Symmetrize and Mirror Connection give the mirror key the source key's mode on *every* record before the rebuild, replacing what it had (like the curve); otherwise "any Min wins" would keep a mirror key Min.
+  - Tested headless (Blender 5.2): Max default; Min gives 0 with one bone, 1 with both, 0.5 at full and half; a third Connect keeps Min; Disconnect; Symmetrize copies Min and back to Max, also when only one of the key's bones is mirrored; Mirror Connection both ways. The old Symmetrize fails these. Script: scratchpad `test_combine.py` (not kept in the repo).
+  - Docs: no shape keys page exists yet.
 - **Followers** (proposed 2026-11-13): bones that follow a control, e.g. teeth and tongue on a hinge following the chin. See "Followers".
 - **Rotation connections (built 2026-11-09, Claude; `c9b5c97`).** Needed for lip curl and the anime mouth rotate. The user's chibi rig (`\\Jefe\Ubertaco\Data\Blender\Chibii\Chibit2.blend`) had `mouth.move` driving Left/Right/Up/Down on location and `Mouth.Rotate.L/.R` on ROT_Y (0.5 rad) with Limit Rotation ±30°, so one bone drives both channels. As built: records have `channel` (`LOC`/`ROT`, default `LOC`, no migration); rotation sides are `SK ±RX/RY/RZ` (+ Min/Max), radians shown in degrees, capped at 179°; capture reads swing/twist around Y exactly as the driver does (`read_turns`: the twist angle, and the swing as `2·asin` of its components, tested against Blender's own, which isn't axis × angle) and refuses a bone both moved and turned; value variables are `ROT_n` with `SWING_TWIST_Y`; a second constraint, "Shape Key Rotation Limits" (Limit Rotation, local, non-legacy, Affect Transform), driven like location and capped short of a half turn, free sides at ±180° (Limit Rotation has one switch per axis); the Limited toggle is a get/set `rigtools_limits_enabled` covering both constraints; the Extent slider turns the bone on rotation sides; Symmetrize flips rotation Y and Z (X keeps its sign), Blender's flip-pose rule. Known approximation: Limit Rotation clamps Euler angles while the driver reads swing/twist, so a pose on two axes at once reads slightly under (0.9989 at the captured pose for an X swing with a 0.05 twist; 1.0 with the limits off). Tested headless: three channels on one bone, motion and limits, Max overshoot, the moved-and-turned refusal, capture matching the driver, the slider, the toggle, mirrored tails for RX, RY and RZ, and the earlier range, symmetrize and copy tests unchanged.
 - **Pinned control operators:** Pin to Mesh and Unpin from Mesh are built (`f909f01`, `operators/pin_to_mesh.py`; see "Pin to Mesh" under "Pinned controls"). Later: symmetrize (including a mirrored anchor group; check what Blender's Symmetrize does with a vertex group subtarget), delete (with clearing connections). See "Pinned controls".
@@ -111,7 +127,7 @@ Makes each selected bone's mirror an exact copy of its connections, flipped. Rec
 - **Silent:** rebuilds ignore dead records; the first operation on the bone (Connect, Disconnect, Symmetrize) fixes renamed keys, then erases the dead records, and `update_limits` clears their properties. The bone view hides dead records. No note about the copied constraint (user: copying a bone with a constraint is on you).
 - **Data Viewer:** reports dead and ambiguous records and cleans up the whole rig (not built).
 
-**As built** (`connect.py`): `connection_status` (LIVE / RENAMED with the new name / AMBIGUOUS / DEAD), `_reads_side`, `has_connections`, `live_connections_for_key`, `record_id` (records by value: items move in memory as the list grows), `tidy_connections`. `build_key_drivers(..., trust)` and `has_foreign_driver` use live records only. Disconnect rebuilds the key under its current name. Symmetrize skips dead source records, refuses ambiguous ones, mirrors renamed ones under their new name. Panel: the bone view's list hides dead records (`filter_items`) and shows renamed keys by their new name, ambiguous with a warning icon; the key's Connections rows list live records; a bone with only dead records shows no bone view and no Symmetrize button. Tested headless: copies after Symmetrize and Duplicate are dead, recapturing no longer pulls in the copy, renaming the original keeps it live, a renamed key is repaired on the next Connect and Disconnect removes its driver, connecting a copy on purpose clears its dead records first.
+**As built** (now `connection_status.py`): `connection_status` (LIVE / RENAMED with the new name / AMBIGUOUS / DEAD), `_reads_side`, `has_connections`, `live_connections_for_key`, `record_id` (records by value: items move in memory as the list grows), `tidy_connections`. `build_key_drivers(..., trust)` and `has_foreign_driver` use live records only. Disconnect rebuilds the key under its current name. Symmetrize skips dead source records, refuses ambiguous ones, mirrors renamed ones under their new name. Panel: the bone view's list hides dead records (`filter_items`) and shows renamed keys by their new name, ambiguous with a warning icon; the key's Connections rows list live records; a bone with only dead records shows no bone view and no Symmetrize button. Tested headless: copies after Symmetrize and Duplicate are dead, recapturing no longer pulls in the copy, renaming the original keeps it live, a renamed key is repaired on the next Connect and Disconnect removes its driver, connecting a copy on purpose clears its dead records first.
 
 ### Connect redesign (decided and built 2026-11-08)
 Started from the user's request for an **extent slider**: change how far a side must move to reach 1 without re-posing. The slider is the critical feature.
@@ -122,7 +138,7 @@ Started from the user's request for an **extent slider**: change how far a side 
 - **Repair against the drivers (built 2026-11-09, see "Copied and stale records").** Keys are stored by name, so a rename makes a record stale while the rig keeps working. Repair: when a record's key is missing on its mesh, find the key on that mesh whose driver reads this bone, axis and side, skipping keys claimed by another record, and take its name. No match: remove or flag. Ambiguous: flag. Draw can only show stale records; operators fix them.
 - **Range instead of a separate Limit.** (Where Range lives changed 2026-11-09: see "Range and locks on the bone".) The user found "Range 0 to 1.2" far more natural than a limit distance with a link toggle. The key's own Range Max (Blender's field, no new data) drives the bone's limit, rather than the limit driving the key's slider max (tested: that lagged one update). Per key, not per key and bone: every bone driving a key lets it reach its Range Max; the user can't think of a case wanting otherwise.
 - **No invert, anywhere.** Keys that are on at rest are fixed at the source with Reverse Shape Key.
-- **MAX/MIN is per key.** MAX is the default and stores nothing. MIN (not built) would be a custom property on the mesh's Key, like `split_falloff:<name>`. Reopened 2026-11-15, see below.
+- **MAX/MIN is per key.** MAX is the default. Built 2026-11-16 with the mode on the connection records (the user's choice over a property on the Key); see "Priorities" under Still to do for Connect.
 
 **MIN and corner capture (open; discussed 2026-11-15, the user isn't sure yet, to discuss later):**
 - **The limit of per key:** one switch can't express a key that turns on from "these two together" *or* from something else alone, e.g. `Eyelid.Smile = max(min(upper lid, lower lid), squint)`. Fine for the eyelid case as written, where the key has exactly two bones and needs both.
@@ -401,6 +417,33 @@ Bones that follow a face control: the lower teeth and tongue following the jaw, 
 
 **Open:** where the follower's side shows on the follower itself ("Follows jaw −Z"); whether Move to MCH also clears `use_deform`; Data Viewer checks for followers.
 
+### Face layout (decided 2026-11-16; design in progress, not built)
+Replaces "frames": the frames, controls and their arrangement are one data-driven layout, not bones the user makes. Reference images the user shared (2026-11-16): their own pill sliders with a rounded box around a group (Hair Heart, Pupil Dilate with L/R, Eye Highlight with L/R), and the classic Maya face panel (boxes for two-axis controls, thin rectangles for one-axis, several controls in one frame like BrowLeft's three).
+
+**Decided (the user, 2026-11-16):**
+- **A layout is data: a list of items, ordered and grouped.** Items can be reordered and moved between groups; boxes go around groups according to group settings. The bones are output; the user doesn't make or arrange them.
+- **The layout creates the control bones too,** along with their frames. Connect then works on the generated controls as usual.
+- **No rebuild.** Changing the layout moves and resizes the existing bones; it never deletes and recreates them. (Connection records live on the control bones, so recreating them would lose every connection.)
+- **The layout sets the size, and the size sets the extent.** Every slider's travel comes from the layout so everything flows; the control's extent follows from it. How the extent shows when a layout owns it (greyed out, or something else) is open.
+- **Several layouts per rig.** A layout is like a group, except a layout controls where it sits relative to the rig; groups have no control over their own placement (until it's needed).
+- **Fully automatic placement to start;** change it once we see what's missing.
+- **Labels are text widgets:** text made into widget meshes, generated with the layout.
+
+**Shapes (from the images; proposed):** an item that moves on one axis is a pill track; on two axes, a box. Where the control rests in its frame follows from its sides: one way (Hair Heart, 0 to 1) rests at the end, both ways (Pupil Dilate) in the middle. The `PILL` and `RECTANGLE` widgets exist (`utils/widget.py`).
+
+**Open:**
+- How the layout's size becomes the extent: Connect on a layout control could take only the direction from the pose and the extent from the layout; the Extent slider greyed or hidden; resizing the layout rewrites every item's `SK` extent.
+- Whether a track ends at the extent or at Range Max (overshoot).
+- How a layout is placed: a generated root bone the user moves, a parent bone plus offset, or both.
+- The data: per armature, owned by one module (like the connection records). The editing UI likely a list like the collections layout (`rig_ui_layout`, `rig_ui/collections_panel.py`: order, gaps, same row).
+- Item settings: label, shape or axes, one way or both ways per axis. Group settings: label, border, padding, flow.
+- Deleting an item: removes its control (and so its connections) and frame.
+- Bone names and collection for frame, label and layout bones.
+
+**Later directions, not frames:**
+- **Picker** (like Character Creator's face picker): the user likes it but it's complex and would have to be modular. Build up the layout tools first and let a picker take shape from them, as the chain tools grew into assemblies.
+- **Pose library helper:** for mouth shapes (visemes; common sets have 9 to 15) and hand poses, likely on Blender's Pose Library (asset-based, blends on apply). Possibly separate tools. A selector control is a poor fit: lip sync blends between shapes.
+
 ### Tested behaviour (Blender 5.2, throwaway scenes)
 | Setup | Cycle? | Follow works? |
 |---|---|---|
@@ -422,8 +465,8 @@ Proposed order, not decided:
 3. **Editing.** Adjust and delete in the panel. Data Viewer sub-panel and checks: dead drivers, and anchor name collisions.
 4. **Sliders, properties and emotes.** Custom property as an input, a location-driven bone as an output (also a real jaw bone), and the Rig UI section.
 5. **Pin to Mesh (built, `f909f01`).** Select an existing control in pose mode, run it, and it makes the anchor group and VIS bone and sets the widget override (decided 2026-11-11, replaces the creator).
-6. **Frames and the matrix.** A frame is a bone with the rectangle widget, sized from captured extremes using custom shape scale so no new mesh is needed.
-7. **Corner capture.** A pose using two axes writes `min(a, b)`. Open, see "MIN and corner capture (open)".
+6. **Face layout** (was "Frames and the matrix"): decided 2026-11-16, see "Face layout". Data-driven layouts that create and place controls, frames and labels.
+7. **Corner capture.** Not a priority (the user, 2026-11-16). A pose using two axes writes `min(a, b)`; see "MIN and corner capture".
 
 ## Code locations
 - Corrective bones to model this on: `rigtools/operators/corrective_bones.py`. Capture at `capture_corrective_pose` (line 89), mirroring at `mirror_from` (line 146), rotation-only input at line 190.

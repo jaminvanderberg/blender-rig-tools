@@ -1,79 +1,36 @@
-"""Connect: drive a shape key from the active bone's current pose.
-
-Each connection is recorded on the control bone (rig_data/shape_key_connections.py): which
-mesh's shape key it drives, and from which side (channel, axis and direction). The channel
-is location or rotation. The shape key's driver is built from those records. Per bone
-driving the key, it has a transform variable (capture_n) and a variable reading that side's
-extent property on the bone (extent_n), combined as `max(capture_0 / extent_0, ...)`. No
-clamp in the expression: Blender clamps the value to the key's slider range.
-
-Each connected side has three custom properties on the control, e.g. for +Z:
-	SK +Z       extent: how far the bone moves on that side to reach 1
-	SK +Z Min   the range's bottom, 0 by default; below 0 lets its keys go negative
-	SK +Z Max   the range's top, 1 by default; 1.2 lets the bone and its keys overshoot
-Rotation sides are named with an R: SK +RZ is an angle (radians, shown in degrees).
-The key's slider range is driven from them (the widest range of the bones driving it), and
-each control gets a Limit Location and a Limit Rotation, as needed, whose connected sides
-are driven by them too.
-
-Rotation is read as swing and twist around the bone's Y: twist is the turn around the
-bone's own length (RY), swing the tilt of its tip, split into RX and RZ. Each reads cleanly
-even with the others nudged, unlike Euler angles.
-
-Nothing on the bone may read the Key. Blender evaluates a shape key's settings together with
-its value driver, which reads the bone, so a limit reading the key's slider_max is a
-dependency cycle. Custom properties on the bone are safe to read from anywhere.
-"""
+"""Connect and Disconnect: drive a shape key from a control bone's pose. Plus selecting a
+control or a connected key from the panel.
+The records (rig_data/shape_key_connections.py) are the source; key_drivers.py builds the
+drivers from them, limits.py the bone's limits."""
 import math
 
 import bpy
 from bpy.props import BoolProperty, StringProperty
-from mathutils import Quaternion
 
 from rigtools.armature_settings import get_armature_settings
 from rigtools.assemblies.assembly_data import find_assemblies
-from rigtools.panels.shape_keys.shape_key_utils import find_driver, has_sides
+from rigtools.panels.shape_keys.connection_status import (
+	connection_status, record_id, tidy_rig_connections)
+from rigtools.panels.shape_keys.key_drivers import build_key_drivers, has_foreign_driver
+from rigtools.panels.shape_keys.limits import set_limits_enabled, update_limits
+from rigtools.panels.shape_keys.shape_key_utils import (
+	MAX_TURN, has_sides, set_side_props, side_label)
 from rigtools.rig_data.shape_key_connections import (
-	add_shape_key_connection, find_bone_connections_for_shape_key, find_shape_key_connection,
-	get_shape_key_connections, remove_shape_key_connection)
+	add_shape_key_connection, find_shape_key_connection, remove_shape_key_connection)
 from rigtools.utils.naming import does_match_def_name
 from rigtools.utils.object import get_controlled_meshes
 
-CHANNELS = ('LOC', 'ROT')
-# One constraint per channel, made when the bone has a connected side on it
-LIMITS = {
-	'LOC': ("Shape Key Limits", 'LIMIT_LOCATION'),
-	'ROT': ("Shape Key Rotation Limits", 'LIMIT_ROTATION'),
-}
-# The rotation driver variables' reading; capture reads the pose the same way
-SWING_TWIST = 'SWING_TWIST_Y'
-# A turn's direction is ambiguous at 180 degrees
-MAX_TURN = math.radians(179)
-
-def _quote(name):
-	return f'["{bpy.utils.escape_identifier(name)}"]'
-
-def _create_new_driver(owner, path):
-	"""A clean scripted driver: no mapping curve or modifiers, so it outputs its expression."""
-	fcurve = owner.driver_add(path)
-	fcurve.keyframe_points.clear()
-	for modifier in list(fcurve.modifiers):
-		fcurve.modifiers.remove(modifier)
-	fcurve.driver.type = 'SCRIPTED'
-	return fcurve
-
 def read_turns(rotation):
 	"""(RX, RY, RZ) of a quaternion as the drivers read it (SWING_TWIST_Y): RY is the twist
-	angle, RX and RZ are 2*asin of the swing's components. Tested against Blender's own."""
+	around the bone's length, RX and RZ the tilt of its tip (2 * asin of the swing)"""
 	swing, twist = rotation.to_swing_twist('Y')
 	def swing_angle(component):
 		return 2 * math.asin(max(-1.0, min(1.0, component)))
 	return swing_angle(swing.x), twist, swing_angle(swing.z)
 
 def read_capture(pose_bone):
-	"""((channel, axis index, extreme), None) from the bone's own pose, or (None, an error
-	message). The largest axis wins. A bone both moved and turned is refused rather than
-	guessed. matrix_basis is the pose without constraints, so limits don't shorten it."""
+	"""((channel, axis, extreme), None) from the bone's pose, or (None, error). The largest axis
+	wins; moved and turned is refused. matrix_basis, so limits don't shorten it"""
 	location, rotation, scale = pose_bone.matrix_basis.decompose()
 	if max(abs(s - 1) for s in scale) > 1e-4:
 		return None, f"'{pose_bone.name}' is scaled. Connect reads location or rotation: clear its scale"
@@ -93,368 +50,8 @@ def read_capture(pose_bone):
 		return ('ROT', axis, turns[axis]), None
 	return None, f"'{pose_bone.name}' isn't posed. Move or turn it to the shape's extreme first"
 
-def shape_key_limits(pose_bone):
-	"""The bone's limit constraints made by Connect: none, one or both channels."""
-	return [c for c in (pose_bone.constraints.get(name) for name, _type in LIMITS.values()) if c]
-
-def set_limits_enabled(pose_bone, enabled):
-	for constraint in shape_key_limits(pose_bone):
-		constraint.mute = not enabled
-
-def side_label(axis, positive, channel):
-	"""How a side is shown, e.g. '+Z' or '-RY'."""
-	return f"{'+' if positive else '-'}{'R' if channel == 'ROT' else ''}{'XYZ'[axis]}"
-
-def side_name(axis, positive, channel):
-	"""The control's extent property for one side, e.g. 'SK +Z' or 'SK -RY'."""
-	return f"SK {side_label(axis, positive, channel)}"
-
-def range_name(axis, positive, end, channel):
-	"""A side's range property on the control, e.g. 'SK +Z Max' or 'SK +RY Min'."""
-	return f"{side_name(axis, positive, channel)} {end}"
-
-def side_props(axis, positive, channel):
-	"""Every custom property a connected side owns: extent, Min and Max."""
-	return (side_name(axis, positive, channel), range_name(axis, positive, "Min", channel),
-		range_name(axis, positive, "Max", channel))
-
-def limit_field(axis, positive):
-	"""The limit constraint's field for one side, e.g. 'max_z' for +Z (both channels)."""
-	return f"{'max' if positive else 'min'}_{'xyz'[axis]}"
-
-def _sides(connections, channel):
-	return {("XYZ".index(c.axis), c.positive) for c in connections if c.channel == channel}
-
-def _add_bone_variable(driver, name, armature_obj, pose_bone, prop):
-	"""A driver variable reading one of the control's custom properties."""
-	variable = driver.variables.new()
-	variable.name = name
-	variable.type = 'SINGLE_PROP'
-	variable.targets[0].id_type = 'OBJECT'
-	variable.targets[0].id = armature_obj
-	variable.targets[0].data_path = f'pose.bones{_quote(pose_bone.name)}{_quote(prop)}'
-
-def _build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel, connected,
-		opposite_connected):
-	"""Drive one side's limit field from the bone's own properties: how far its keys need the
-	bone to go. That's the side's extent times its Max (1 stops at the extent, 1.2 overshoots),
-	or, if the opposite side is connected, that side's extent times minus its Min (how far
-	back its keys go negative), whichever is further. A locked side that isn't connected has
-	only the second. Rotation stops short of a half turn."""
-	field = limit_field(axis, positive)
-	fcurve = find_driver(armature_obj, constraint.path_from_id(field))
-	if fcurve is None:
-		fcurve = _create_new_driver(constraint, field)
-	driver = fcurve.driver
-	for variable in list(driver.variables):
-		driver.variables.remove(variable)
-
-	reaches = []
-	if connected:
-		_add_bone_variable(driver, "extent", armature_obj, pose_bone, side_name(axis, positive, channel))
-		_add_bone_variable(driver, "range_max", armature_obj, pose_bone,
-			range_name(axis, positive, "Max", channel))
-		reaches.append("extent * range_max")
-	if opposite_connected:
-		_add_bone_variable(driver, "opposite_extent", armature_obj, pose_bone,
-			side_name(axis, not positive, channel))
-		_add_bone_variable(driver, "opposite_min", armature_obj, pose_bone,
-			range_name(axis, not positive, "Min", channel))
-		reaches.append("opposite_extent * -opposite_min")
-
-	reach = f"max({', '.join(reaches)}, 0)"
-	if channel == 'ROT':
-		reach = f"min({reach}, {MAX_TURN:.4f})"
-	driver.expression = reach if positive else f"-{reach}"
-
-def _update_channel_limits(armature_obj, pose_bone, channel, sides, lock):
-	"""One channel's limit constraint: connected sides driven, others free, or held at rest
-	when lock is set. Removed when nothing on it is connected or locked."""
-	name, constraint_type = LIMITS[channel]
-	needed = bool(sides) or lock
-	constraint = pose_bone.constraints.get(name)
-	if needed and constraint is None:
-		constraint = pose_bone.constraints.new(constraint_type)
-		constraint.name = name
-	if constraint is None:
-		return
-	for axis in range(3):
-		if channel == 'ROT':
-			# Limit Rotation has one switch per axis, so a free side gets a half turn
-			setattr(constraint, f"use_limit_{'xyz'[axis]}",
-				lock or (axis, True) in sides or (axis, False) in sides)
-		for positive in (True, False):
-			field = limit_field(axis, positive)
-			connected = (axis, positive) in sides
-			opposite_connected = (axis, not positive) in sides
-			if channel == 'LOC':
-				setattr(constraint, f"use_{field}", connected or lock)
-			# A locked side still lets the opposite side's keys go negative (its Min)
-			if connected or (lock and opposite_connected):
-				_build_limit_driver(armature_obj, pose_bone, constraint, axis, positive, channel,
-					connected, opposite_connected)
-				continue
-			fcurve = find_driver(armature_obj, constraint.path_from_id(field))
-			if fcurve:
-				armature_obj.animation_data.drivers.remove(fcurve)
-			free = 0.0 if lock or channel == 'LOC' else math.pi
-			setattr(constraint, field, free if positive else -free)
-
-	if not needed:
-		# Its field drivers are gone above; now the constraint itself
-		pose_bone.constraints.remove(constraint)
-		return
-	# Local space matches what the drivers read; Affect Transform stops the bone while dragging
-	constraint.owner_space = 'LOCAL'
-	constraint.use_transform_limit = True
-	if channel == 'ROT':
-		constraint.use_legacy_behavior = False
-
-def update_limits(armature_obj, pose_bone):
-	"""Rebuild the bone's limit constraints from its connection records. Each connected side's
-	field is driven by the bone's extent and range properties. Sides with no connection lose
-	their properties, and stay free unless Lock Unused is on (a bone with no connections left
-	isn't locked: it's no longer a control)."""
-	connections = get_shape_key_connections(pose_bone)
-	lock = pose_bone.rigtools_lock_unused and len(connections) > 0
-	for channel in CHANNELS:
-		sides = _sides(connections, channel)
-		for axis in range(3):
-			for positive in (True, False):
-				if (axis, positive) not in sides:
-					for prop in side_props(axis, positive, channel):
-						if prop in pose_bone:
-							del pose_bone[prop]
-		_update_channel_limits(armature_obj, pose_bone, channel, sides, lock)
-
-def _combine(function, terms):
-	"""max(a, b, ...) or min(...), or the bare term when there's only one: Python's max and
-	min need at least two arguments."""
-	return terms[0] if len(terms) == 1 else f"{function}({', '.join(terms)})"
-
-def _key_driver(key, key_block, prop, found):
-	"""The key's driver on one of its properties, emptied for rebuilding; or removed (and
-	None returned) when no bone drives the key. A removed range driver leaves its last value."""
-	path = key_block.path_from_id(prop)
-	fcurve = find_driver(key, path)
-	if not found:
-		if fcurve:
-			key.animation_data.drivers.remove(fcurve)
-		return None
-	if fcurve is None:
-		fcurve = _create_new_driver(key, path)
-	driver = fcurve.driver
-	for variable in list(driver.variables):
-		driver.variables.remove(variable)
-	return driver
-
-def _build_value_driver(armature_obj, key, key_block, found):
-	"""Per bone and side: location or rotation over extent, combined with max. Blender clamps
-	the value to the slider range, which _build_range_drivers sets, so no clamp here."""
-	driver = _key_driver(key, key_block, "value", found)
-	if driver is None:
-		return
-	terms = []
-	for n, (pose_bone, sk_connection) in enumerate(found):
-		axis = "XYZ".index(sk_connection.axis)
-		capture = driver.variables.new()
-		capture.name = f"capture_{n}"
-		capture.type = 'TRANSFORMS'
-		ctarget = capture.targets[0]
-		ctarget.id = armature_obj
-		ctarget.bone_target = pose_bone.name
-		ctarget.transform_type = f"{sk_connection.channel}_{sk_connection.axis}"
-		ctarget.transform_space = 'LOCAL_SPACE'
-		if sk_connection.channel == 'ROT':
-			ctarget.rotation_mode = SWING_TWIST
-
-		_add_bone_variable(driver, f"extent_{n}", armature_obj, pose_bone,
-			side_name(axis, sk_connection.positive, sk_connection.channel))
-
-		sign = '' if sk_connection.positive else '-'
-		terms.append(f"{sign}capture_{n} / extent_{n}")
-	driver.expression = _combine("max", terms)
-
-def _build_range_drivers(armature_obj, key, key_block, found):
-	"""The key's slider range from the bones driving it: the widest of their sides' ranges,
-	so slider_max is the largest Max and slider_min the smallest Min. Reads only bone
-	properties, so nothing here waits on the key's own value."""
-	for prop, end, function in (("slider_max", "Max", "max"), ("slider_min", "Min", "min")):
-		driver = _key_driver(key, key_block, prop, found)
-		if driver is None:
-			continue
-		terms = []
-		for n, (pose_bone, sk_connection) in enumerate(found):
-			axis = "XYZ".index(sk_connection.axis)
-			name = f"{end.lower()}_{n}"
-			_add_bone_variable(driver, name, armature_obj, pose_bone,
-				range_name(axis, sk_connection.positive, end, sk_connection.channel))
-			terms.append(name)
-		driver.expression = _combine(function, terms)
-
-def build_key_drivers(armature_obj, mesh, key_block, trust=()):
-	"""Writes or overwrites the shape key's value and range drivers from its live connection
-	records, or removes them when none are left. trust holds record_ids of records just
-	written, which aren't in the driver yet. Returns whether the key is still driven."""
-	key = mesh.data.shape_keys
-	found = live_connections_for_key(armature_obj, mesh, key_block, trust)
-	_build_range_drivers(armature_obj, key, key_block, found)
-	_build_value_driver(armature_obj, key, key_block, found)
-	return bool(found)
-
-# Which records are real. Blender's Duplicate and edit mode Symmetrize copy a bone's records,
-# properties and constraints, but not the drivers, so a copied record names a key that
-# doesn't read its bone. And keys are stored by name, so a renamed key leaves a record
-# pointing at nothing while its driver (renamed with it) still works. Both are told apart
-# by asking the driver: does it read this bone's extent for this side? That one variable
-# names the bone (Blender updates it when the bone is renamed), the channel, axis and side.
-
-def _reads_side(armature_obj, key, key_block, pose_bone, connection):
-	"""True if the key's value driver reads this bone's extent property for this record's side."""
-	fcurve = find_driver(key, key_block.path_from_id("value"))
-	if fcurve is None:
-		return False
-	prop = side_name("XYZ".index(connection.axis), connection.positive, connection.channel)
-	path = f'pose.bones{_quote(pose_bone.name)}{_quote(prop)}'
-	return any(variable.type == 'SINGLE_PROP' and variable.targets[0].id == armature_obj
-		and variable.targets[0].data_path == path for variable in fcurve.driver.variables)
-
-def connection_status(armature_obj, pose_bone, connection):
-	"""(status, key name) for one record:
-		LIVE       the key exists and its driver reads this side
-		RENAMED    the key is gone, and exactly one other key's driver reads this side
-		           (not one this bone already has a record for): its new name
-		AMBIGUOUS  several keys could be the renamed one
-		DEAD       nothing reads it: a copied bone's record, or a driver removed by hand"""
-	mesh = connection.mesh
-	key = mesh.data.shape_keys if mesh and mesh.type == 'MESH' else None
-	if key is None:
-		return 'DEAD', None
-	key_block = key.key_blocks.get(connection.key_name)
-	if key_block is not None:
-		live = _reads_side(armature_obj, key, key_block, pose_bone, connection)
-		return ('LIVE', key_block.name) if live else ('DEAD', None)
-	candidates = [kb.name for kb in key.key_blocks
-		if _reads_side(armature_obj, key, kb, pose_bone, connection)
-		and find_shape_key_connection(pose_bone, mesh, kb.name, connection.axis,
-			connection.positive, connection.channel) is None]
-	if len(candidates) == 1:
-		return 'RENAMED', candidates[0]
-	return ('AMBIGUOUS', None) if candidates else ('DEAD', None)
-
-def has_connections(armature_obj, pose_bone):
-	"""True if the bone has any record that isn't dead."""
-	return any(connection_status(armature_obj, pose_bone, connection)[0] != 'DEAD'
-		for connection in get_shape_key_connections(pose_bone))
-
-def record_id(pose_bone, mesh, key_name, axis_name, positive, channel):
-	"""Identifies a record by value, for trust: items can move in memory as the list grows."""
-	return (pose_bone.name, mesh.name, key_name, axis_name, positive, channel)
-
-def live_connections_for_key(armature_obj, mesh, key_block, trust=()):
-	"""[(pose bone, record)] for the records that really drive this key, plus trusted ones."""
-	key = mesh.data.shape_keys
-	return [(pose_bone, connection)
-		for pose_bone, connection in find_bone_connections_for_shape_key(armature_obj, mesh, key_block.name)
-		if record_id(pose_bone, mesh, key_block.name, connection.axis, connection.positive,
-			connection.channel) in trust
-		or _reads_side(armature_obj, key, key_block, pose_bone, connection)]
-
-def tidy_connections(armature_obj, pose_bone):
-	"""One bone's records: renamed keys get their new name, dead records are forgotten.
-	Operators run tidy_rig_connections, which calls this on every bone. Ambiguous ones are kept for the Data
-	Viewer. The caller's update_limits then clears the dead sides' properties."""
-	items = get_shape_key_connections(pose_bone)
-	statuses = [connection_status(armature_obj, pose_bone, connection) for connection in items]
-	for index in reversed(range(len(items))):
-		status, key_name = statuses[index]
-		if status == 'DEAD':
-			remove_shape_key_connection(pose_bone, items[index])
-		elif status == 'RENAMED':
-			items[index].key_name = key_name
-
-def tidy_rig_connections(armature_obj):
-	"""tidy_connections on every bone of the rig, run before records are looked up by key
-	name. Records find their key by name, so when two bones drive a renamed key, tidying only
-	the bone being operated on leaves the other under the old name: the rebuilt driver drops
-	it, and it's lost. Bones that lost a dead record get their limits rebuilt here; the
-	operated bone's caller rebuilds its own anyway."""
-	for pose_bone in armature_obj.pose.bones:
-		items = get_shape_key_connections(pose_bone)
-		if not items:
-			continue
-		count = len(items)
-		tidy_connections(armature_obj, pose_bone)
-		if len(items) != count:
-			update_limits(armature_obj, pose_bone)
-
-def set_side_props(pose_bone, axis, positive, extent, channel):
-	"""Write a side's extent, and create its Min and Max if they're missing: the range is
-	created once, then it's the user's, so reconnecting keeps it."""
-	side = side_name(axis, positive, channel)
-	pose_bone[side] = extent
-	label = side_label(axis, positive, channel)
-	if channel == 'ROT':
-		# Radians, shown in degrees
-		pose_bone.id_properties_ui(side).update(
-			subtype='ANGLE', min=0.0001, max=MAX_TURN, soft_min=0.0, soft_max=math.pi / 2,
-			precision=1, description=f"How far the bone turns {label} for its shape keys to reach 1")
-	else:
-		# Fine steps for small distances; shown in scene units (cm/mm)
-		pose_bone.id_properties_ui(side).update(
-			subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
-			step=0.01, precision=4,
-			description=f"How far the bone moves {label} for its shape keys to reach 1")
-	for end, default, description in (
-			("Min", 0.0, "The lowest its shape keys go. Below 0, moving the bone the other way "
-				"takes them negative"),
-			("Max", 1.0, "The highest its shape keys go. Above 1 lets the bone travel past "
-				"the extent (overshoot)")):
-		prop = range_name(axis, positive, end, channel)
-		if prop not in pose_bone:
-			pose_bone[prop] = default
-			pose_bone.id_properties_ui(prop).update(
-				min=-10.0 if end == "Min" else 0.0, max=0.0 if end == "Min" else 10.0,
-				soft_min=-1.0 if end == "Min" else 0.0, soft_max=0.0 if end == "Min" else 2.0,
-				step=1, precision=2, description=description)
-
-def has_foreign_driver(armature_obj, mesh, key_block):
-	"""A value driver with no live connection records behind it was made by someone else:
-	leave it alone."""
-	key = mesh.data.shape_keys
-	return (find_driver(key, key_block.path_from_id("value")) is not None
-		and not live_connections_for_key(armature_obj, mesh, key_block))
-
-def disconnect_key_for_removal(mesh, key_block):
-	"""Before a shape key is removed: forget the bones' records for it, rebuild their limits,
-	and remove every driver on the key. Python's shape_key_remove deletes the drivers itself
-	but doesn't rebuild the depsgraph, which then evaluates the deleted drivers and crashes
-	Blender; drivers.remove does rebuild it. Returns the names of the bones disconnected."""
-	key = mesh.data.shape_keys
-	armature_objs = {modifier.object for modifier in mesh.modifiers
-		if modifier.type == 'ARMATURE' and modifier.object}
-	disconnected = []
-	for armature_obj in armature_objs:
-		# Records of a renamed key get its new name first, or they'd be missed here
-		tidy_rig_connections(armature_obj)
-		# Read before the drivers go: a record is live when the key's driver reads it
-		found = live_connections_for_key(armature_obj, mesh, key_block)
-		for pose_bone, connection in found:
-			remove_shape_key_connection(pose_bone, connection)
-		# Each bone once, in list order
-		for pose_bone in dict.fromkeys(pose_bone for pose_bone, _connection in found):
-			update_limits(armature_obj, pose_bone)
-			disconnected.append(pose_bone.name)
-
-	if key.animation_data:
-		key_path = key_block.path_from_id()
-		for fcurve in [fcurve for fcurve in key.animation_data.drivers
-				if fcurve.data_path.startswith(key_path + ".")]:
-			key.animation_data.drivers.remove(fcurve)
-	return disconnected
-
 def control_problem(context, armature_obj, pose_bone):
-	"""Why this bone can't be a shape key control, or None."""
+	"""Why this bone can't be a shape key control, or None"""
 	prop_bone_name = get_armature_settings(armature_obj.data, context).property_bone_name
 	name = pose_bone.name
 	if name == prop_bone_name:
@@ -499,16 +96,14 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 		channel, axis, extreme = capture
 		positive = extreme > 0
 
-		# Copied records go first, so connecting a duplicated bone starts it clean. Before the
-		# foreign check too: a renamed key's records still have the old name until tidied
+		# Before the foreign check: a renamed key's records have the old name until tidied
 		tidy_rig_connections(armature_obj)
 		if has_foreign_driver(armature_obj, mesh, key_block):
 			self.report({'ERROR'}, f"'{key_block.name}' has a driver RigTools didn't make. Left alone")
 			return {'CANCELLED'}
-		# Connect captures: the pose sets the side's extent, new side or not
+		# The pose sets the side's extent, new side or not
 		set_side_props(pose_bone, axis, positive, abs(extreme), channel)
 
-		# Record the connection on this bone, then build the shape key's driver from the records
 		axis_name = "XYZ"[axis]
 		replaced = find_shape_key_connection(
 			pose_bone, mesh, key_block.name, axis_name, positive, channel) is not None
@@ -528,7 +123,7 @@ class RIG_OT_connect_shape_key(bpy.types.Operator):
 		return {'FINISHED'}
 
 	def problem(self, context, armature_obj, pose_bone, mesh, key, key_block):
-		"""An error message, or None if this can be connected."""
+		"""An error message, or None if this can be connected"""
 		if armature_obj is None or armature_obj.type != 'ARMATURE':
 			return "Select the rig's control bone in pose mode"
 		if key_block is None:
@@ -570,7 +165,7 @@ class RIG_OT_disconnect_shape_key(bpy.types.Operator):
 		tidy_rig_connections(armature_obj)
 		update_limits(armature_obj, pose_bone)
 
-		# The shape key's driver is rebuilt from the bones still driving it, or removed
+		# Rebuilt from the bones still driving it, or removed
 		key = mesh.data.shape_keys if mesh and mesh.type == 'MESH' else None
 		key_block = key.key_blocks.get(key_name) if key and key_name else None
 		if key_block and not build_key_drivers(armature_obj, mesh, key_block):
@@ -628,131 +223,17 @@ class RIG_OT_select_connected_key(bpy.types.Operator):
 			return {'CANCELLED'}
 		return {'FINISHED'}
 
-class RIG_OT_lock_unused_sides(bpy.types.Operator):
-	"""Sets the bone's saved Lock Unused setting. Unlike the Limited toggle, which is for
-	posing past the limits for a moment, this is part of the control's setup"""
-	bl_idname = "rig.lock_unused_sides"
-	bl_label = "Lock Unused Sides"
-	bl_description = ("Hold every side with no shape key at rest, location and rotation, so the "
-		"control only moves the ways it drives something")
-	bl_options = {'REGISTER', 'UNDO'}
-
-	armature_name: StringProperty(options={'HIDDEN'})
-	bone_name: StringProperty(options={'HIDDEN'})
-	lock: BoolProperty(default=True, options={'HIDDEN'})
-
-	@classmethod
-	def description(cls, context, properties):
-		if properties.lock:
-			return cls.bl_description
-		return "Let the sides with no shape key move freely again"
-
-	def execute(self, context):
-		armature_obj = bpy.data.objects.get(self.armature_name)
-		pose_bone = armature_obj.pose.bones.get(self.bone_name) if armature_obj else None
-		if pose_bone is None:
-			self.report({'ERROR'}, f"No bone '{self.bone_name}'")
-			return {'CANCELLED'}
-		# Its update rebuilds the limits (and turns them on when locking)
-		pose_bone.rigtools_lock_unused = self.lock
-		return {'FINISHED'}
-
 classes = (
 	RIG_OT_connect_shape_key,
 	RIG_OT_disconnect_shape_key,
 	RIG_OT_select_control,
 	RIG_OT_select_connected_key,
-	RIG_OT_lock_unused_sides,
 )
-
-# The bone view's extent sliders. Each edits a side's SK property and moves or turns the bone
-# to that extent, so you see where it is. Get/set only: nothing is saved to the file.
-# PROTOTYPE: the user wants this complexity scaled back later (see the plan).
-def drive_slider(axis, positive, channel):
-	return (f"rigtools_drive_{'pos' if positive else 'neg'}_"
-		f"{'r' if channel == 'ROT' else ''}{'xyz'[axis]}")
-
-def _set_turn(pose_bone, axis, angle):
-	"""Turn the bone by angle around one local axis, in whatever rotation mode it uses."""
-	vector = [0.0, 0.0, 0.0]
-	vector[axis] = 1.0
-	rotation = Quaternion(vector, angle)
-	if pose_bone.rotation_mode == 'QUATERNION':
-		pose_bone.rotation_quaternion = rotation
-	elif pose_bone.rotation_mode == 'AXIS_ANGLE':
-		turn_axis, turn_angle = rotation.to_axis_angle()
-		pose_bone.rotation_axis_angle = (turn_angle, *turn_axis)
-	else:
-		pose_bone.rotation_euler = rotation.to_euler(pose_bone.rotation_mode)
-
-def _drive_property(axis, positive, channel):
-	prop = side_name(axis, positive, channel)
-	label = side_label(axis, positive, channel)
-	sign = 1 if positive else -1
-
-	def get(pose_bone):
-		return pose_bone.get(prop, 0.0)
-
-	def set(pose_bone, value):
-		pose_bone[prop] = value
-		if channel == 'ROT':
-			_set_turn(pose_bone, axis, sign * value)
-		else:
-			pose_bone.location[axis] = sign * value
-
-	if channel == 'ROT':
-		return bpy.props.FloatProperty(
-			name=f"Extent {label}",
-			description=f"How far {label} turns to reach 1. Turns the bone there",
-			get=get, set=set, subtype='ANGLE', min=0.0001, max=MAX_TURN, soft_min=0.0,
-			soft_max=math.pi / 2, precision=1)
-	return bpy.props.FloatProperty(
-		name=f"Extent {label}",
-		description=f"How far {label} travels to reach 1. Moves the bone there",
-		get=get, set=set, subtype='DISTANCE', min=0.0001, soft_min=0.0, soft_max=0.1,
-		step=0.01, precision=4)
-
-# The Limited/Unlocked toggle: both limit constraints at once. Get/set, nothing saved
-def _get_limits_enabled(pose_bone):
-	return any(not constraint.mute for constraint in shape_key_limits(pose_bone))
-
-def _set_limits_enabled(pose_bone, value):
-	set_limits_enabled(pose_bone, value)
-
-# Lock Unused: saved on the bone, read by update_limits. Turning it on also turns the limits
-# on, so the lock shows right away
-def _update_lock_unused(pose_bone, context):
-	armature_obj = pose_bone.id_data
-	update_limits(armature_obj, pose_bone)
-	if pose_bone.rigtools_lock_unused:
-		set_limits_enabled(pose_bone, True)
-	armature_obj.update_tag()
-
-def _all_sides():
-	return [(axis, positive, channel) for channel in CHANNELS for axis in range(3)
-		for positive in (True, False)]
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
-	for axis, positive, channel in _all_sides():
-		setattr(bpy.types.PoseBone, drive_slider(axis, positive, channel),
-			_drive_property(axis, positive, channel))
-	bpy.types.PoseBone.rigtools_limits_enabled = BoolProperty(
-		name="Limited",
-		description="The shape key limits. Turn off to pose past them for a new connection; "
-			"Connect turns them back on",
-		get=_get_limits_enabled, set=_set_limits_enabled)
-	bpy.types.PoseBone.rigtools_lock_unused = BoolProperty(
-		name="Lock Unused",
-		description="Hold every side with no shape key at rest, location and rotation. "
-			"Turn Limited off to pose past it",
-		default=False, update=_update_lock_unused)
 
 def unregister():
-	del bpy.types.PoseBone.rigtools_lock_unused
-	del bpy.types.PoseBone.rigtools_limits_enabled
-	for axis, positive, channel in _all_sides():
-		delattr(bpy.types.PoseBone, drive_slider(axis, positive, channel))
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)

@@ -1,6 +1,9 @@
-from rigtools.panels.shape_keys import connect, key_curve, symmetrize, split, mirror, reverse, key_actions, shape_keys_panel
+from rigtools.panels.shape_keys import (connect, extent_slider, key_actions, key_combine, key_curve,
+	limits, mirror, reverse, shape_keys_panel, split, symmetrize)
 
 modules = (
+	limits,
+	extent_slider,
 	connect,
 	symmetrize,
 	split,
@@ -8,6 +11,7 @@ modules = (
 	reverse,
 	key_actions,
 	key_curve,
+	key_combine,
 	shape_keys_panel,
 )
 

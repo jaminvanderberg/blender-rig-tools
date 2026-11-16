@@ -1,13 +1,15 @@
 import bpy
 from rigtools.operators.pin_to_mesh import find_pin
 from rigtools.panels.shape_keys.key_curve import curve_preset_label
+from rigtools.rig_data.shape_key_connections import find_bone_connections_for_shape_key
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
-	HAS_KEY_LOCK, can_mirror, can_split, find_driver, has_sides, is_key_driven, mirror_shape_key_name,
+	HAS_KEY_LOCK, can_mirror, can_split, extent_name, find_driver, has_sides, is_key_driven,
+	mirror_shape_key_name, range_name, side_label,
 )
-from rigtools.panels.shape_keys.connect import (
-	connection_status, drive_slider, has_connections, live_connections_for_key, range_name,
-	shape_key_limits, side_label, side_name)
+from rigtools.panels.shape_keys.connection_status import connection_status, has_connections
+from rigtools.panels.shape_keys.extent_slider import drive_slider
+from rigtools.panels.shape_keys.limits import shape_key_limits
 from rigtools.panels.shape_keys.symmetrize import can_symmetrize
 
 class RIG_UL_active_bone_connections(bpy.types.UIList):
@@ -239,7 +241,7 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 	col = layout.column()
 	col.use_property_split = True
 	col.use_property_decorate = False
-	if side_name(axis, positive, channel) in pose_bone:
+	if extent_name(axis, positive, channel) in pose_bone:
 		col.prop(pose_bone, drive_slider(axis, positive, channel), text="Extent")
 
 	# The side's range, shared by every key connected on it. Max sets how far the bone travels
@@ -265,6 +267,17 @@ def draw_active_bone(layout, armature_obj, pose_bone):
 				text=curve_preset_label(fcurve))
 			op.object_name = mesh.name
 			op.shape_key_name = key_name
+
+			if len(find_bone_connections_for_shape_key(armature_obj, mesh, key_name)) > 1:
+				split = col.split(factor=0.4)
+				label = split.row()
+				label.alignment = 'RIGHT'
+				label.label(text="Combine")
+				op = split.operator_menu_enum("rig.set_key_combine", "combine",
+				    	text=connection.combine.title())
+				op.armature_name = armature_obj.name
+				op.object_name = mesh.name
+				op.shape_key_name = key_name
 
 class RIG_PT_shape_keys(bpy.types.Panel):
 	bl_label = "Shape Keys"
