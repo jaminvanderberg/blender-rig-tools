@@ -10,7 +10,7 @@ Only the items under "Decided" are the user's decisions; everything under "Propo
 
 **Built 2026-11-15 (Claude; committed `faf9dc6`, tested headless; Symmetrize of connect settings confirmed in the UI by the user 2026-11-16):** the tidy bug fix and Symmetrize/Mirror Connection copying the key curve (both below). Script: scratchpad `test_tidy_curve.py` (not kept in the repo).
 
-**Built 2026-11-16 (not committed; tested headless and in the UI by the user: everything works, including Symmetrize copying the connect settings):** MIN per key, and `connect.py` split by role (see "Built" below and "Priorities" under Still to do for Connect). Scripts: scratchpad `test_combine.py` and `test_connect_split.py` (not kept in the repo). **Next: the face layout** (the other priority; was "frames"). Decisions so far and open questions in "Face layout".
+**Built 2026-11-16 (not committed; tested headless and in the UI by the user: everything works, including Symmetrize copying the connect settings):** MIN per key, and `connect.py` split by role (see "Built" below and "Priorities" under Still to do for Connect). Scripts: scratchpad `test_combine.py` and `test_connect_split.py` (not kept in the repo). **Next: the Control Board** (the other priority; was "frames", then "face layout"). Decisions so far and open questions in "Control Board".
 
 **Earlier next:** nothing queued from the old list. Followers are proposed (see "Followers"); correctives cover the jaw case for now.
 
@@ -22,7 +22,7 @@ Only the items under "Decided" are the user's decisions; everything under "Propo
 - Followers, once built: their checks are open.
 
 Built, all in `rigtools/panels/shape_keys/`:
-- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (greyed when driven), Blender's lock toggle (`lock_shape`, Basis included), Connect button (hidden on split sources and the Basis). Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys (Falloff in the redo panel), Mirror to <name>, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
+- `shape_keys_panel.py`: shown with the rig or any mesh it deforms active (`get_controlled_meshes` in `utils/object.py`; meshes with shape keys and an armature modifier using the rig). A mesh active shows just its list; the rig active shows one collapsible `layout.panel()` per mesh, in the Meshes list's manual order. Rows: name, value (left enabled when driven, so right-click reaches the driver), Blender's lock toggle (`lock_shape`, Basis included), Connect button (hidden on split sources and the Basis). Built-in search, invert and sort. Header: Blender's pin, Edit Key and Sculpt Key (click again for pose mode). Under the list: add, remove, the ▾ Specials menu, move up/down. Below that, for the active key: Vertex Group with an apply button, Create/Update L/R Shape Keys (Falloff in the redo panel), Mirror to <name>, and a Connections heading with one row per bone driving the key, from the connection records (bone name selects it, direction like `-X`, ✕ disconnects). **Bone view:** in pose mode, when the active bone has connections: its name with the Limited/Unlocked toggle, a UIList of its connection records (`RIG_UL_active_bone_connections`: key, mesh, direction, ✕), and for the selected record, Extent (moves the bone) and the key's Range (`slider_min`/`slider_max`, drawn directly).
 - Connect, split by role (2026-11-16, Claude; was one 760-line `connect.py`; tested headless and in the UI, behaviour unchanged):
   - `connect.py`: Connect, Disconnect, Select Control, Select Connected Key, reading the pose (`read_capture`, `read_turns`), `control_problem`.
   - `key_drivers.py`: `build_key_drivers` (value and range drivers), `has_foreign_driver`, `disconnect_key_for_removal`.
@@ -61,7 +61,7 @@ Blender 5 notes: `shape_key_move` and remove act on all selected keys (`ShapeKey
 - **Key curve presets (built 2026-11-11 by the user, works in the UI; `c793894`):** Symmetrize and Mirror Connection copying the curve built 2026-11-15 (Claude); see "Key curve presets" under Easing.
 - **Remove button: dropped (the user, 2026-11-15).** The ✕ in each list entry stays as it is. (Was: a − button in a column beside the list.)
 - **Repair:** built with copy detection (2026-11-09, Claude; not committed), see "Copied and stale records" below. Left: the Data Viewer check and cleanup.
-- **Priorities (the user, 2026-11-16): MIN and frames (now the face layout).** Groups and corner capture are not a priority: the user never asked for them, and marking connections as together looks like a hard UX to manage. **MIN is built (2026-11-16):** per key, Max (default) or Min; the user wrote the core, Claude added the Symmetrize/Mirror Connection copy; all tested in the UI by the user (2026-11-16). As built:
+- **Priorities (the user, 2026-11-16): MIN and frames (now the Control Board).** Groups and corner capture are not a priority: the user never asked for them, and marking connections as together looks like a hard UX to manage. **MIN is built (2026-11-16):** per key, Max (default) or Min; the user wrote the core, Claude added the Symmetrize/Mirror Connection copy; all tested in the UI by the user (2026-11-16). As built:
   - `combine` field on each connection record (`SHAPE_KEY_COMBINE_ITEMS`, `rig_data/shape_key_connections.py`); old records read Max, no migration. `get_key_combine` (Min if any record says Min) and `set_key_combine`.
   - `build_key_drivers` (`key_drivers.py`) works out the mode, writes it back to every live record of the key, and passes it to `_build_value_driver`: `max(...)` or `min(...)`. Range drivers and limits unchanged. "Any Min wins" so a new Connect (record defaults to Max) keeps a Min key Min.
   - `RIG_OT_set_key_combine` (`key_combine.py`): tidy, set every live record, rebuild. Panel: a Combine row under Curve, shown when the key has more than one record (`find_bone_connections_for_shape_key`).
@@ -417,31 +417,61 @@ Bones that follow a face control: the lower teeth and tongue following the jaw, 
 
 **Open:** where the follower's side shows on the follower itself ("Follows jaw −Z"); whether Move to MCH also clears `use_deform`; Data Viewer checks for followers.
 
-### Face layout (decided 2026-11-16; design in progress, not built)
-Replaces "frames": the frames, controls and their arrangement are one data-driven layout, not bones the user makes. Reference images the user shared (2026-11-16): their own pill sliders with a rounded box around a group (Hair Heart, Pupil Dilate with L/R, Eye Highlight with L/R), and the classic Maya face panel (boxes for two-axis controls, thin rectangles for one-axis, several controls in one frame like BrowLeft's three).
+### Control Board (decided 2026-11-16; design in progress, not built)
+Replaces "frames" and the earlier name "face layout": the frames, controls and their arrangement are one data-driven board, not bones the user makes. Not only for the face: emotes, outfit controls, anything.
+
+**Names (the user, 2026-11-16):** a **Control Board** ("Board" for short) holds **Groups**, which hold **Controls**. Not "layout" or "panel" (Blender's `UILayout`, the Layout workspace and panels would make UI and code confusing), not "dashboard" (reads as display only), not "picker" (that's one kind of frame, for selecting bones). Code: `control_board.py`, `board`, `board_group`.
+
+**Where it's edited (agreed 2026-11-16):**
+- **Properties editor, Armature Data tab:** a "Control Boards" panel next to Bone Collections, the closest Blender analogue (an ordered, grouped list on the armature). Boards are armature data set up once and adjusted occasionally, like bone collections, vertex groups and shape keys; the N-panel stays for tools used while posing (Connect, the bone view, corrective capture). RigTools already has panels there (`data_viewer/panel.py`, `bl_context = 'data'`).
+- **A UIList, not a tree:** add-ons can't make Blender's tree view, so groups show as headings or indented rows.
+- **Placement by sliders in the panel, live in Pose Mode** (see "Placement" below). Edit Mode shows plain bones, not widgets, so placing a board there means placing it blind. Dragging in the viewport (gizmos, `bpy.types.Gizmo`; drawn boxes and labels with the `gpu` module) maybe later: prototype one gizmo before committing to it.
+- **No node editor.** A node tree would be a second copy of the connection records to keep in step, or replace them. The bone-to-key structure is too shallow to pay for it.
+
+Reference images the user shared (2026-11-16): their own pill sliders with a rounded box around a group (Hair Heart, Pupil Dilate with L/R, Eye Highlight with L/R), and the classic Maya face panel (boxes for two-axis controls, thin rectangles for one-axis, several controls in one frame like BrowLeft's three).
+
+**Placement (the user, 2026-11-16: "move it, scale it, and bake it"):**
+- **A board is its root bone;** groups and controls are its children. It sits relative to the rig, usually on the XZ plane facing −Y, with a Y offset for how far in front it floats. **Child of a bone** is the root bone's parent (a face board on `head` follows the head; no parent stays put).
+- **Move and scale: the root bone pinned by constraints.** A Limit Location with min = max on each axis holds it at the slider's position; a Limit Scale with min = max sets its size. The panel's sliders edit those numbers, so the board moves live in Pose Mode. They're constraint settings, not the pose, so Clear Transforms and keyframing don't touch them.
+- **Scale is a zoom of the whole board:** everything grows, travel included, on screen; extents keep their values, since a control's travel is read in its own local units.
+- **Bake** writes the placement into the bones' rest positions (Edit Mode) and resets the pins. Until then, Edit Mode shows the board's bones where they were made.
+- **Tested headless (Blender 5.2, 2026-11-16):** pins hold the root (a pose move on it is ignored), the child moves and scales with it, and the child's own move still works. The pins are in the root's local space, which follows the bone's orientation (a root pointing +Z has local Y up), so the sliders should show the board's X, Y offset, Z and map them to the root's axes.
+
+**Inside a board (the user, 2026-11-16):**
+- **One track length per group.** Every track and square in a group is the same length, so they line up (like the Osipa and Maya boards); an emote group can be bigger than a face group. The board's scale pin zooms the whole thing on screen.
+- **The extent follows from the track length and the control's rest:** half the length for a centered control, the full length for a one-way one. Board controls don't capture their extent from a pose: Connect on one would take only the direction. (The Extent slider is greyed for them: see "Board controls are ordinary bones".)
+- **A control is 1D or 2D.** 1D: a **direction** (horizontal or vertical, independent of the group's flow: a row of vertical brow tracks) and a **rest** (start, center or end; center goes both ways, start and end one way toward the other end). 2D: always a **square**, resting in the center, both ways on both axes; nothing else to set. A 2D control resting in a corner only if something needs it.
+- **Flow per group:** horizontal or vertical, with a per-row limit for a grid (0 = no limit; a grid is horizontal with a limit, not its own mode). **Groups can nest** (rows of columns, columns of rows), which covers layouts like the Maya face panel without more modes; this is how Blender's own `UILayout` builds panels. Free placement only if something can't be done with these.
+- **Positions are computed,** from the order, flow and size, so they need no pins or sliders. They're recalculated when the list changes (add, remove, reorder, move between groups, change a group's size or flow): single clicks, so the operator switching to Edit Mode and back is fine there.
+- Frame look: the frame bone's `custom_shape_scale_xyz` and `custom_shape_translation`, live in Pose Mode.
+
+**Board controls are ordinary bones (agreed 2026-11-16):** Connect, the drivers, Combine and Symmetrize work on them unchanged. Proposed details:
+- **Telling them apart: the board's own list.** A board's controls each name their bone, so "is this a board control" is "is this bone in a board's list", answered by the board module (e.g. `find_board_control(armature_obj, bone_name)`). No marker on the bone, no special constraint name.
+- **One limit system.** The board writes the `SK` extents for its control's sides when it creates it (both sides for center, one for start or end) and locks the unused sides; the existing "Shape Key Limits" (`update_limits` in `limits.py`) then hold it to its track. Gap: today only connected sides are limited, so `update_limits` must limit a board control's track sides before anything is connected.
+- **Changing a group's track length rewrites its controls' extents;** drivers and limits read them, so everything follows with no rebuild.
+- **Leave a board control's extent alone in:** Connect (`connect.py`, `set_side_props` after the capture: take only the direction), Symmetrize and Mirror Connection (`symmetrize.py`, both `set_side_props` calls: skip when the target is a board control; a mirrored pair is usually in one group, so the values match anyway), and the bone view's Extent slider (`shape_keys_panel.py`, greyed, with the group's track length as the reason).
+- **Toggles:** Lock Unused hidden for board controls (always locked to the track); Limited (mute for posing) stays.
 
 **Decided (the user, 2026-11-16):**
-- **A layout is data: a list of items, ordered and grouped.** Items can be reordered and moved between groups; boxes go around groups according to group settings. The bones are output; the user doesn't make or arrange them.
-- **The layout creates the control bones too,** along with their frames. Connect then works on the generated controls as usual.
-- **No rebuild.** Changing the layout moves and resizes the existing bones; it never deletes and recreates them. (Connection records live on the control bones, so recreating them would lose every connection.)
-- **The layout sets the size, and the size sets the extent.** Every slider's travel comes from the layout so everything flows; the control's extent follows from it. How the extent shows when a layout owns it (greyed out, or something else) is open.
-- **Several layouts per rig.** A layout is like a group, except a layout controls where it sits relative to the rig; groups have no control over their own placement (until it's needed).
+- **A board is data: a list of controls, ordered and grouped.** Controls can be reordered and moved between groups; boxes go around groups according to group settings. The bones are output; the user doesn't make or arrange them.
+- **The board creates the control bones too,** along with their frames. Connect then works on the generated controls as usual.
+- **No rebuild.** Changing the board moves and resizes the existing bones; it never deletes and recreates them. (Connection records live on the control bones, so recreating them would lose every connection.)
+- **The board sets the size, and the size sets the extent.** Every slider's travel comes from the board so everything flows; the control's extent follows from it (see "Inside a board").
+- **Several boards per rig.** A board is like a group, except a board controls where it sits relative to the rig; groups have no control over their own placement (until it's needed).
 - **Fully automatic placement to start;** change it once we see what's missing.
-- **Labels are text widgets:** text made into widget meshes, generated with the layout.
+- **Labels are text widgets:** text made into widget meshes, generated with the board.
 
-**Shapes (from the images; proposed):** an item that moves on one axis is a pill track; on two axes, a box. Where the control rests in its frame follows from its sides: one way (Hair Heart, 0 to 1) rests at the end, both ways (Pupil Dilate) in the middle. The `PILL` and `RECTANGLE` widgets exist (`utils/widget.py`).
+**Shapes:** a 1D control's frame is a pill track, a 2D control's a square (Hair Heart, 0 to 1, rests at the end; Pupil Dilate, both ways, in the middle). The `PILL` and `RECTANGLE` widgets exist (`utils/widget.py`).
 
 **Open:**
-- How the layout's size becomes the extent: Connect on a layout control could take only the direction from the pose and the extent from the layout; the Extent slider greyed or hidden; resizing the layout rewrites every item's `SK` extent.
 - Whether a track ends at the extent or at Range Max (overshoot).
-- How a layout is placed: a generated root bone the user moves, a parent bone plus offset, or both.
-- The data: per armature, owned by one module (like the connection records). The editing UI likely a list like the collections layout (`rig_ui_layout`, `rig_ui/collections_panel.py`: order, gaps, same row).
-- Item settings: label, shape or axes, one way or both ways per axis. Group settings: label, border, padding, flow.
-- Deleting an item: removes its control (and so its connections) and frame.
-- Bone names and collection for frame, label and layout bones.
+- The data: per armature, owned by one module (like the connection records). The list's settings may borrow from the rig UI's collections list (`rig_ui_layout`, `rig_ui/collections_panel.py`: order, gaps, same row).
+- Control settings beyond 1D/2D, direction and rest: label. Group settings beyond track length and flow: label, border, padding, spacing.
+- Deleting a control: removes its control (and so its connections) and frame.
+- Bone names and collection for frame, label and board bones.
 
 **Later directions, not frames:**
-- **Picker** (like Character Creator's face picker): the user likes it but it's complex and would have to be modular. Build up the layout tools first and let a picker take shape from them, as the chain tools grew into assemblies.
+- **Picker** (like Character Creator's face picker): the user likes it but it's complex and would have to be modular. Build up the board tools first and let a picker take shape from them, as the chain tools grew into assemblies.
 - **Pose library helper:** for mouth shapes (visemes; common sets have 9 to 15) and hand poses, likely on Blender's Pose Library (asset-based, blends on apply). Possibly separate tools. A selector control is a poor fit: lip sync blends between shapes.
 
 ### Tested behaviour (Blender 5.2, throwaway scenes)
@@ -465,7 +495,7 @@ Proposed order, not decided:
 3. **Editing.** Adjust and delete in the panel. Data Viewer sub-panel and checks: dead drivers, and anchor name collisions.
 4. **Sliders, properties and emotes.** Custom property as an input, a location-driven bone as an output (also a real jaw bone), and the Rig UI section.
 5. **Pin to Mesh (built, `f909f01`).** Select an existing control in pose mode, run it, and it makes the anchor group and VIS bone and sets the widget override (decided 2026-11-11, replaces the creator).
-6. **Face layout** (was "Frames and the matrix"): decided 2026-11-16, see "Face layout". Data-driven layouts that create and place controls, frames and labels.
+6. **Control Board** (was "Frames and the matrix", then "face layout"): decided 2026-11-16, see "Control Board". Data-driven boards that create and place controls, frames and labels; edited in the Armature Data tab.
 7. **Corner capture.** Not a priority (the user, 2026-11-16). A pose using two axes writes `min(a, b)`; see "MIN and corner capture".
 
 ## Code locations

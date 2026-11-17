@@ -4,7 +4,7 @@ from rigtools.panels.shape_keys.key_curve import curve_preset_label
 from rigtools.rig_data.shape_key_connections import find_bone_connections_for_shape_key
 from rigtools.utils.object import get_controlled_meshes, get_rig, sort_by_order
 from rigtools.panels.shape_keys.shape_key_utils import (
-	HAS_KEY_LOCK, can_mirror, can_split, extent_name, find_driver, has_sides, is_key_driven,
+	HAS_KEY_LOCK, can_mirror, can_split, extent_name, find_driver, has_sides,
 	mirror_shape_key_name, range_name, side_label,
 )
 from rigtools.panels.shape_keys.connection_status import connection_status, has_connections
@@ -70,10 +70,8 @@ class RIG_UL_shape_keys(bpy.types.UIList):
 			self.draw_lock(row, shape_key)
 			row.label(text="", icon='BLANK1')
 			return
-		# Only the slider is disabled; Connect still works on driven keys
-		value_row = split.row()
-		value_row.enabled = not is_key_driven(shape_keys, shape_key)
-		value_row.prop(shape_key, "value", text="", emboss=False)
+		# Left enabled when driven: Blender greys it, and right-click still reaches the driver
+		split.prop(shape_key, "value", text="", emboss=False)
 		self.draw_lock(row, shape_key)
 		# A split source is a sculpting template that stays at 0: its sides get connected.
 		# A blank keeps the rows lined up
