@@ -19,6 +19,7 @@ from rigtools import armature_settings
 from rigtools.operators import migrate_rig
 from rigtools.rig_data import twist_chain
 from rigtools.rig_data import shape_key_connections
+from rigtools.rig_data import control_board
 from rigtools.operators import rename_chain
 from rigtools.operators import parent_along_chain
 from rigtools.operators import weight_paint_proxy
@@ -38,6 +39,7 @@ from rigtools.panels.corrective import join_split as corrective_join_split
 from rigtools.panels.corrective import corrective_panel
 from rigtools.panels.bone_style import bone_style_panel
 from rigtools.panels import shape_keys
+from rigtools.panels import control_boards
 from rigtools.data_viewer import panel as data_viewer_panel
 from rigtools.rig_ui import collections_panel
 from rigtools.rig_ui import snapping_data
@@ -60,6 +62,7 @@ modules = (
 	migrate_rig,
 	twist_chain,
 	shape_key_connections,
+	control_board,
 
 	assembly_data,
 	config_registry,
@@ -81,6 +84,7 @@ modules = (
 	pin_to_mesh,
 	bone_style_panel,
 	shape_keys,
+	control_boards,
 
 	snapping_data,
 	rig_ui,
